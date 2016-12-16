@@ -1,0 +1,153 @@
+// ----------------------------------------------------------------------
+// File: qclient.hh
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * qclient - A simple redis C++ client with support for redirects       *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#ifndef __QCLIENT_QCLIENT_H__
+#define __QCLIENT_QCLIENT_H__
+
+#include <sys/eventfd.h>
+#include <mutex>
+#include <future>
+#include <queue>
+#include <map>
+#include <hiredis/hiredis.h>
+#include <unistd.h>
+#include <iostream>
+#include <string.h>
+
+namespace qclient {
+
+typedef std::shared_ptr<redisReply> redisReplyPtr;
+
+class EventFD {
+public:
+  EventFD() {
+    fd = eventfd(0, EFD_NONBLOCK);
+  }
+
+  ~EventFD() {
+    close();
+  }
+
+  void close() {
+    if(fd >= 0) {
+      ::close(fd);
+      fd = -1;
+    }
+  }
+
+  void notify(int64_t val = 1) {
+    int rc = write(fd, &val, sizeof(val));
+    if(rc != sizeof(val)) {
+      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code " << rc << ": " << strerror(errno) << std::endl;
+    }
+  }
+
+  int getFD() {
+    return fd;
+  }
+private:
+  int fd = -1;
+};
+
+class QClient {
+public:
+  QClient(const std::string &host, const int port, bool redirects = false, std::vector<std::string> handshake = {});
+  ~QClient();
+
+  // disallow copy and assign
+  QClient(const QClient&) = delete;
+  void operator=(const QClient&) = delete;
+
+  std::future<redisReplyPtr> execute(const char *buffer, size_t len);
+  std::future<redisReplyPtr> execute(const std::vector<std::string> &req);
+  std::future<redisReplyPtr> execute(size_t nchunks, const char **chunks, const size_t *sizes);
+
+  //----------------------------------------------------------------------------
+  // Convenience function, used mainly in tests.
+  // This makes it possible to call exec("get", "key") instead of having to
+  // build a vector.
+  //
+  // Extremely useful in macros, which don't support universal initialization.
+  //----------------------------------------------------------------------------
+
+  template<typename... Args>
+  std::future<redisReplyPtr> exec(const Args... args) {
+    return this->execute(std::vector<std::string> {args...});
+  }
+
+  //----------------------------------------------------------------------------
+  // Slight hack needed for unit tests. After an intercept has been added, any
+  // connections to (host, ip) will be redirected to (host2, ip2) - usually
+  // localhost.
+  //----------------------------------------------------------------------------
+  static void addIntercept(const std::string &host, const int port,
+                           const std::string &host2, const int port2);
+  static void clearIntercepts();
+private:
+  // the host:port pair given in the constructor
+  std::string host;
+  int port;
+
+  // the host:port pair we're actually connecting to
+  std::string targetHost;
+  int targetPort;
+
+  // the host:port pair given in a redirect
+  std::string redirectedHost;
+  int redirectedPort;
+  bool redirectionActive = false;
+
+  bool transparentRedirects;
+
+  std::atomic<int64_t> shutdown {false};
+
+  void startEventLoop();
+  void eventLoop();
+  void connect();
+
+  std::atomic<int> sock {-1};
+  redisReader *reader = nullptr;
+
+  void cleanup();
+  bool feed(const char *buf, size_t len);
+  void connectTCP();
+
+  std::recursive_mutex mtx;
+  std::queue<std::promise<redisReplyPtr>> promises;
+  EventFD shutdownEventFD;
+
+  void discoverIntercept();
+  void processRedirection();
+  std::vector<std::string> handshakeCommand;
+  std::thread eventLoopThread;
+
+  //----------------------------------------------------------------------------
+  // We consult this map each time a new connection is to be opened
+  //----------------------------------------------------------------------------
+  static std::map<std::pair<std::string, int>, std::pair<std::string, int>> intercepts;
+  static std::mutex interceptsMutex;
+};
+
+}
+
+#endif
