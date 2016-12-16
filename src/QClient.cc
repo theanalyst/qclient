@@ -123,7 +123,6 @@ bool QClient::feed(const char *buf, size_t len) {
 
 void QClient::cleanup() {
   if(sock > 0) {
-    std::cerr << "shutting down socket" << std::endl;
     ::shutdown(sock, SHUT_RDWR);
     close(sock);
     sock = -1;
