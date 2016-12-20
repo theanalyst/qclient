@@ -34,53 +34,70 @@
 #include <iostream>
 #include <string.h>
 
-namespace qclient {
+namespace qclient
+{
 
 typedef std::shared_ptr<redisReply> redisReplyPtr;
 
-class EventFD {
+class EventFD
+{
 public:
-  EventFD() {
+  EventFD()
+  {
     fd = eventfd(0, EFD_NONBLOCK);
   }
 
-  ~EventFD() {
+  ~EventFD()
+  {
     close();
   }
 
-  void close() {
-    if(fd >= 0) {
+  void close()
+  {
+    if (fd >= 0) {
       ::close(fd);
       fd = -1;
     }
   }
 
-  void notify(int64_t val = 1) {
+  void notify(int64_t val = 1)
+  {
     int rc = write(fd, &val, sizeof(val));
-    if(rc != sizeof(val)) {
-      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code " << rc << ": " << strerror(errno) << std::endl;
+
+    if (rc != sizeof(val)) {
+      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code "
+		<< rc << ": " << strerror(errno) << std::endl;
     }
   }
 
-  int getFD() {
+  inline int getFD() const
+  {
     return fd;
   }
+
 private:
   int fd = -1;
 };
 
-class QClient {
+//------------------------------------------------------------------------------
+//! Class QClient
+//------------------------------------------------------------------------------
+class QClient
+{
 public:
-  QClient(const std::string &host, const int port, bool redirects = false, std::vector<std::string> handshake = {});
+  QClient(const std::string& host, const int port, bool redirects = false,
+	  std::vector<std::string> handshake = {});
+
   ~QClient();
 
-  // disallow copy and assign
+  // Disallow copy and assign
   QClient(const QClient&) = delete;
   void operator=(const QClient&) = delete;
 
-  std::future<redisReplyPtr> execute(const char *buffer, size_t len);
-  std::future<redisReplyPtr> execute(const std::vector<std::string> &req);
-  std::future<redisReplyPtr> execute(size_t nchunks, const char **chunks, const size_t *sizes);
+  std::future<redisReplyPtr> execute(const char* buffer, size_t len);
+  std::future<redisReplyPtr> execute(const std::vector<std::string>& req);
+  std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
+				     const size_t* sizes);
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
@@ -89,9 +106,9 @@ public:
   //
   // Extremely useful in macros, which don't support universal initialization.
   //----------------------------------------------------------------------------
-
   template<typename... Args>
-  std::future<redisReplyPtr> exec(const Args... args) {
+  std::future<redisReplyPtr> exec(const Args... args)
+  {
     return this->execute(std::vector<std::string> {args...});
   }
 
@@ -100,9 +117,10 @@ public:
   // connections to (host, ip) will be redirected to (host2, ip2) - usually
   // localhost.
   //----------------------------------------------------------------------------
-  static void addIntercept(const std::string &host, const int port,
-                           const std::string &host2, const int port2);
+  static void addIntercept(const std::string& host, const int port,
+			   const std::string& host2, const int port2);
   static void clearIntercepts();
+
 private:
   // the host:port pair given in the constructor
   std::string host;
@@ -125,11 +143,11 @@ private:
   void eventLoop();
   void connect();
 
-  std::atomic<int> sock {-1};
-  redisReader *reader = nullptr;
+  std::atomic<int> sock { -1};
+  redisReader* reader = nullptr;
 
   void cleanup();
-  bool feed(const char *buf, size_t len);
+  bool feed(const char* buf, size_t len);
   void connectTCP();
 
   std::recursive_mutex mtx;
@@ -144,8 +162,8 @@ private:
   //----------------------------------------------------------------------------
   // We consult this map each time a new connection is to be opened
   //----------------------------------------------------------------------------
-  static std::map<std::pair<std::string, int>, std::pair<std::string, int>> intercepts;
   static std::mutex interceptsMutex;
+  static std::map<std::pair<std::string, int>, std::pair<std::string, int>> intercepts;
 };
 
 }
