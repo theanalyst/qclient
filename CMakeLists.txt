@@ -42,6 +42,10 @@ target_link_libraries(
   fmt
   ${HIREDIS_LIBRARIES})
 
+set_target_properties(
+  qclient PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
