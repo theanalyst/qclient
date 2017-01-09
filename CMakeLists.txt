@@ -40,6 +40,7 @@ include_directories(
 add_library(qclient STATIC
   src/QClient.cc
   src/QHash.cc
+  src/QSet.cc
 )
 
 target_link_libraries(

@@ -238,7 +238,8 @@ std::pair<std::string, std::unordered_map<std::string, std::string> >
 QHash::hscan(const std::string& cursor, long long count)
 {
   auto future = mClient->execute({"HSCAN", mKey, cursor, "COUNT",
-	std::to_string(count)});
+				  std::to_string(count)
+				 });
   redisReplyPtr reply = future.get();
 
   if (!reply) {
@@ -252,7 +253,8 @@ QHash::hscan(const std::string& cursor, long long count)
   // First element is the new cursor
   std::pair<std::string, std::unordered_map<std::string, std::string> > retc_pair;
   retc_pair.first = new_cursor;
-  redisReply* array = reply->element[1];  // move to the array part of the response
+  // Get array part of the response
+  redisReply* array = reply->element[1];
 
   for (unsigned long i = 0; i < array->elements; i += 2) {
     retc_pair.second.emplace(

@@ -43,9 +43,8 @@ public:
   //----------------------------------------------------------------------------
   //!  Constructor
   //!
-  //! @param fs XRootD fs client object used for sending requests
+  //! @param fs qclient object used for sending requests
   //! @param hash_key the key name for the hash
-  //! @return string
   //----------------------------------------------------------------------------
   QHash(QClient& cl, const std::string& hash_key):
     mClient(&cl), mKey(hash_key)
@@ -56,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   ~QHash()
   {
-    mClient = NULL;
+    mClient = nullptr;
   }
 
   //----------------------------------------------------------------------------
