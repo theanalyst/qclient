@@ -46,7 +46,7 @@ std::map<std::pair<std::string, int>, std::pair<std::string, int>>
 
 
 void QClient::addIntercept(const std::string& hostname, int port,
-			   const std::string& host2, int port2)
+                           const std::string& host2, int port2)
 {
   std::lock_guard<std::mutex> lock(interceptsMutex);
   intercepts[std::make_pair(hostname, port)] = std::make_pair(host2, port2);
@@ -62,7 +62,7 @@ void QClient::clearIntercepts()
 // QClient class implementation
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-		 std::vector<std::string> handshake)
+                 std::vector<std::string> handshake)
   : host(host_), port(port_), transparentRedirects(redirects),
     handshakeCommand(handshake)
 {
@@ -78,7 +78,7 @@ QClient::~QClient()
 }
 
 std::future<redisReplyPtr> QClient::execute(const char* buffer,
-					    const size_t len)
+                                            const size_t len)
 {
   std::lock_guard<std::recursive_mutex> lock(mtx);
 
@@ -95,7 +95,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
 }
 
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
-					    const size_t* sizes)
+                                            const size_t* sizes)
 {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
@@ -132,15 +132,15 @@ bool QClient::feed(const char* buf, size_t len)
       redisReply* rr = (redisReply*) reply;
 
       if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
-	  strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
-	std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
-	RedisServer redirect;
+          strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
+        std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
+        RedisServer redirect;
 
-	if (response.size() == 3 && parseServer(response[2], redirect)) {
-	  redirectedHost = redirect.host;
-	  redirectedPort = redirect.port;
-	  return false;
-	}
+        if (response.size() == 3 && parseServer(response[2], redirect)) {
+          redirectedHost = redirect.host;
+          redirectedPort = redirect.port;
+          return false;
+        }
       }
 
       promises.front().set_value(redisReplyPtr((redisReply*) reply, freeReplyObject));
@@ -181,9 +181,9 @@ void QClient::connectTCP()
   hints.ai_flags = AI_CANONNAME;
 
   if ((rv = getaddrinfo(targetHost.c_str(), std::to_string(targetPort).c_str(),
-			&hints, &servinfo)) != 0) {
+                        &hints, &servinfo)) != 0) {
     std::cerr << "qclient: error when resolving " << targetHost << ": " <<
-	      gai_strerror(rv) << std::endl;
+              gai_strerror(rv) << std::endl;
     return;
   }
 
@@ -247,22 +247,22 @@ void QClient::eventLoop()
       lock.lock();
 
       if (shutdown) {
-	break;
+        break;
       }
 
       // legit connection, reset backoff
       backoff = std::chrono::milliseconds(1);
 
       if (polls[1].revents != 0) {
-	int bytes = recv(sock, buffer, BUFFER_SIZE, 0);
+        int bytes = recv(sock, buffer, BUFFER_SIZE, 0);
 
-	if (bytes <= 0) {
-	  break;
-	}
+        if (bytes <= 0) {
+          break;
+        }
 
-	if (!feed(buffer, bytes)) {
-	  break;
-	}
+        if (!feed(buffer, bytes)) {
+          break;
+        }
       }
     }
 
@@ -286,13 +286,13 @@ void QClient::processRedirection()
 {
   if (!redirectedHost.empty() && redirectedPort > 0) {
     std::cerr << "qclient: redirecting to " << redirectedHost << ":" <<
-	      redirectedPort << std::endl;
+              redirectedPort << std::endl;
     targetHost = redirectedHost;
     targetPort = redirectedPort;
     redirectionActive = true;
   } else if (redirectionActive) {
     std::cerr << "qclient: redirecting back to original host " << host << ":" <<
-	      port << std::endl;
+              port << std::endl;
     redirectionActive = false;
   }
 
