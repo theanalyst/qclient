@@ -13,6 +13,7 @@ include(GNUInstallDirs)
 # Search for dependencies
 #-------------------------------------------------------------------------------
 find_package(hiredis REQUIRED)
+find_package(GTest REQUIRED)
 
 #-------------------------------------------------------------------------------
 # Compiler options
@@ -23,6 +24,7 @@ add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -std=c++11 -g3 -fPIC
 # Build fmt library for string conversions
 #-------------------------------------------------------------------------------
 add_subdirectory(src/fmt)
+add_subdirectory(test)
 
 #-------------------------------------------------------------------------------
 # Build source
