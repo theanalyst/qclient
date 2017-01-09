@@ -13,4 +13,5 @@ add_executable(
 target_link_libraries(
   tests_qclient
   qclient
-  ${GTEST_BOTH_LIBRARIES})
+  ${GTEST_BOTH_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT})
