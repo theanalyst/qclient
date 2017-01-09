@@ -25,6 +25,7 @@
 #define __QCLIENT_UTILS_H__
 
 #include <limits.h>
+#include "fmt/fmt/format.h"
 
 namespace qclient {
 
@@ -63,6 +64,21 @@ inline bool parseServer(const std::string &str, RedisServer &srv) {
 
   srv = RedisServer { parts[0], (int) port };
   return true;
+}
+
+//------------------------------------------------------------------------------
+//! Fast convert element to string representation
+//!
+//! @param elem element to be converted
+//!
+//! @return string representation
+//------------------------------------------------------------------------------
+template <typename T>
+static std::string stringify(const T& elem)
+{
+  fmt::MemoryWriter out;
+  out << elem;
+  return out.str();
 }
 
 }

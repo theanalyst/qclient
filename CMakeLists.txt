@@ -12,39 +12,39 @@ include(GNUInstallDirs)
 #-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
-
 find_package(hiredis REQUIRED)
 
 #-------------------------------------------------------------------------------
 # Compiler options
 #-------------------------------------------------------------------------------
-
 add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -std=c++11 -g3 -fPIC)
+
+#-------------------------------------------------------------------------------
+# Build fmt library for string conversions
+#-------------------------------------------------------------------------------
+add_subdirectory(src/fmt)
 
 #-------------------------------------------------------------------------------
 # Build source
 #-------------------------------------------------------------------------------
-
 include_directories(
-  ${HIREDIS_INCLUDE_DIRS}
-  include/
-)
+  ${CMAKE_SOURCE_DIR}/include/
+  ${HIREDIS_INCLUDE_DIRS})
 
 add_library(qclient STATIC
   src/QClient.cc
+  src/QHash.cc
 )
 
 target_link_libraries(
   qclient
-  ${HIREDIS_LIBRARIES}
-)
+  fmt
+  ${HIREDIS_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
-
 install(
   TARGETS qclient
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
