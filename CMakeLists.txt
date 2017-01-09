@@ -56,6 +56,13 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
+  FILES
+  include/qclient/QClient.hh
+  include/qclient/QHash.hh
+  include/qclient/QSet.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qclient)
+
+install(
   TARGETS qclient
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
