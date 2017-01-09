@@ -8,7 +8,10 @@ include_directories(
 
 add_executable(
   tests_qclient
-  hash.cc)
+  # TODO (esindril): uncomment this when all functionality for hashes is
+  # available  
+  #hash.cc
+  set.cc)
 
 target_link_libraries(
   tests_qclient

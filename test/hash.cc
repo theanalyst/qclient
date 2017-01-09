@@ -34,7 +34,7 @@ static int sPort = 7777;
 //------------------------------------------------------------------------------
 TEST(QHash, HashSync) {
   QClient cl{sHost, sPort};
-  std::string hash_key = "redox_test:hash";
+  std::string hash_key = "qclient_test:hash";
   QHash qhash{cl,hash_key};
   std::vector<std::string> fields {"val1", "val2", "val3"};
   std::vector<int> ivalues {10, 20, 30};
@@ -119,8 +119,8 @@ TEST(QHash, HashSync) {
   }
 
   ASSERT_TRUE(map.size() == ret_map.size());
-  auto fut = cl.execute({"DEL", hash_key});
-  ASSERT_EQ(1, fut.get()->integer);
+  auto future1 = cl.execute({"DEL", hash_key});
+  ASSERT_EQ(1, future1.get()->integer);
 }
 
 /*
@@ -129,7 +129,7 @@ TEST(QHash, HashSync) {
 //------------------------------------------------------------------------------
 TEST_F(QHash, HashAsync) {
   connect();
-  std::string hash_key = "redox_test:hash_async";
+  std::string hash_key = "qclient_test:hash_async";
   QHash qhash(rdx,hash_key);
   ASSERT_EQ(0, qhash.hlen());
   std::string field, value;
@@ -223,141 +223,6 @@ TEST_F(QHash, HashAsync) {
 
   ASSERT_EQ(0, lst_errors.size());
   ASSERT_EQ(0, qhash.hlen());
-  rdx.disconnect();
-}
-
-//------------------------------------------------------------------------------
-// Test Set class - synchronous
-//------------------------------------------------------------------------------
-TEST_F(QSet, SetSync) {
-  connect();
-  std::string set_key = "redox_test:set_sync";
-  RedoxSet rdx_set(rdx,set_key);
-  std::vector<std::string> members = {"200", "300", "400"};
-
-  ASSERT_EQ(members.size(), rdx_set.sadd(members));
-  ASSERT_TRUE(rdx_set.sadd("100"));
-  ASSERT_FALSE(rdx_set.sadd("400"));
-  (void) members.push_back("100");
-  ASSERT_TRUE(rdx_set.sismember("300"));
-  ASSERT_FALSE(rdx_set.sismember("1500"));
-  ASSERT_EQ(4, rdx_set.scard());
-  set<std::string> ret_members = rdx_set.smembers();
-
-  for (const auto& elem: members)
-    ASSERT_TRUE(ret_members.find(elem) != ret_members.end());
-
-  ASSERT_TRUE(rdx_set.srem("100"));
-  ASSERT_EQ(3, rdx_set.srem( members));
-  ASSERT_FALSE(rdx_set.srem("100"));
-  ASSERT_EQ(0, rdx_set.scard());
-
-  // Test SSCAN functionality
-  members.clear();
-
-  for (int i = 0; i < 3000; ++i) {
-    members.push_back(std::to_string(i));
-    ASSERT_TRUE(rdx_set.sadd(std::to_string(i)));
-  }
-
-  long long cursor = 0;
-  long long count = 1000;
-  std::pair< long long, std::vector<std::string> > reply;
-
-  do {
-    reply = rdx_set.sscan(cursor, count);
-    cursor = reply.first;
-
-    for (auto&& elem: reply.second) {
-      ASSERT_TRUE(std::find(members.begin(), members.end(), elem) !=
-		  members.end());
-    }
-  }
-  while (cursor);
-
-  print_and_check_sync(rdx.commandSync<int>({"DEL", set_key}), 1);
-  rdx.disconnect();
-}
-
-//------------------------------------------------------------------------------
-// Test Set class - asynchronous
-//------------------------------------------------------------------------------
-TEST_F(QSet, SetAsync) {
-  connect();
-  std::string set_key = "redox_test:set_async";
-  RedoxSet rdx_set(rdx,set_key);
-
-  std::vector<std::string> members = {"200", "300", "400"};
-  std::list<std::string> lst_errors;
-  std::atomic<std::uint64_t> num_asyn_req {0};
-  std::mutex mutex;
-  std::condition_variable cond_var;
-  auto callback = [&](Command<int>& c) {
-    if ((c.ok() && c.reply() != 1) || !c.ok()) {
-      std::ostringstream oss;
-      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
-      lst_errors.emplace(lst_errors.end(), oss.str());
-    }
-
-    if (--num_asyn_req == 0) {
-      cond_var.notify_one();
-    }
-  };
-
-  std::string value;
-  // Add some elements
-  for (auto i = 0; i < 100; ++i) {
-    value = "val" + std::to_string(i);
-    num_asyn_req++;
-    rdx_set.sadd(value, callback);
-  }
-
-  // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
-
-  ASSERT_EQ(0, lst_errors.size());
-  // Add some more elements that will trigger some errors
-  for (auto i = 90; i < 110; ++i) {
-    value = "val" + std::to_string(i);
-    num_asyn_req++;
-    rdx_set.sadd(value, callback);
-  }
-
-  // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
-
-  ASSERT_EQ(10, lst_errors.size());
-  ASSERT_EQ(110, rdx_set.scard());
-  lst_errors.clear();
-
-  // Remove all elements
-  for (auto i = 0; i < 110; ++i)
-  {
-    num_asyn_req++;
-    value = "val" + std::to_string(i);
-    rdx_set.srem(value, callback);
-  }
-
-  // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
-
-  ASSERT_EQ(0, lst_errors.size());
-  print_and_check_sync(rdx.commandSync<int>({"DEL", set_key}), 0);
   rdx.disconnect();
 }
 */

@@ -128,12 +128,13 @@ std::set<std::string> QSet::smembers()
 //------------------------------------------------------------------------------
 // Redis SET SCAN command - synchronous
 //------------------------------------------------------------------------------
-std::pair< long long, std::vector<std::string> >
-QSet::sscan(long long cursor, long long count)
+std::pair< std::string, std::vector<std::string> >
+QSet::sscan(std::string cursor, long long count)
 {
-  auto future = mClient->execute({"SSCAN", mKey, std::to_string(cursor),
-				  "COUNT", std::to_string(count)
-				 });
+  // TODO (gbitzes): add support for COUNT parameter
+  //  auto future = mClient->execute({"SSCAN", mKey, cursor, "COUNT",
+  //  std::to_string(count)});
+  auto future = mClient->execute({"SSCAN", mKey, cursor});
   redisReplyPtr reply = future.get();
 
   if (!reply) {
@@ -142,11 +143,10 @@ QSet::sscan(long long cursor, long long count)
   }
 
   // Parse the Redis reply
-  long long new_cursor = std::stoll({reply->element[0]->str,
-				     static_cast<unsigned int>(reply->element[0]->len)
-				    });
+  std::string new_cursor {reply->element[0]->str,
+			  static_cast<unsigned int>(reply->element[0]->len)};
   // First element is the new cursor
-  std::pair<long long, std::vector<std::string> > retc_pair;
+  std::pair<std::string, std::vector<std::string> > retc_pair;
   retc_pair.first = new_cursor;
   // Get arrary part of the response
   redisReply* reply_ptr =  reply->element[1];

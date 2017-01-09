@@ -185,8 +185,8 @@ public:
   //! @return pair representing the cursor value and a vector of the elements
   //!          returned in the current step
   //----------------------------------------------------------------------------
-  std::pair< long long, std::vector<std::string> >
-  sscan(long long cursor, long long count = 1000);
+  std::pair< std::string, std::vector<std::string> >
+  sscan(std::string cursor, long long count = 1000);
 
 private:
   QClient* mClient; ///< Redox client object
@@ -206,7 +206,7 @@ std::future<redisReplyPtr> QSet::sadd_async(const T& member)
 template <typename T>
 bool QSet::sadd(const T& member)
 {
-  auto future = sadd_aysnc(member);
+  auto future = sadd_async(member);
   redisReplyPtr reply = future.get();
 
   if (!reply) {
