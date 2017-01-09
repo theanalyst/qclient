@@ -28,7 +28,8 @@ add_subdirectory(src/fmt)
 # Build source
 #-------------------------------------------------------------------------------
 include_directories(
-  ${CMAKE_SOURCE_DIR}/include/
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/
   ${HIREDIS_INCLUDE_DIRS})
 
 add_library(qclient STATIC

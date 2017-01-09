@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "qclient/QClient.hh"
-#include "Utils.hh"
+#include "qclient/Utils.hh"
 
 #include <unistd.h>
 #include <string.h>
