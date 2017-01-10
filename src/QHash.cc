@@ -107,7 +107,7 @@ QHash::hgetall()
   }
 
   std::vector<std::string> resp;
-  resp.resize(reply->elements);
+  resp.reserve(reply->elements);
 
   for (size_t i = 0; i < reply->elements; ++i) {
     resp.emplace_back(reply->element[i]->str, reply->element[i]->len);
@@ -192,7 +192,7 @@ QHash::hkeys()
   }
 
   std::vector<std::string> resp;
-  resp.resize(reply->elements);
+  resp.reserve(reply->elements);
 
   for (size_t i = 0; i < reply->elements; ++i) {
     resp.emplace_back(reply->element[i]->str, reply->element[i]->len);
@@ -222,7 +222,7 @@ QHash::hvals()
   }
 
   std::vector<std::string> resp;
-  resp.resize(reply->elements);
+  resp.reserve(reply->elements);
 
   for (size_t i = 0; i < reply->elements; ++i) {
     resp.emplace_back(reply->element[i]->str, reply->element[i]->len);

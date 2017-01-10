@@ -72,4 +72,14 @@ AsyncHandler::GetResponses()
   return mVectResponses;
 }
 
+//------------------------------------------------------------------------------
+// Register new future
+//------------------------------------------------------------------------------
+void
+AsyncHandler::Register(std::future<redisReplyPtr>&& future, OpType op)
+{
+  std::lock_guard<std::mutex> lock(mVectMutex);
+  mVectRequests.emplace_back(std::move(future), op);
+}
+
 QCLIENT_NAMESPACE_END

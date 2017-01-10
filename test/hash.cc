@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include "qclient/QHash.hh"
+#include "qclient/AsyncHandler.hh"
 #include <algorithm>
 
 using namespace qclient;
@@ -49,7 +50,7 @@ TEST(QHash, HashSync) {
 
   ASSERT_FALSE(qhash.hexists(fields[1]));
   ASSERT_TRUE(qhash.hsetnx(fields[1], svalues[1]));
-  ASSERT_TRUE(qhash.hsetnx(fields[1], svalues[1]));
+  ASSERT_FALSE(qhash.hsetnx(fields[1], svalues[1]));
   ASSERT_EQ(svalues[1], qhash.hget(fields[1]));
   ASSERT_TRUE(qhash.hdel(fields[1]));
 
@@ -123,106 +124,39 @@ TEST(QHash, HashSync) {
   ASSERT_EQ(1, future1.get()->integer);
 }
 
-/*
 //------------------------------------------------------------------------------
 // Test HASH interface - asynchronous
 //------------------------------------------------------------------------------
-TEST_F(QHash, HashAsync) {
-  connect();
+TEST(QHash, HashAsync)
+{
+  QClient cl{sHost, sPort};
   std::string hash_key = "qclient_test:hash_async";
-  QHash qhash(rdx,hash_key);
+  QHash qhash(cl, hash_key);
   ASSERT_EQ(0, qhash.hlen());
   std::string field, value;
-  std::list<std::string> lst_errors;
-  std::atomic<std::uint64_t> num_async_req {0};
-  std::condition_variable wait_cv;
-  std::mutex mutex;
   std::uint64_t num_elem = 100;
-  auto callback_set = [&](Command<int>& c) {
-    if (!c.ok()) {
-      if (c.cmd_.size() >= 3) {
-	std::string cmd_field = c.cmd_[2];
-	lst_errors.emplace(lst_errors.end(), cmd_field);
-      }
-    }
-
-    if (!--num_async_req) {
-      wait_cv.notify_one();
-    }
-
-    c.free();
-  };
+  qclient::AsyncHandler ah;
 
   // Push asynchronously num_elem
   for (std::uint64_t i = 0; i < num_elem; ++i) {
-    num_async_req++;
     field = "field" + std::to_string(i);
     value = std::to_string(i);
-    qhash.hset(field, value, callback_set);
+    ah.Register(qhash.hset_async(field, value), OpType::HSET);
   }
 
-  {
-    // Wait for all the async requests
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_async_req)
-      wait_cv.wait(lock);
-  }
-
-  ASSERT_EQ(0, lst_errors.size());
+  ASSERT_TRUE(ah.Wait());
 
   // Get map length asynchronously
-  long long int length = 0;
-  auto callback_len = [&](Command<long long int>& c) {
-    if (!c.ok()) {
-      length = -1;
-    }
-    else {
-      length = c.reply();
-    }
-
-    c.free();
-    wait_cv.notify_one();
-  };
-
-  qhash.hlen(callback_len);
-
-  {
-    // Wait for length async response
-    std::unique_lock<std::mutex> lock(mutex);
-    wait_cv.wait(lock);
-  }
-
-  ASSERT_EQ(num_elem, length);
+  auto future = qhash.hlen_async();
+  redisReplyPtr reply = future.get();
+  ASSERT_EQ(num_elem, reply->integer);  
 
   // Delete asynchronously all elements
-  auto callback_del = [&](Command<int>& c) {
-    if (!c.ok()) {
-      if (c.cmd_.size() >= 3) {
-	std::string cmd_field = c.cmd_[2];
-	lst_errors.emplace(lst_errors.end(), cmd_field);
-      }
-    }
-
-    if (!--num_async_req) {
-      wait_cv.notify_one();
-    }
-  };
-
   for (std::uint64_t i = 0; i <= num_elem; ++i) {
-    num_async_req++;
     field = "field" + std::to_string(i);
-    qhash.hdel(field, callback_del);
+    ah.Register(qhash.hdel_async(field), OpType::HDEL);
   }
 
-  {
-    // Wait for all the async requests
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_async_req)
-      wait_cv.wait(lock);
-  }
-
-  ASSERT_EQ(0, lst_errors.size());
+  ASSERT_TRUE(ah.Wait());
   ASSERT_EQ(0, qhash.hlen());
-  rdx.disconnect();
 }
-*/

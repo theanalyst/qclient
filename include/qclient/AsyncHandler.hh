@@ -24,8 +24,7 @@
 #pragma once
 #include "qclient/Namespace.hh"
 #include "qclient/QSet.hh"
-#include <typeinfo>
-#include <typeindex>
+#include "qclient/QHash.hh"
 #include <list>
 
 QCLIENT_NAMESPACE_BEGIN
@@ -33,7 +32,7 @@ QCLIENT_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Enum class OpType - asynchronous requests type that can be handled by the
 //! AsyncHandler class
-//------------------------------------------------------------------------------/
+//------------------------------------------------------------------------------
 enum class OpType {
   NONE, SADD, SREM, HSET, HDEL, HLEN
 };
@@ -58,12 +57,10 @@ public:
   //----------------------------------------------------------------------------
   //! Register a new async call
   //!
-  //! @param fn member function of the object
-  //! @param obj object that will trigger the async request
-  //! @param arg argument for the member function
+  //! @param future future object of async request
+  //! @param op operation type
   //----------------------------------------------------------------------------
-  template <typename TObj, typename TFunc, typename Args>
-  void Register(TObj& obj, TFunc fn, Args& arg);
+  void Register(std::future<redisReplyPtr>&& future, OpType op);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -81,15 +78,6 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Get type of asynchronous operation based on the function that is begin
-  //! called
-  //!
-  //! @return type of asychronous operation
-  //----------------------------------------------------------------------------
-  template <typename TFunc, typename T>
-  OpType GetType();
-
-  //----------------------------------------------------------------------------
   //! Handle response depending on the operation type
   //!
   //! @param reply redisReply pointer object
@@ -103,36 +91,5 @@ private:
   std::mutex mVectMutex; ///< Mutex protecting access to the vector
   std::list<std::string> mErrors; ///< List of errors
 };
-
-//------------------------------------------------------------------------------
-// Get type of async operation based on the function that is begin called
-//------------------------------------------------------------------------------
-template <typename TFunc, typename T>
-OpType AsyncHandler::GetType()
-{
-  const std::type_info& fn_type = typeid(TFunc);
-
-  if (std::type_index(typeid(&qclient::QSet::sadd_async<T>)).hash_code() ==
-      fn_type.hash_code()) {
-    return OpType::SADD;
-  } else if (std::type_index(typeid(&QSet::srem_async<T>)).hash_code() ==
-             fn_type.hash_code()) {
-    return OpType::SREM;
-  } else {
-    return OpType::NONE;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Register new async call
-//------------------------------------------------------------------------------
-template <typename TObj, typename TFunc, typename Args>
-void AsyncHandler::Register(TObj& obj, TFunc fn, Args& arg)
-{
-  OpType op_type = GetType<TFunc, Args >();
-  std::future<redisReplyPtr> future = (obj.*fn)(arg);
-  std::lock_guard<std::mutex> lock(mVectMutex);
-  mVectRequests.emplace_back(std::move(future), op_type);
-}
 
 QCLIENT_NAMESPACE_END
