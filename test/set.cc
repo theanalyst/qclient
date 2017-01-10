@@ -23,7 +23,9 @@
 
 #include <gtest/gtest.h>
 #include "qclient/QSet.hh"
+#include "qclient/AsyncHandler.hh"
 #include <set>
+#include <list>
 #include <algorithm>
 
 using namespace qclient;
@@ -74,7 +76,7 @@ TEST(QSet, SetSync)
 
     for (auto && elem : reply.second) {
       ASSERT_TRUE(std::find(members.begin(), members.end(), elem) !=
-		  members.end());
+                  members.end());
     }
   } while (cursor != "0");
 
@@ -85,83 +87,48 @@ TEST(QSet, SetSync)
 //------------------------------------------------------------------------------
 // Test Set class - asynchronous
 //------------------------------------------------------------------------------
-/*
-TEST(QSet, SetAsync) {
-  connect();
+TEST(QSet, SetAsync)
+{
+  QClient cl{sHost, sPort};
   std::string set_key = "qclient_test:set_async";
-  QSet qset(cl,set_key);
-
+  QSet qset(cl, set_key);
   std::vector<std::string> members = {"200", "300", "400"};
-  std::list<std::string> lst_errors;
-  std::atomic<std::uint64_t> num_asyn_req {0};
-  std::mutex mutex;
-  std::condition_variable cond_var;
-  auto callback = [&](Command<int>& c) {
-    if ((c.ok() && c.reply() != 1) || !c.ok()) {
-      std::ostringstream oss;
-      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
-      lst_errors.emplace(lst_errors.end(), oss.str());
-    }
-
-    if (--num_asyn_req == 0) {
-      cond_var.notify_one();
-    }
-  };
-
+  qclient::AsyncHandler ah;
   std::string value;
+
   // Add some elements
   for (auto i = 0; i < 100; ++i) {
     value = "val" + std::to_string(i);
-    num_asyn_req++;
-    qset.sadd(value, callback);
+    ah.Register(qset, &qclient::QSet::sadd_async<decltype(value)>, value);
   }
 
-  // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
+  ASSERT_TRUE(ah.Wait());
 
-  ASSERT_EQ(0, lst_errors.size());
   // Add some more elements that will trigger some errors
   for (auto i = 90; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    num_asyn_req++;
-    qset.sadd(value, callback);
+    ah.Register(qset, &qclient::QSet::sadd_async<decltype(value)>, value);
   }
 
   // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
-
-  ASSERT_EQ(10, lst_errors.size());
+  ASSERT_FALSE(ah.Wait());
+  std::vector<long long int> resp = ah.GetResponses();
+  ASSERT_EQ(10, std::count_if(resp.begin(), resp.end(),
+                              [](long long int elem) {
+                                return (elem != 1);
+                              }));
   ASSERT_EQ(110, qset.scard());
-  lst_errors.clear();
 
   // Remove all elements
-  for (auto i = 0; i < 110; ++i)
-  {
-    num_asyn_req++;
+  for (auto i = 0; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    qset.srem(value, callback);
+    ah.Register(qset, &qclient::QSet::srem_async<decltype(value)>, value);
   }
 
-  // Wait for all the replies
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    while (num_asyn_req) {
-      cond_var.wait(lock);
-    }
-  }
-
-  ASSERT_EQ(0, lst_errors.size());
-  auto future = cl.execute({"DEL", set_key});
-  ASSERT_EQ(1, future.get()->integer);
+  ASSERT_TRUE(ah.Wait());
+  resp = ah.GetResponses();
+  ASSERT_EQ(0, std::count_if(resp.begin(), resp.end(),
+                             [](long long int elem) {
+                               return (elem != 1);
+                             }));
 }
-*/

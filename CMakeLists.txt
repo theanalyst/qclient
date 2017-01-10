@@ -43,6 +43,7 @@ add_library(qclient STATIC
   src/QClient.cc
   src/QHash.cc
   src/QSet.cc
+  src/AsyncHandler.cc
 )
 
 target_link_libraries(
