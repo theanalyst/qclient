@@ -8,12 +8,17 @@ project(qclient)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(GNUInstallDirs)
+option(PACKAGEONLY "Build without dependencies" OFF)
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
-find_package(hiredis REQUIRED)
-find_package(GTest)
+if (NOT PACKAGEONLY)
+  find_package(hiredis REQUIRED)
+  find_package(GTest)
+else ()
+  message(STATUS "Runing CMake in package only mode.")
+endif()
 
 #-------------------------------------------------------------------------------
 # Compiler options
