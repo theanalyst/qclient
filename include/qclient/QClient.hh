@@ -66,7 +66,7 @@ public:
 
     if (rc != sizeof(val)) {
       std::cerr << "qclient: CRITICAL: could not write to eventFD, return code "
-		<< rc << ": " << strerror(errno) << std::endl;
+                << rc << ": " << strerror(errno) << std::endl;
     }
   }
 
@@ -86,7 +86,7 @@ class QClient
 {
 public:
   QClient(const std::string& host, const int port, bool redirects = false,
-	  std::vector<std::string> handshake = {});
+          std::vector<std::string> handshake = {});
 
   ~QClient();
 
@@ -97,7 +97,7 @@ public:
   std::future<redisReplyPtr> execute(const char* buffer, size_t len);
   std::future<redisReplyPtr> execute(const std::vector<std::string>& req);
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
-				     const size_t* sizes);
+                                     const size_t* sizes);
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
@@ -118,8 +118,28 @@ public:
   // localhost.
   //----------------------------------------------------------------------------
   static void addIntercept(const std::string& host, const int port,
-			   const std::string& host2, const int port2);
+                           const std::string& host2, const int port2);
   static void clearIntercepts();
+
+  //----------------------------------------------------------------------------
+  //! Wrapper function for exists command
+  //!
+  //! @param key key to search for
+  //!
+  //! @return 1 if key exists, 0 if it doesn't, -errno if any error occured
+  //----------------------------------------------------------------------------
+  long long int
+  exists(const std::string& key);
+
+  //----------------------------------------------------------------------------
+  //! Wrapper function for del command
+  //!
+  //! @param key key to be deleted
+  //!
+  //! @return number of keys deleted, -errno if any error occured
+  //----------------------------------------------------------------------------
+  long long int
+  del(const std::string& key);
 
 private:
   // the host:port pair given in the constructor
@@ -163,7 +183,8 @@ private:
   // We consult this map each time a new connection is to be opened
   //----------------------------------------------------------------------------
   static std::mutex interceptsMutex;
-  static std::map<std::pair<std::string, int>, std::pair<std::string, int>> intercepts;
+  static std::map<std::pair<std::string, int>, std::pair<std::string, int>>
+      intercepts;
 };
 
 }

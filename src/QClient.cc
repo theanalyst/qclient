@@ -78,7 +78,7 @@ QClient::~QClient()
 }
 
 std::future<redisReplyPtr> QClient::execute(const char* buffer,
-                                            const size_t len)
+    const size_t len)
 {
   std::lock_guard<std::recursive_mutex> lock(mtx);
 
@@ -95,7 +95,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
 }
 
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
-                                            const size_t* sizes)
+    const size_t* sizes)
 {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
@@ -324,4 +324,36 @@ std::future<redisReplyPtr> QClient::execute(const std::vector<std::string>& req)
   }
 
   return execute(req.size(), cstr, sizes);
+}
+
+//------------------------------------------------------------------------------
+// Wrapper function for exists command
+//------------------------------------------------------------------------------
+long long int
+QClient::exists(const std::string& key)
+{
+  auto future = execute({"EXISTS", key});
+  redisReplyPtr reply = future.get();
+
+  if (!reply) {
+    return -ECOMM; // connection error
+  }
+
+  return reply->integer;
+}
+
+//------------------------------------------------------------------------------
+// Wrapper function for del command
+//------------------------------------------------------------------------------
+long long int
+QClient::del(const std::string& key)
+{
+  auto future = execute({"DEL", key});
+  redisReplyPtr reply = future.get();
+
+  if (!reply) {
+    return -ECOMM; // connection error
+  }
+
+  return reply->integer;
 }
