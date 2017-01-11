@@ -32,14 +32,21 @@ bool
 AsyncHandler::Wait()
 {
   bool is_ok = true;
-  OpType op_type = OpType::NONE;
+  //OpType op_type = OpType::NONE;
   std::lock_guard<std::mutex> lock(mVectMutex);
   mVectResponses.clear();
 
   for (auto& elem : mVectRequests) {
     auto& future = std::get<0>(elem);
-    op_type = std::get<1>(elem);
+    //   op_type = std::get<1>(elem);
     redisReplyPtr reply = future.get();
+
+    // Failed to contact the server
+    if (!reply) {
+      mVectResponses.emplace_back(-ECOMM);
+      is_ok &= false;
+      continue;
+    }
 
     if ((reply->type == REDIS_REPLY_ERROR) ||
         (reply->type != REDIS_REPLY_INTEGER)) {
@@ -49,13 +56,6 @@ AsyncHandler::Wait()
     }
 
     mVectResponses.emplace_back(reply->integer);
-
-    if ((op_type == OpType::SADD) || (op_type == OpType::HSET)) {
-      if (reply->integer == 0) {
-        is_ok &= false;
-        continue;
-      }
-    }
   }
 
   mVectRequests.clear();

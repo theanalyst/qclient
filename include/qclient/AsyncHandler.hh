@@ -34,7 +34,7 @@ QCLIENT_NAMESPACE_BEGIN
 //! AsyncHandler class
 //------------------------------------------------------------------------------
 enum class OpType {
-  NONE, SADD, SREM, HSET, HDEL, HLEN
+  NONE, SADD, SREM, HSET, HDEL, HLEN, DEL
 };
 
 //------------------------------------------------------------------------------
