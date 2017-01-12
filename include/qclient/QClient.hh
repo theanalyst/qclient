@@ -141,6 +141,16 @@ public:
   long long int
   del(const std::string& key);
 
+  //----------------------------------------------------------------------------
+  //! Wrapper function for del async command
+  //!
+  //! @param key key to be deleted
+  //!
+  //! @return future object containing the response
+  //----------------------------------------------------------------------------
+  std::future<redisReplyPtr>
+  del_async(const std::string& key);
+
 private:
   // the host:port pair given in the constructor
   std::string host;

@@ -89,6 +89,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
     return prom.get_future();
   }
 
+  // TODO: handle send errors
   send(sock, buffer, len, 0);
   promises.emplace();
   return promises.back().get_future();
@@ -336,10 +337,26 @@ QClient::exists(const std::string& key)
   redisReplyPtr reply = future.get();
 
   if (!reply) {
-    return -ECOMM; // connection error
+    throw std::runtime_error("[FATAL] Error exists key: " + key +
+                             ": No connection");
+  }
+
+  if (reply->type != REDIS_REPLY_INTEGER) {
+    throw std::runtime_error("[FATAL] Error exists key: " + key +
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
+}
+
+//----------------------------------------------------------------------------
+//! Wrapper function for del async command
+//----------------------------------------------------------------------------
+std::future<redisReplyPtr>
+QClient::del_async(const std::string& key)
+{
+  return execute({"DEL", key});
 }
 
 //------------------------------------------------------------------------------
@@ -348,11 +365,18 @@ QClient::exists(const std::string& key)
 long long int
 QClient::del(const std::string& key)
 {
-  auto future = execute({"DEL", key});
+  auto future = del_async(key);
   redisReplyPtr reply = future.get();
 
   if (!reply) {
-    return -ECOMM; // connection error
+    throw std::runtime_error("[FATAL] Error del key: " + key +
+                             ": No connection");
+  }
+
+  if (reply->type != REDIS_REPLY_INTEGER) {
+    throw std::runtime_error("[FATAL] Error del key: " + key +
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
