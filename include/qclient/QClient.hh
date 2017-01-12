@@ -86,7 +86,7 @@ class QClient
 {
 public:
   QClient(const std::string& host, const int port, bool redirects = false,
-          std::vector<std::string> handshake = {});
+          bool exceptions = false, std::vector<std::string> handshake = {});
 
   ~QClient();
 
@@ -165,7 +165,8 @@ private:
   int redirectedPort;
   bool redirectionActive = false;
 
-  bool transparentRedirects;
+  bool transparentRedirects, exceptionsEnabled;
+  bool available;
 
   std::atomic<int64_t> shutdown {false};
 

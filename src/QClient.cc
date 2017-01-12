@@ -62,9 +62,9 @@ void QClient::clearIntercepts()
 // QClient class implementation
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 std::vector<std::string> handshake)
+                 bool exceptions, std::vector<std::string> handshake)
   : host(host_), port(port_), transparentRedirects(redirects),
-    handshakeCommand(handshake)
+    exceptionsEnabled(exceptions), handshakeCommand(handshake)
 {
   startEventLoop();
 }
@@ -82,15 +82,30 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
 {
   std::lock_guard<std::recursive_mutex> lock(mtx);
 
-  // not connected?
+  // not connected temporarily?
   if (sock <= 0) {
+    std::promise<redisReplyPtr> prom;
+
+    // not available at all?
+    if(exceptionsEnabled && !available) {
+      prom.set_exception(std::make_exception_ptr(std::runtime_error("unavailable")));
+    }
+    else {
+      prom.set_value(redisReplyPtr());
+    }
+
+    return prom.get_future();
+  }
+
+  if(send(sock, buffer, len, 0) < 0) {
+    std::cerr << "qclient: error during send(): " << errno << ", " << strerror(errno) << std::endl;
+    ::shutdown(sock, SHUT_RDWR);
+
     std::promise<redisReplyPtr> prom;
     prom.set_value(redisReplyPtr());
     return prom.get_future();
   }
 
-  // TODO: handle send errors
-  send(sock, buffer, len, 0);
   promises.emplace();
   return promises.back().get_future();
 }
@@ -205,9 +220,11 @@ void QClient::connectTCP()
   freeaddrinfo(servinfo);
 
   if (p == NULL) {
+    available = false;
     return;
   }
 
+  available = true;
   sock = tmpsock; // atomic set
 }
 
