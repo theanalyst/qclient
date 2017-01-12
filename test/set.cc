@@ -111,7 +111,7 @@ TEST(QSet, SetAsync)
   }
 
   // Wait for all the replies
-  ASSERT_FALSE(ah.Wait());
+  ASSERT_TRUE(ah.Wait());
   std::vector<long long int> resp = ah.GetResponses();
   ASSERT_EQ(10, std::count_if(resp.begin(), resp.end(),
                               [](long long int elem) {
