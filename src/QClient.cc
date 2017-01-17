@@ -410,7 +410,7 @@ QClient::HandleResponse(AsyncResponseType resp)
   }
 
   if (!reply) {
-    throw std::runtime_error("[FATAL] Unavailable even after retrying");
+    throw std::runtime_error("[FATAL] Unable to connect to KV-backend");
   }
 
   if (reply->type == REDIS_REPLY_ERROR) {

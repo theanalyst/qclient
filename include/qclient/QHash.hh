@@ -195,7 +195,6 @@ public:
   //----------------------------------------------------------------------------
   //! HASH increment_by command - synchronous
   //!
-  //! @param key name of the hash
   //! @param field hash field
   //! @param increment value to increment by
   //!
@@ -204,6 +203,18 @@ public:
   template <typename T>
   long long int
   hincrby(const std::string& field, const T& increment);
+
+  //----------------------------------------------------------------------------
+  //! HASH increment_by command - asynchronous
+  //!
+  //! @param field hash field
+  //! @param increment value to increment by
+  //!
+  //! @return the value at "field" after the increment operation
+  //----------------------------------------------------------------------------
+  template <typename T>
+  AsyncResponseType
+  hincrby_async(const std::string& field, const T& increment);
 
   //----------------------------------------------------------------------------
   //! HASH increment_by_float command - synchronous
@@ -293,6 +304,17 @@ bool QHash::hsetnx(const std::string& field, const T& value)
   }
 
   return (reply->integer == 1);
+}
+
+//------------------------------------------------------------------------------
+// HINCRBY operation - asynchronous
+//------------------------------------------------------------------------------
+template <typename T>
+AsyncResponseType
+QHash::hincrby_async(const std::string& field, const T& increment)
+{
+  std::vector<std::string> cmd {"HINCRBY", mKey, field, stringify(increment)};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 //------------------------------------------------------------------------------
