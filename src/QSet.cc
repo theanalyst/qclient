@@ -34,18 +34,12 @@ long long int QSet::sadd(std::vector<std::string> vect_members)
 {
   (void) vect_members.insert(vect_members.begin(), mKey);
   (void) vect_members.insert(vect_members.begin(), "SADD");
-  auto future = mClient->execute(vect_members);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error sadd key: " + mKey +
-			     " with multiple members: No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse(std::move(vect_members));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey +
-			     " with multiple members: Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             " with multiple members: Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
@@ -58,18 +52,12 @@ long long int QSet::srem(std::vector<std::string> vect_members)
 {
   (void) vect_members.insert(vect_members.begin(), mKey);
   (void) vect_members.insert(vect_members.begin(), "SREM");
-  auto future  = mClient->execute(vect_members);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error srem key: " + mKey +
-			     " with multiple members: No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse(std::move(vect_members));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey +
-			     " with multiple members: Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             " with multiple members: Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
@@ -80,18 +68,12 @@ long long int QSet::srem(std::vector<std::string> vect_members)
 //------------------------------------------------------------------------------
 long long int QSet::scard()
 {
-  auto future = mClient->execute({"SCARD", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error scard key: " + mKey +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"SCARD", mKey});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error scard key: " + mKey +
-			     " : Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             " : Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
@@ -102,18 +84,12 @@ long long int QSet::scard()
 //------------------------------------------------------------------------------
 std::set<std::string> QSet::smembers()
 {
-  auto future = mClient->execute({"SMEMBERS", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error smembers key: " + mKey +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"SMEMBERS", mKey});
 
   if (reply->type != REDIS_REPLY_ARRAY) {
     throw std::runtime_error("[FATAL] Error smembers key: " + mKey +
-			     " : Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             " : Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   std::set<std::string> ret;
@@ -134,17 +110,11 @@ QSet::sscan(std::string cursor, long long count)
   // TODO (gbitzes): add support for COUNT parameter
   //  auto future = mClient->execute({"SSCAN", mKey, cursor, "COUNT",
   //  std::to_string(count)});
-  auto future = mClient->execute({"SSCAN", mKey, cursor});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error sscan key: " + mKey +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"SSCAN", mKey, cursor});
 
   // Parse the Redis reply
   std::string new_cursor {reply->element[0]->str,
-			  static_cast<unsigned int>(reply->element[0]->len)};
+                          static_cast<unsigned int>(reply->element[0]->len)};
   // First element is the new cursor
   std::pair<std::string, std::vector<std::string> > retc_pair;
   retc_pair.first = new_cursor;
@@ -153,7 +123,7 @@ QSet::sscan(std::string cursor, long long count)
 
   for (unsigned long i = 0; i < reply_ptr->elements; ++i) {
     retc_pair.second.emplace_back(reply_ptr->element[i]->str,
-				  static_cast<unsigned int>(reply_ptr->element[i]->len));
+                                  static_cast<unsigned int>(reply_ptr->element[i]->len));
   }
 
   return retc_pair;

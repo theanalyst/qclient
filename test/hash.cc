@@ -141,20 +141,20 @@ TEST(QHash, HashAsync)
   for (std::uint64_t i = 0; i < num_elem; ++i) {
     field = "field" + std::to_string(i);
     value = std::to_string(i);
-    ah.Register(qhash.hset_async(field, value), OpType::HSET);
+    ah.Register(qhash.hset_async(field, value), qhash.getClient());
   }
 
   ASSERT_TRUE(ah.Wait());
 
   // Get map length asynchronously
-  auto future = qhash.hlen_async();
-  redisReplyPtr reply = future.get();
-  ASSERT_EQ(num_elem, reply->integer);  
+  auto pair = qhash.hlen_async();
+  redisReplyPtr reply = pair.first.get();
+  ASSERT_EQ(num_elem, reply->integer);
 
   // Delete asynchronously all elements
   for (std::uint64_t i = 0; i <= num_elem; ++i) {
     field = "field" + std::to_string(i);
-    ah.Register(qhash.hdel_async(field), OpType::HDEL);
+    ah.Register(qhash.hdel_async(field), qhash.getClient());
   }
 
   ASSERT_TRUE(ah.Wait());

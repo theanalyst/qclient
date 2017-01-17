@@ -99,7 +99,7 @@ TEST(QSet, SetAsync)
   // Add some elements
   for (auto i = 0; i < 100; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.sadd_async(value), OpType::SADD);
+    ah.Register(qset.sadd_async(value), qset.getClient());
   }
 
   ASSERT_TRUE(ah.Wait());
@@ -107,7 +107,7 @@ TEST(QSet, SetAsync)
   // Add some more elements that will trigger some errors
   for (auto i = 90; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.sadd_async(value), OpType::SADD);
+    ah.Register(qset.sadd_async(value), qset.getClient());
   }
 
   // Wait for all the replies
@@ -122,7 +122,7 @@ TEST(QSet, SetAsync)
   // Remove all elements
   for (auto i = 0; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.srem_async(value), OpType::SREM);
+    ah.Register(qset.srem_async(value), qset.getClient());
   }
 
   ASSERT_TRUE(ah.Wait());

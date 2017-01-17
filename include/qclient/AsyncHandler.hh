@@ -30,14 +30,6 @@
 QCLIENT_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Enum class OpType - asynchronous requests type that can be handled by the
-//! AsyncHandler class
-//------------------------------------------------------------------------------
-enum class OpType {
-  NONE, SADD, SREM, HSET, HDEL, HLEN, DEL
-};
-
-//------------------------------------------------------------------------------
 //! Class AsyncHandler
 //------------------------------------------------------------------------------
 class AsyncHandler
@@ -57,10 +49,12 @@ public:
   //----------------------------------------------------------------------------
   //! Register a new async call
   //!
-  //! @param future future object of async request
-  //! @param op operation type
+  //! @param resp_pair pair containing the furture object and the command it
+  //!        corresponds to
+  //! @param qcl pointer to client object used to send the request. This is
+  //!        used in case the recovery mechanism is triggered.
   //----------------------------------------------------------------------------
-  void Register(std::future<redisReplyPtr>&& future, OpType op);
+  void Register(AsyncResponseType resp_pair, QClient* qcl);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -77,16 +71,9 @@ public:
   std::vector<long long int> GetResponses();
 
 private:
-  //----------------------------------------------------------------------------
-  //! Handle response depending on the operation type
-  //!
-  //! @param reply redisReply pointer object
-  //! @param op_type operation type
-  //----------------------------------------------------------------------------
-  void HandleResponse(redisReply* reply, OpType op_type);
-
-  std::vector< std::tuple< std::future<redisReplyPtr>, OpType> >
-  mVectRequests;
+  //! Vector containing pairs of AsyncResponseType and ponter to the qclient
+  //! object used to send the request.
+  std::vector<std::pair<AsyncResponseType, QClient*>> mVectRequests;
   std::vector<long long int> mVectResponses; ///< Vector of responses
   std::mutex mVectMutex; ///< Mutex protecting access to the vector
   std::list<std::string> mErrors; ///< List of errors

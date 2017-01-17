@@ -36,8 +36,11 @@
 
 namespace qclient
 {
-
-typedef std::shared_ptr<redisReply> redisReplyPtr;
+  using redisReplyPtr = std::shared_ptr<redisReply>;
+  //! Response type holding the future object and a vector representing
+  //! the executed command.
+  using AsyncResponseType = std::pair<std::future<redisReplyPtr>,
+                                      std::vector<std::string>>;
 
 class EventFD
 {
@@ -146,10 +149,33 @@ public:
   //!
   //! @param key key to be deleted
   //!
-  //! @return future object containing the response
+  //! @return future object containing the response and the command
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr>
+  AsyncResponseType
   del_async(const std::string& key);
+
+  //----------------------------------------------------------------------------
+  //! Handle response. There are several scenarios to handle:
+  //! 1. REDIS_REPLY_ERROR - error from the Quarkdb server - FATAL
+  //! 2. nullptr response - this should be retried as the client might be able
+  //!      to reconnect to another machine in the cluster. If unsuccessful after
+  //!      a number of retries then throw a std::runtime_error.
+  //! 3. std::runtime_error - client could not send a requests and there are no
+  //!      more machines available in the cluster - FATAL
+  //!
+  //! @param cmd command to be executed
+  //!
+  //! @return response object
+  //----------------------------------------------------------------------------
+  redisReplyPtr
+  HandleResponse(std::vector<std::string> cmd);
+
+  //----------------------------------------------------------------------------
+  //! Handle response - convenience function taking as argument a pair
+  //! containing the future object and the command.
+  //----------------------------------------------------------------------------
+  redisReplyPtr
+  HandleResponse(AsyncResponseType async_resp);
 
 private:
   // the host:port pair given in the constructor

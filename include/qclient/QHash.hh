@@ -69,7 +69,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //!Set the Hash key
+  //! Set the Hash key
   //!
   //!@param new_key new key value
   //----------------------------------------------------------------------------
@@ -79,13 +79,21 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //!Set XRootD fs client object
+  //! Set client object
   //!
-  //!@param new_client new XRootD fs client
+  //! @param new_client new XRootD fs client
   //----------------------------------------------------------------------------
   void setClient(QClient& new_client)
   {
     mClient = &new_client;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get client object
+  //----------------------------------------------------------------------------
+  inline QClient* getClient()
+  {
+    return mClient;
   }
 
   //----------------------------------------------------------------------------
@@ -117,7 +125,8 @@ public:
   //!
   //! @return return future object
   //----------------------------------------------------------------------------
-  template <typename T> std::future<redisReplyPtr>
+  template <typename T>
+  AsyncResponseType
   hset_async(const std::string& field, const T& value);
 
   //----------------------------------------------------------------------------
@@ -148,7 +157,8 @@ public:
   //!
   //! @return future object
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> hdel_async(const std::string& field);
+  AsyncResponseType
+  hdel_async(const std::string& field);
 
   //----------------------------------------------------------------------------
   //! HASH get all command - synchronous
@@ -179,7 +189,8 @@ public:
   //!
   //! @return future containing the response
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> hlen_async();
+  AsyncResponseType
+  hlen_async();
 
   //----------------------------------------------------------------------------
   //! HASH increment_by command - synchronous
@@ -241,11 +252,11 @@ private:
 // HSET operation - asynchronous
 //------------------------------------------------------------------------------
 template <typename T>
-std::future<redisReplyPtr>
+AsyncResponseType
 QHash::hset_async(const std::string& field, const T& value)
 {
-  std::string svalue = stringify(value);
-  return mClient->execute({"HSET", mKey, field, svalue});
+  std::vector<std::string> cmd {"HSET", mKey, field, stringify(value)};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 //------------------------------------------------------------------------------
@@ -255,18 +266,12 @@ template <typename T>
 bool
 QHash::hset(const std::string& field, const T& value)
 {
-  auto future = hset_async(field, value);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
-			     + field + ": No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse(hset_async(field, value));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
@@ -278,19 +283,13 @@ QHash::hset(const std::string& field, const T& value)
 template <typename T>
 bool QHash::hsetnx(const std::string& field, const T& value)
 {
-  std::string svalue = stringify(value);
-  auto future = mClient->execute({"HSETNX", mKey, field, svalue});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "
-			     + field + ": No connection");
-  }
+  redisReplyPtr reply =
+    mClient->HandleResponse({"HSETNX", mKey, field, stringify(value)});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
@@ -302,19 +301,13 @@ bool QHash::hsetnx(const std::string& field, const T& value)
 template <typename T>
 long long int QHash::hincrby(const std::string& field, const T& increment)
 {
-  std::string sincrement = stringify(increment);
-  auto future = mClient->execute({"HINCRBY", mKey, field, sincrement});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hincrby key: " + mKey + " field: "
-			     + field + ": No connection");
-  }
+  redisReplyPtr reply =
+    mClient->HandleResponse({"HINCRBY", mKey, field, stringify(increment)});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hincrby key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
@@ -326,19 +319,13 @@ long long int QHash::hincrby(const std::string& field, const T& increment)
 template <typename T>
 double QHash::hincrbyfloat(const std::string& field, const T& increment)
 {
-  std::string sincrement = stringify(increment);
-  auto future = mClient->execute({"HINCRBYFLOAT", mKey, field, sincrement});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hincrbyfloat key: " + mKey + " field: "
-			     + field + ": No connection");
-  }
+  redisReplyPtr reply =
+    mClient->HandleResponse({"HINCRBYFLOAT", mKey, field, stringify(increment)});
 
   if (reply->type != REDIS_REPLY_STRING) {
     throw std::runtime_error("[FATAL] Error hincrbyfloat key: " + mKey + " field: "
-			     + field + " : Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + " : Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   std::string resp{reply->str, (size_t)reply->len};

@@ -34,6 +34,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sstream>
+#include <iterator>
 
 using namespace qclient;
 
@@ -98,7 +100,8 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
   }
 
   if(send(sock, buffer, len, 0) < 0) {
-    std::cerr << "qclient: error during send(): " << errno << ", " << strerror(errno) << std::endl;
+    std::cerr << "qclient: error during send(): " << errno << ", "
+              << strerror(errno) << std::endl;
     ::shutdown(sock, SHUT_RDWR);
 
     std::promise<redisReplyPtr> prom;
@@ -350,13 +353,7 @@ std::future<redisReplyPtr> QClient::execute(const std::vector<std::string>& req)
 long long int
 QClient::exists(const std::string& key)
 {
-  auto future = execute({"EXISTS", key});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error exists key: " + key +
-                             ": No connection");
-  }
+  redisReplyPtr reply = HandleResponse({"EXISTS", key});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error exists key: " + key +
@@ -367,13 +364,14 @@ QClient::exists(const std::string& key)
   return reply->integer;
 }
 
-//----------------------------------------------------------------------------
-//! Wrapper function for del async command
-//----------------------------------------------------------------------------
-std::future<redisReplyPtr>
+//------------------------------------------------------------------------------
+// Wrapper function for del async command
+//------------------------------------------------------------------------------
+AsyncResponseType
 QClient::del_async(const std::string& key)
 {
-  return execute({"DEL", key});
+  std::vector<std::string> cmd {"DEL", key};
+  return std::make_pair(execute(cmd), std::move(cmd));
 }
 
 //------------------------------------------------------------------------------
@@ -382,13 +380,7 @@ QClient::del_async(const std::string& key)
 long long int
 QClient::del(const std::string& key)
 {
-  auto future = del_async(key);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error del key: " + key +
-                             ": No connection");
-  }
+  redisReplyPtr reply = HandleResponse(del_async(key));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error del key: " + key +
@@ -397,4 +389,49 @@ QClient::del(const std::string& key)
   }
 
   return reply->integer;
+}
+
+//------------------------------------------------------------------------------
+// Handle response
+//------------------------------------------------------------------------------
+redisReplyPtr
+QClient::HandleResponse(AsyncResponseType resp)
+{
+  int num_retries = 5;
+  std::chrono::milliseconds delay(10);
+  redisReplyPtr reply = resp.first.get();
+
+  // Handle transient errors by resubmitting the request
+  while (!reply && (num_retries > 0)) {
+    auto futur = execute(resp.second);
+    reply = futur.get();
+    --num_retries;
+    std::this_thread::sleep_for(delay);
+  }
+
+  if (!reply) {
+    throw std::runtime_error("[FATAL] Unavailable even after retrying");
+  }
+
+  if (reply->type == REDIS_REPLY_ERROR) {
+    auto cmd = resp.second;
+    std::ostringstream oss;
+    std::copy(cmd.begin(), cmd.end(),
+              std::ostream_iterator<std::string>(oss, " "));
+    throw std::runtime_error("[FATAL] Error REDIS_REPLY_ERROR for command: "
+                             + oss.str());
+  }
+
+  return reply;
+}
+
+//------------------------------------------------------------------------------
+// Handle response - convenience function taking as argument a pair
+//------------------------------------------------------------------------------
+redisReplyPtr
+QClient::HandleResponse(std::vector<std::string> cmd)
+{
+  auto future = execute(cmd);
+  return HandleResponse(std::make_pair(std::move(future),
+                                       std::move(cmd)));
 }

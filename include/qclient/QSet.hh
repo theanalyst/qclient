@@ -81,14 +81,23 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set Redox client object
+  //! Set client object
   //!
-  //! @param new_client new Redox client
-  //!
+  //! @param new_client new client
   //----------------------------------------------------------------------------
   void setClient(QClient& new_client)
   {
     mClient = &new_client;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get client object
+  //!
+  //! @param new_client new Redox client
+  //----------------------------------------------------------------------------
+  inline QClient* getClient()
+  {
+    return mClient;
   }
 
   //----------------------------------------------------------------------------
@@ -109,7 +118,8 @@ public:
   //! @reutrn future object
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr> sadd_async(const T& member);
+  AsyncResponseType
+  sadd_async(const T& member);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple members - synchronous
@@ -140,7 +150,8 @@ public:
   //! @return true if member removed, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr> srem_async(const T& member);
+  AsyncResponseType
+  srem_async(const T& member);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command for multiple members - synchronous
@@ -197,54 +208,44 @@ private:
 // Set related templated methods implementation
 //------------------------------------------------------------------------------
 template <typename T>
-std::future<redisReplyPtr> QSet::sadd_async(const T& member)
+AsyncResponseType
+QSet::sadd_async(const T& member)
 {
-  std::string smember = stringify(member);
-  return mClient->execute({"SADD", mKey, smember});
+  std::vector<std::string> cmd {"SADD", mKey, stringify(member)};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 template <typename T>
 bool QSet::sadd(const T& member)
 {
-  auto future = sadd_async(member);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " member: "
-			     + stringify(member) + ": No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse(sadd_async(member));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
-			     + stringify(member) + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
 }
 
 template <typename T>
-std::future<redisReplyPtr> QSet::srem_async(const T& member)
+AsyncResponseType
+QSet::srem_async(const T& member)
 {
-  std::string smember = stringify(member);
-  return mClient->execute({"SREM", mKey, smember});
+  std::vector<std::string> cmd {"SREM", mKey, stringify(member)};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 template <typename T>
 bool QSet::srem(const T& member)
 {
-  auto future = srem_async(member);
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
-			     + stringify(member) + ": No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse(srem_async(member));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
-			     + stringify(member) + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
@@ -253,19 +254,13 @@ bool QSet::srem(const T& member)
 template <typename T>
 bool QSet::sismember(const T& member)
 {
-  std::string smember = stringify(member);
-  auto future = mClient->execute({"SISMEMBER", mKey, smember});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "
-			     + smember + ": No connection");
-  }
+  redisReplyPtr reply =
+    mClient->HandleResponse({"SISMEMBER", mKey, stringify(member)});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "
-			     + smember + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);

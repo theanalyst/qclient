@@ -32,18 +32,12 @@ std::string
 QHash::hget(const std::string& field)
 {
   std::string resp{""};
-  auto future = mClient->execute({"HGET", mKey, field});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hget key: " + mKey + " field: "
-			     + field + " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HGET", mKey, field});
 
   if ((reply->type != REDIS_REPLY_STRING) && (reply->type != REDIS_REPLY_NIL)) {
     throw std::runtime_error("[FATAL] Error hget key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   if (reply->type == REDIS_REPLY_STRING) {
@@ -59,18 +53,12 @@ QHash::hget(const std::string& field)
 bool
 QHash::hdel(const std::string& field)
 {
-  auto future = mClient->execute({"HDEL", mKey, field});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hdel key: " + mKey + " field: "
-			     + field + " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HDEL", mKey, field});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hdel key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
@@ -79,11 +67,11 @@ QHash::hdel(const std::string& field)
 //------------------------------------------------------------------------------
 // HDEL command - asynchronous
 //------------------------------------------------------------------------------
-std::future<redisReplyPtr>
+AsyncResponseType
 QHash::hdel_async(const std::string& field)
 {
-  auto future = mClient->execute({"HDEL", mKey, field});
-  return future;
+  std::vector<std::string> cmd {"HDEL", mKey, field};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 //------------------------------------------------------------------------------
@@ -92,18 +80,12 @@ QHash::hdel_async(const std::string& field)
 std::vector<std::string>
 QHash::hgetall()
 {
-  auto future = mClient->execute({"HGETALL", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hgetall key: " + mKey  +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HGETALL", mKey});
 
   if (reply->type != REDIS_REPLY_ARRAY) {
     throw std::runtime_error("[FATAL] Error hgetall key: " + mKey +
-			     ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   std::vector<std::string> resp;
@@ -122,18 +104,12 @@ QHash::hgetall()
 bool
 QHash::hexists(const std::string& field)
 {
-  auto future = mClient->execute({"HEXISTS", mKey, field});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hexists key: " + mKey + " field: "
-			     + field + " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HEXISTS", mKey, field});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hexists key: " + mKey + " field: "
-			     + field + ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             + field + ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return (reply->integer == 1);
@@ -145,18 +121,12 @@ QHash::hexists(const std::string& field)
 long long int
 QHash::hlen()
 {
-  auto future = mClient->execute({"HLEN", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hlen key: " + mKey +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HLEN", mKey});
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hlen key: " + mKey +
-			     ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   return reply->integer;
@@ -165,10 +135,11 @@ QHash::hlen()
 //------------------------------------------------------------------------------
 // HLEN command - asynchronous
 //------------------------------------------------------------------------------
-std::future<redisReplyPtr>
+AsyncResponseType
 QHash::hlen_async()
 {
-  return mClient->execute({"HLEN", mKey});
+  std::vector<std::string> cmd {"HLEN", mKey};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
 //------------------------------------------------------------------------------
@@ -177,18 +148,12 @@ QHash::hlen_async()
 std::vector<std::string>
 QHash::hkeys()
 {
-  auto future = mClient->execute({"HKEYS", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hkeys key: " + mKey  +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HKEYS", mKey});
 
   if (reply->type != REDIS_REPLY_ARRAY) {
     throw std::runtime_error("[FATAL] Error hkeys key: " + mKey +
-			     ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   std::vector<std::string> resp;
@@ -207,18 +172,12 @@ QHash::hkeys()
 std::vector<std::string>
 QHash::hvals()
 {
-  auto future = mClient->execute({"HVALS", mKey});
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hvals key: " + mKey  +
-			     " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HVALS", mKey});
 
   if (reply->type != REDIS_REPLY_ARRAY) {
     throw std::runtime_error("[FATAL] Error hvals key: " + mKey +
-			     ": Unexpected reply type: " +
-			     std::to_string(reply->type));
+                             ": Unexpected reply type: " +
+                             std::to_string(reply->type));
   }
 
   std::vector<std::string> resp;
@@ -237,19 +196,12 @@ QHash::hvals()
 std::pair<std::string, std::unordered_map<std::string, std::string> >
 QHash::hscan(const std::string& cursor, long long count)
 {
-  auto future = mClient->execute({"HSCAN", mKey, cursor, "COUNT",
-				  std::to_string(count)
-				 });
-  redisReplyPtr reply = future.get();
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Error hscan key: " + mKey + " cursor: "
-			     + cursor + " : No connection");
-  }
+  redisReplyPtr reply = mClient->HandleResponse({"HSCAN", mKey, cursor,
+        "COUNT", std::to_string(count)});
 
   // Parse the Redis reply
   std::string new_cursor = std::string(reply->element[0]->str,
-				       reply->element[0]->len);
+                                       reply->element[0]->len);
   // First element is the new cursor
   std::pair<std::string, std::unordered_map<std::string, std::string> > retc_pair;
   retc_pair.first = new_cursor;
@@ -259,9 +211,9 @@ QHash::hscan(const std::string& cursor, long long count)
   for (unsigned long i = 0; i < array->elements; i += 2) {
     retc_pair.second.emplace(
       std::string(array->element[i]->str,
-		  static_cast<unsigned int>(array->element[i]->len)),
+                  static_cast<unsigned int>(array->element[i]->len)),
       std::string(array->element[i + 1]->str,
-		  static_cast<unsigned int>(array->element[i + 1]->len)));
+                  static_cast<unsigned int>(array->element[i + 1]->len)));
   }
 
   return retc_pair;

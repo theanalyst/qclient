@@ -32,30 +32,26 @@ bool
 AsyncHandler::Wait()
 {
   bool is_ok = true;
-  //OpType op_type = OpType::NONE;
+  redisReplyPtr reply;
+  QClient* qcl;
   std::lock_guard<std::mutex> lock(mVectMutex);
   mVectResponses.clear();
 
-  for (auto& elem : mVectRequests) {
-    auto& future = std::get<0>(elem);
-    //   op_type = std::get<1>(elem);
-    redisReplyPtr reply = future.get();
+  for (auto& pair: mVectRequests) {
+    try {
+      qcl = pair.second;
+      reply = qcl->HandleResponse(std::move(pair.first));
 
-    // Failed to contact the server
-    if (!reply) {
+      if (reply->type != REDIS_REPLY_INTEGER) {
+        mVectResponses.emplace_back(-EINVAL);
+        is_ok &= false;
+      } else {
+        mVectResponses.emplace_back(reply->integer);
+      }
+    } catch (std::runtime_error& qdb_err) {
       mVectResponses.emplace_back(-ECOMM);
       is_ok &= false;
-      continue;
     }
-
-    if ((reply->type == REDIS_REPLY_ERROR) ||
-        (reply->type != REDIS_REPLY_INTEGER)) {
-      mVectResponses.emplace_back(-1);
-      is_ok &= false;
-      continue;
-    }
-
-    mVectResponses.emplace_back(reply->integer);
   }
 
   mVectRequests.clear();
@@ -76,10 +72,10 @@ AsyncHandler::GetResponses()
 // Register new future
 //------------------------------------------------------------------------------
 void
-AsyncHandler::Register(std::future<redisReplyPtr>&& future, OpType op)
+AsyncHandler::Register(qclient::AsyncResponseType resp_pair, QClient* qcl)
 {
   std::lock_guard<std::mutex> lock(mVectMutex);
-  mVectRequests.emplace_back(std::move(future), op);
+  mVectRequests.emplace_back(std::move(resp_pair), qcl);
 }
 
 QCLIENT_NAMESPACE_END
