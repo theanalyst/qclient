@@ -64,6 +64,16 @@ public:
   bool Wait();
 
   //----------------------------------------------------------------------------
+  //! Wait for pending requests and collect the results if there are more than
+  //! required the required number of in-flight requests.
+  //!
+  //! @param num_req minimum number of async requests we want to wait for
+  //!
+  //! @return true if all successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool WaitForAtLeast(std::uint64_t num_req);
+
+  //----------------------------------------------------------------------------
   //! Get responses for async resquests
   //!
   //! @return vector of the responses

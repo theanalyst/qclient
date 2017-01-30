@@ -59,6 +59,25 @@ AsyncHandler::Wait()
 }
 
 //------------------------------------------------------------------------------
+// Wait for pending requests and collect the results if there are more than
+// required the required number of in-flight requests.
+//------------------------------------------------------------------------------
+bool
+AsyncHandler::WaitForAtLeast(std::uint64_t num_req)
+{
+  {
+    // Wait only if we have enough requests in-flight
+    std::lock_guard<std::mutex> lock(mVectMutex);
+
+    if (mVectRequests.size() <= num_req) {
+      return true;
+    }
+  }
+
+  return Wait();
+}
+
+//------------------------------------------------------------------------------
 // Get responses for the async requests
 //------------------------------------------------------------------------------
 std::vector<long long int>
