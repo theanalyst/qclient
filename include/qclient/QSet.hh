@@ -221,7 +221,7 @@ bool QSet::sadd(const T& member)
   redisReplyPtr reply = mClient->HandleResponse(sadd_async(member));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
-    throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
+    throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " field: "
                              + stringify(member) + ": Unexpected reply type: " +
                              std::to_string(reply->type));
   }

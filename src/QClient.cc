@@ -426,7 +426,7 @@ QClient::HandleResponse(AsyncResponseType resp)
 }
 
 //------------------------------------------------------------------------------
-// Handle response - convenience function taking as argument a pair
+// Handle response - convenience function
 //------------------------------------------------------------------------------
 redisReplyPtr
 QClient::HandleResponse(std::vector<std::string> cmd)
