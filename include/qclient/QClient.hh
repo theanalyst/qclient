@@ -29,6 +29,7 @@
 #include <future>
 #include <queue>
 #include <map>
+#include <list>
 #include <hiredis/hiredis.h>
 #include <unistd.h>
 #include <iostream>
@@ -97,10 +98,22 @@ public:
   QClient(const QClient&) = delete;
   void operator=(const QClient&) = delete;
 
-  std::future<redisReplyPtr> execute(const char* buffer, size_t len);
   std::future<redisReplyPtr> execute(const std::vector<std::string>& req);
+  std::future<redisReplyPtr> execute(const char* buffer, size_t len);
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
                                      const size_t* sizes);
+
+  //----------------------------------------------------------------------------
+  //! Execute a command given by the begin and end iterator to a container of
+  //! strings.
+  //!
+  //! @param begin iterator pointing to the beginning of the container
+  //! @param end iterator pionting to the end of the end of the container
+  //!
+  //! @return future object
+  //----------------------------------------------------------------------------
+  template<typename Iterator>
+  std::future<redisReplyPtr> execute(const Iterator& begin, const Iterator& end);
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
@@ -177,6 +190,15 @@ public:
   redisReplyPtr
   HandleResponse(AsyncResponseType async_resp);
 
+  //----------------------------------------------------------------------------
+  //! Handle response - convenience function taking as arguments a begin and an
+  //! end iterator to a container of strings. (vector or list)
+  //----------------------------------------------------------------------------
+  template<typename Iterator>
+  redisReplyPtr
+  HandleResponse(const Iterator& begin, const Iterator& end);
+
+
 private:
   // the host:port pair given in the constructor
   std::string host;
@@ -224,6 +246,39 @@ private:
       intercepts;
 };
 
-}
 
+  //----------------------------------------------------------------------------
+  // Execute a command given by the begin and end iterator to a container of
+  // strings.
+  //----------------------------------------------------------------------------
+  template <typename Iterator>
+  std::future<redisReplyPtr>
+  QClient::execute(const Iterator& begin, const Iterator& end)
+  {
+    std::uint64_t size = std::distance(begin, end);
+    std::uint64_t indx = 0;
+    const char* cstr[size];
+    size_t sizes[size];
+
+    for (auto it = begin; it != end; ++it) {
+      cstr[indx] = it->data();
+      sizes[indx] = it->size();
+      ++indx;
+    }
+
+    return execute(size, cstr, sizes);
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle response - convenience function
+  //----------------------------------------------------------------------------
+  template <typename Iterator>
+  redisReplyPtr
+  QClient::HandleResponse(const Iterator& begin, const Iterator& end)
+  {
+    auto future = execute(begin, end);
+    return HandleResponse(std::make_pair(std::move(future),
+                                         std::vector<std::string>(begin, end)));
+  }
+}
 #endif

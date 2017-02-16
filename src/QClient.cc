@@ -79,8 +79,24 @@ QClient::~QClient()
   cleanup();
 }
 
+std::future<redisReplyPtr>
+QClient::execute(const std::vector<std::string>& req)
+{
+  std::uint64_t indx = 0;
+  const char* cstr[req.size()];
+  size_t sizes[req.size()];
+
+  for (const auto& elem: req) {
+    cstr[indx] = elem.data();
+    sizes[indx] = elem.size();
+    ++indx;
+  }
+
+  return execute(req.size(), cstr, sizes);
+}
+
 std::future<redisReplyPtr> QClient::execute(const char* buffer,
-    const size_t len)
+                                            const size_t len)
 {
   std::lock_guard<std::recursive_mutex> lock(mtx);
 
@@ -114,11 +130,11 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
 }
 
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
-    const size_t* sizes)
+                                            const size_t* sizes)
 {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  std::future<redisReplyPtr> ret = this->execute(buffer, len);
+  std::future<redisReplyPtr> ret = execute(buffer, len);
   free(buffer);
   return ret;
 }
@@ -332,19 +348,6 @@ void QClient::discoverIntercept()
     targetHost = it->second.first;
     targetPort = it->second.second;
   }
-}
-
-std::future<redisReplyPtr> QClient::execute(const std::vector<std::string>& req)
-{
-  const char* cstr[req.size()];
-  size_t sizes[req.size()];
-
-  for (size_t i = 0; i < req.size(); i++) {
-    cstr[i] = req[i].c_str();
-    sizes[i] = req[i].size();
-  }
-
-  return execute(req.size(), cstr, sizes);
 }
 
 //------------------------------------------------------------------------------

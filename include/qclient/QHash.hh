@@ -118,6 +118,15 @@ public:
   bool hset(const std::string& field, const T& value);
 
   //----------------------------------------------------------------------------
+  //! HASH multi set command - synchronous
+  //!
+  //! @param lst_elem elements to set in key-value "pairs"
+  //!
+  //! @return return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool hmset(std::list<std::string> lst_elem);
+
+  //----------------------------------------------------------------------------
   //! HASH set command - asynchronous
   //!
   //! @param field hash field

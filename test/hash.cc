@@ -28,15 +28,16 @@
 
 using namespace qclient;
 static std::string sHost = "localhost";
-static int sPort = 7777;
+static int sPort = 6380;
 
 //------------------------------------------------------------------------------
 // Test HASH interface - synchronous
 //------------------------------------------------------------------------------
-TEST(QHash, HashSync) {
+TEST(QHash, HashSync)
+{
   QClient cl{sHost, sPort};
   std::string hash_key = "qclient_test:hash";
-  QHash qhash{cl,hash_key};
+  QHash qhash{cl, hash_key};
   std::vector<std::string> fields {"val1", "val2", "val3"};
   std::vector<int> ivalues {10, 20, 30};
   std::vector<float> fvalues {100.0, 200.0, 300.0};
@@ -47,13 +48,11 @@ TEST(QHash, HashSync) {
   ASSERT_FLOAT_EQ(100.0005, qhash.hincrbyfloat(fields[0], 0.0005));
   ASSERT_TRUE(qhash.hexists(fields[0]));
   ASSERT_TRUE(qhash.hdel(fields[0]));
-
   ASSERT_FALSE(qhash.hexists(fields[1]));
   ASSERT_TRUE(qhash.hsetnx(fields[1], svalues[1]));
   ASSERT_FALSE(qhash.hsetnx(fields[1], svalues[1]));
   ASSERT_EQ(svalues[1], qhash.hget(fields[1]));
   ASSERT_TRUE(qhash.hdel(fields[1]));
-
   ASSERT_TRUE(qhash.hset(fields[2], ivalues[2]));
   ASSERT_TRUE(qhash.hset(fields[1], ivalues[1]));
   ASSERT_EQ(35, qhash.hincrby(fields[2], 5));
@@ -61,19 +60,19 @@ TEST(QHash, HashSync) {
   ASSERT_TRUE(qhash.hsetnx(fields[2], ivalues[2]));
   ASSERT_TRUE(qhash.hsetnx(fields[0], ivalues[0]));
   ASSERT_EQ(3, qhash.hlen());
-
   // Test the hkeys command
   std::vector<std::string> resp = qhash.hkeys();
 
-  for (auto&& elem: resp) {
+  for (auto && elem : resp) {
     ASSERT_TRUE(std::find(fields.begin(), fields.end(), elem) != fields.end());
   }
 
   // Test the hvals command
   resp = qhash.hvals();
 
-  for (auto&& elem: resp) {
-    ASSERT_TRUE(std::find(ivalues.begin(), ivalues.end(), std::stoi(elem)) != ivalues.end());
+  for (auto && elem : resp) {
+    ASSERT_TRUE(std::find(ivalues.begin(), ivalues.end(),
+                          std::stoi(elem)) != ivalues.end());
   }
 
   // Test the hgetall command
@@ -82,13 +81,13 @@ TEST(QHash, HashSync) {
   for (auto it = resp.begin(); it != resp.end(); ++it) {
     ASSERT_TRUE(std::find(fields.begin(), fields.end(), *it) != fields.end());
     ++it;
-    ASSERT_TRUE(std::find(ivalues.begin(), ivalues.end(), std::stoi(*it)) != ivalues.end());
+    ASSERT_TRUE(std::find(ivalues.begin(), ivalues.end(),
+                          std::stoi(*it)) != ivalues.end());
   }
 
   ASSERT_TRUE(qhash.hget("dummy_field").empty());
   std::future<redisReplyPtr> future = cl.execute({"DEL", hash_key});
   ASSERT_EQ(1, future.get()->integer);
-
   // Test hscan command
   std::unordered_map<int, int> map;
   std::unordered_map<int, int> ret_map;
@@ -104,7 +103,7 @@ TEST(QHash, HashSync) {
   reply = qhash.hscan(cursor, count);
   cursor = reply.first;
 
-  for (auto&& elem: reply.second) {
+  for (auto && elem : reply.second) {
     ASSERT_TRUE(map[std::stoi(elem.first)] == std::stoi(elem.second));
     ret_map.emplace(std::stoi(elem.first), std::stoi(elem.second));
   }
@@ -113,7 +112,7 @@ TEST(QHash, HashSync) {
     reply = qhash.hscan(cursor, count);
     cursor = reply.first;
 
-    for (auto&& elem: reply.second) {
+    for (auto && elem : reply.second) {
       ASSERT_TRUE(map[std::stoi(elem.first)] == std::stoi(elem.second));
       ret_map.emplace(std::stoi(elem.first), std::stoi(elem.second));
     }
@@ -121,6 +120,30 @@ TEST(QHash, HashSync) {
 
   ASSERT_TRUE(map.size() == ret_map.size());
   auto future1 = cl.execute({"DEL", hash_key});
+  ASSERT_EQ(1, future1.get()->integer);
+
+  // Test hmset functionality
+  std::string field, val;
+  std::list<std::string> lst_elem;
+  std::map<std::string, std::string> map_elem;
+
+  for (int i = 0; i < count; ++i) {
+    field = stringify(i);
+    val = "elem" + field;
+    map_elem[field] = val;
+    lst_elem.push_back(field);
+    lst_elem.push_back(val);
+  }
+
+  ASSERT_TRUE(qhash.hmset(lst_elem));
+
+  for (int i = 0; i < count; ++i) {
+    field = stringify(i);
+    ASSERT_EQ(map_elem[field], qhash.hget(field));
+  }
+
+  ASSERT_TRUE((long long int)map_elem.size() == qhash.hlen());
+  future1 = cl.execute({"DEL", hash_key});
   ASSERT_EQ(1, future1.get()->integer);
 }
 
@@ -145,7 +168,6 @@ TEST(QHash, HashAsync)
   }
 
   ASSERT_TRUE(ah.Wait());
-
   // Get map length asynchronously
   auto pair = qhash.hlen_async();
   redisReplyPtr reply = pair.first.get();

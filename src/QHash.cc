@@ -219,4 +219,23 @@ QHash::hscan(const std::string& cursor, long long count)
   return retc_pair;
 }
 
+//------------------------------------------------------------------------------
+// HASH multi set command - synchronous
+//------------------------------------------------------------------------------
+bool
+QHash::hmset(std::list<std::string> lst_elem)
+{
+  (void) lst_elem.push_front(mKey);
+  (void) lst_elem.push_front("HMSET");
+  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
+
+  if (reply->type != REDIS_REPLY_STATUS) {
+    throw std::runtime_error("[FATAL] Error hmset key: " + mKey +
+                             " with multiple members: Unexpected reply type: " +
+                             std::to_string(reply->type));
+  }
+
+  return true;
+}
+
 QCLIENT_NAMESPACE_END
