@@ -124,13 +124,11 @@ public:
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple members - synchronous
   //!
-  //! @param vect_members values to be added to the set
-  //! TODO: make vect_members rvalue ref to use move semantics
+  //! @param lst_elem values to be added to the set
   //!
   //! @return number of elements added to the set
   //----------------------------------------------------------------------------
-  // TODO: template the vector contents
-  long long int sadd(std::vector<std::string> vect_members);
+  long long int sadd(std::list<std::string> lst_elem);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command - synchronous
@@ -156,12 +154,11 @@ public:
   //----------------------------------------------------------------------------
   //! Redis SET remove command for multiple members - synchronous
   //!
-  //! @param vect_members values to be removed from the set
+  //! @param lst_elem values to be removed from the set
   //!
   //! @return number of elements removed from the set
   //----------------------------------------------------------------------------
-  // TODO: template the vector contents
-  long long int srem(std::vector<std::string> vect_members);
+  long long int srem(std::list<std::string> lst_elem);
 
   //----------------------------------------------------------------------------
   //! Redis SET size command - synchronous

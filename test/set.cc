@@ -30,7 +30,7 @@
 
 using namespace qclient;
 static std::string sHost = "localhost";
-static int sPort = 7777;
+static int sPort = 6380;
 
 //------------------------------------------------------------------------------
 // Test Set class - synchronous
@@ -40,7 +40,7 @@ TEST(QSet, SetSync)
   QClient cl{sHost, sPort};
   std::string set_key = "qclient_test:set_sync";
   QSet qset(cl, set_key);
-  std::vector<std::string> members = {"200", "300", "400"};
+  std::list<std::string> members = {"200", "300", "400"};
   ASSERT_EQ(members.size(), qset.sadd(members));
   ASSERT_TRUE(qset.sadd("100"));
   ASSERT_FALSE(qset.sadd("400"));
@@ -92,7 +92,6 @@ TEST(QSet, SetAsync)
   QClient cl{sHost, sPort};
   std::string set_key = "qclient_test:set_async";
   QSet qset(cl, set_key);
-  std::vector<std::string> members = {"200", "300", "400"};
   qclient::AsyncHandler ah;
   std::string value;
 

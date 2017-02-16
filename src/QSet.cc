@@ -30,11 +30,11 @@ QCLIENT_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Redis SET add command for multiple members - synchronous
 //------------------------------------------------------------------------------
-long long int QSet::sadd(std::vector<std::string> vect_members)
+long long int QSet::sadd(std::list<std::string> lst_elem)
 {
-  (void) vect_members.insert(vect_members.begin(), mKey);
-  (void) vect_members.insert(vect_members.begin(), "SADD");
-  redisReplyPtr reply = mClient->HandleResponse(std::move(vect_members));
+  (void) lst_elem.push_front(mKey);
+  (void) lst_elem.push_front("SADD");
+  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey +
@@ -48,11 +48,11 @@ long long int QSet::sadd(std::vector<std::string> vect_members)
 //------------------------------------------------------------------------------
 // Redis SET remove command for multiple members - synchronous
 //------------------------------------------------------------------------------
-long long int QSet::srem(std::vector<std::string> vect_members)
+long long int QSet::srem(std::list<std::string> lst_elem)
 {
-  (void) vect_members.insert(vect_members.begin(), mKey);
-  (void) vect_members.insert(vect_members.begin(), "SREM");
-  redisReplyPtr reply = mClient->HandleResponse(std::move(vect_members));
+  (void) lst_elem.push_front(mKey);
+  (void) lst_elem.push_front("SREM");
+  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey +
