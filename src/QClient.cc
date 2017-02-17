@@ -209,7 +209,7 @@ void QClient::cleanup()
 void QClient::connectTCP()
 {
   struct addrinfo hints, *servinfo, *p;
-  int tmpsock, rv;
+  int tmpsock = 0, rv;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -240,6 +240,7 @@ void QClient::connectTCP()
 
   if (p == NULL) {
     available = false;
+    close(tmpsock);
     return;
   }
 
