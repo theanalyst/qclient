@@ -28,6 +28,25 @@ using namespace std;
 QCLIENT_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Copy assignment
+//------------------------------------------------------------------------------
+QSet&
+QSet::operator=(const QSet& other)
+{
+  mClient = other.mClient;
+  mKey = other.mKey;
+  return *this;
+}
+
+//------------------------------------------------------------------------------
+// Copy constructor
+//------------------------------------------------------------------------------
+QSet::QSet(const QSet& other)
+{
+  *this = other;
+}
+
+//------------------------------------------------------------------------------
 // Redis SET add command for multiple members - synchronous
 //------------------------------------------------------------------------------
 long long int QSet::sadd(std::list<std::string> lst_elem)

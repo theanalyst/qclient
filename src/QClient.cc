@@ -209,7 +209,7 @@ void QClient::cleanup()
 void QClient::connectTCP()
 {
   struct addrinfo hints, *servinfo, *p;
-  int tmpsock = 0, rv;
+  int tmpsock = -1, rv;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -230,6 +230,7 @@ void QClient::connectTCP()
 
     if (::connect(tmpsock, p->ai_addr, p->ai_addrlen) == -1) {
       close(tmpsock);
+      tmpsock = -1;
       continue;
     }
 
@@ -240,12 +241,16 @@ void QClient::connectTCP()
 
   if (p == NULL) {
     available = false;
-    close(tmpsock);
+
+    if (tmpsock >= 0) {
+      close(tmpsock);
+    }
+
     return;
   }
 
   available = true;
-  sock = tmpsock; // atomic set
+  sock.store(tmpsock);
 }
 
 void QClient::connect()
@@ -281,6 +286,8 @@ void QClient::eventLoop()
 
     while (sock > 0) {
       lock.unlock();
+      // TODO (gbitzes): Verify the return value of poll and take appropriate
+      // actions.
       poll(polls, 2, 1);
       lock.lock();
 
