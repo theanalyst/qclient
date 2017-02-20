@@ -108,7 +108,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get client object
   //!
-  //! @param new_client new Redox client
+  //! @param new_client new client
   //----------------------------------------------------------------------------
   inline QClient* getClient()
   {
@@ -212,7 +212,7 @@ public:
   sscan(std::string cursor, long long count = 1000);
 
 private:
-  QClient* mClient; ///< Redox client object
+  QClient* mClient; ///< Qclient client object
   std::string mKey; ///< Key of the set object
 };
 
