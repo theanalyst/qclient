@@ -222,7 +222,7 @@ private:
   void eventLoop();
   void connect();
 
-  std::atomic<int> sock { -1};
+  std::atomic<int> sock;
   redisReader* reader = nullptr;
 
   void cleanup();

@@ -66,7 +66,7 @@ void QClient::clearIntercepts()
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
                  bool exceptions, std::vector<std::string> handshake)
   : host(host_), port(port_), transparentRedirects(redirects),
-    exceptionsEnabled(exceptions), handshakeCommand(handshake)
+    exceptionsEnabled(exceptions), sock(-1), handshakeCommand(handshake)
 {
   startEventLoop();
 }
@@ -141,7 +141,7 @@ std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
 
 void QClient::startEventLoop()
 {
-  this->connect();
+  connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
 
@@ -188,10 +188,10 @@ bool QClient::feed(const char* buf, size_t len)
 
 void QClient::cleanup()
 {
-  if (sock > 0) {
+  if (sock >= 0) {
     ::shutdown(sock, SHUT_RDWR);
     close(sock);
-    sock = -1;
+    sock.store(-1);
   }
 
   if (reader != nullptr) {
@@ -241,11 +241,6 @@ void QClient::connectTCP()
 
   if (p == NULL) {
     available = false;
-
-    if (tmpsock >= 0) {
-      close(tmpsock);
-    }
-
     return;
   }
 
