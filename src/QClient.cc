@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <fcntl.h>
 #include <sstream>
 #include <iterator>
 
@@ -245,6 +246,7 @@ void QClient::connectTCP()
   }
 
   available = true;
+  fcntl(tmpsock, F_SETFL, fcntl(tmpsock, F_GETFL) | O_NONBLOCK);
   sock.store(tmpsock);
 }
 
@@ -293,16 +295,17 @@ void QClient::eventLoop()
       // legit connection, reset backoff
       backoff = std::chrono::milliseconds(1);
 
-      if (polls[1].revents != 0) {
-        int bytes = recv(sock, buffer, BUFFER_SIZE, 0);
+      int bytes = recv(sock, buffer, BUFFER_SIZE, 0);
+      if(bytes == -1 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
+        continue;
+      }
 
-        if (bytes <= 0) {
-          break;
-        }
+      if (bytes <= 0) {
+        break; // broken connection
+      }
 
-        if (!feed(buffer, bytes)) {
-          break;
-        }
+      if (!feed(buffer, bytes)) {
+        break;
       }
     }
 
