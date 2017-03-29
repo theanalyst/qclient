@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <string.h>
+#include "qclient/TlsFilter.hh"
 
 namespace qclient
 {
@@ -90,7 +91,7 @@ class QClient
 {
 public:
   QClient(const std::string& host, const int port, bool redirects = false,
-          bool exceptions = false, std::vector<std::string> handshake = {});
+          bool exceptions = false, TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
 
   ~QClient();
 
@@ -215,6 +216,10 @@ private:
 
   bool transparentRedirects, exceptionsEnabled;
   bool available;
+
+  // TLS stuff
+  TlsConfig tlsconfig;
+  std::atomic<TlsFilter*> tlsfilter { nullptr };
 
   std::atomic<int64_t> shutdown {false};
 

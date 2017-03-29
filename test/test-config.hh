@@ -27,6 +27,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include "qclient/QClient.hh"
 
 extern char **environ;
 
@@ -37,6 +38,8 @@ struct TestConfig {
 
   std::string host = "localhost";
   int port = 6379;
+
+  qclient::TlsConfig tlsconfig;
 };
 
 extern TestConfig testconfig;

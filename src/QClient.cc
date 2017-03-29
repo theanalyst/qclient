@@ -40,6 +40,8 @@
 
 using namespace qclient;
 
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
+
 //------------------------------------------------------------------------------
 // The intercepts machinery
 //------------------------------------------------------------------------------
@@ -65,9 +67,9 @@ void QClient::clearIntercepts()
 // QClient class implementation
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 bool exceptions, std::vector<std::string> handshake)
+                 bool exceptions, TlsConfig tlc, std::vector<std::string> handshake)
   : host(host_), port(port_), transparentRedirects(redirects),
-    exceptionsEnabled(exceptions), sock(-1), handshakeCommand(handshake)
+    exceptionsEnabled(exceptions), tlsconfig(tlc), sock(-1), handshakeCommand(handshake)
 {
   startEventLoop();
 }
@@ -116,7 +118,15 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
     return prom.get_future();
   }
 
-  if(send(sock, buffer, len, 0) < 0) {
+  int bytes;
+  if(tlsconfig.active) {
+    bytes = (*tlsfilter).send(buffer, len);
+  }
+  else {
+    bytes = send(sock, buffer, len, 0);
+  }
+
+  if(bytes < 0) {
     std::cerr << "qclient: error during send(): " << errno << ", "
               << strerror(errno) << std::endl;
     ::shutdown(sock, SHUT_RDWR);
@@ -205,6 +215,36 @@ void QClient::cleanup()
     promises.front().set_value(redisReplyPtr());
     promises.pop();
   }
+
+  if(tlsfilter) delete tlsfilter;
+  tlsfilter.store(nullptr);
+}
+
+RecvStatus recvfn(int socket, char *buffer, int len, int timeout) {
+  int ret = recv(socket, buffer, len, timeout);
+  int err = errno;
+
+  // Case 1: EOF, no more data to read, connection is closed
+  if(ret == 0) {
+    return RecvStatus(false, 0, 0);
+  }
+
+  // Case 2: Non-blocking socket: no data to read, connection still alive
+  if(ret == -1 && (err == EWOULDBLOCK || err == EAGAIN)) {
+    return RecvStatus(true, err, 0);
+  }
+
+  // Case 3: Socket error, connection is closed
+  if(ret < 0) {
+    return RecvStatus(false, ret, 0);
+  }
+
+  // Case 4: We have data
+  return RecvStatus(true, 0, ret);
+}
+
+LinkStatus sendfn(int socket, const char *buffer, int len, int timeout) {
+  return send(socket, buffer, len, timeout);
 }
 
 void QClient::connectTCP()
@@ -247,6 +287,16 @@ void QClient::connectTCP()
 
   available = true;
   fcntl(tmpsock, F_SETFL, fcntl(tmpsock, F_GETFL) | O_NONBLOCK);
+  if(tlsconfig.active) {
+    using std::placeholders::_1;
+    using std::placeholders::_2;
+    using std::placeholders::_3;
+
+    RecvFunction recvF = std::bind(recvfn, tmpsock, _1, _2, _3);
+    SendFunction sendF = std::bind(sendfn, tmpsock, _1, _2, 0);
+
+    tlsfilter.store(new TlsFilter(tlsconfig, FilterType::CLIENT, recvF, sendF));
+  }
   sock.store(tmpsock);
 }
 
@@ -281,11 +331,21 @@ void QClient::eventLoop()
     polls[1].fd = sock;
     polls[1].events = POLLIN;
 
+    RecvStatus status(true, 0, 0);
     while (sock > 0) {
       lock.unlock();
-      // TODO (gbitzes): Verify the return value of poll and take appropriate
-      // actions.
-      poll(polls, 2, 1);
+
+      // If the previous iteration returned any bytes at all, try to read again
+      // without polling. It could be that there's more data cached inside
+      // OpenSSL, which poll() will not detect.
+
+      if(status.bytesRead <= 0) {
+        int rpoll = poll(polls, 2, -1);
+        if(rpoll < 0 && errno != EINTR) {
+          // something's wrong, try to reconnect
+          break;
+        }
+      }
       lock.lock();
 
       if (shutdown) {
@@ -295,17 +355,19 @@ void QClient::eventLoop()
       // legit connection, reset backoff
       backoff = std::chrono::milliseconds(1);
 
-      int bytes = recv(sock, buffer, BUFFER_SIZE, 0);
-      if(bytes == -1 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
-        continue;
+      if(tlsconfig.active) {
+        status = (*tlsfilter).recv(buffer, BUFFER_SIZE, 0);
+      }
+      else {
+        status = recvfn(sock, buffer, BUFFER_SIZE, 0);
       }
 
-      if (bytes <= 0) {
-        break; // broken connection
+      if(!status.connectionAlive) {
+        break; // connection died on us, try to reconnect
       }
 
-      if (!feed(buffer, bytes)) {
-        break;
+      if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {
+        break; // protocol violation
       }
     }
 

@@ -73,6 +73,15 @@ TestConfig::TestConfig() {
     }
     s = *(environ+i);
   }
+
+  if(tlsconfig.certificatePath.empty() != tlsconfig.keyPath.empty()) {
+    std::cerr << "Both QCL_TESTS_TLS_CERT and QCL_TESTS_TLS_KEY must be supplied." << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if(!tlsconfig.certificatePath.empty()) {
+    tlsconfig.active = true;
+  }
 }
 
 void TestConfig::parseSingle(const std::string &key, const std::string &value) {
@@ -87,6 +96,12 @@ void TestConfig::parseSingle(const std::string &key, const std::string &value) {
     }
 
     port = tmp;
+  }
+  else if(key == "QCL_TESTS_TLS_CERT") {
+    tlsconfig.certificatePath = value;
+  }
+  else if(key == "QCL_TESTS_TLS_KEY") {
+    tlsconfig.keyPath = value;
   }
   else {
     std::cerr << "Unknown configuration option: " << key << " => " << value << std::endl;

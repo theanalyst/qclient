@@ -16,6 +16,7 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 if (NOT PACKAGEONLY)
   find_package(hiredis REQUIRED)
   find_package(GTest)
+  find_package(OpenSSL REQUIRED)
 else ()
   message(STATUS "Runing CMake in package only mode.")
 endif()
@@ -42,19 +43,22 @@ endif()
 include_directories(
   ./include
   ./src/
-  ${HIREDIS_INCLUDE_DIRS})
+  ${HIREDIS_INCLUDE_DIRS}
+  ${OPENSSL_INCLUDE_DIR})
 
 add_library(qclient STATIC
   src/QClient.cc
   src/QHash.cc
   src/QSet.cc
   src/AsyncHandler.cc
+  src/TlsFilter.cc
 )
 
 target_link_libraries(
   qclient
   fmt
-  ${HIREDIS_LIBRARIES})
+  ${HIREDIS_LIBRARIES}
+  ${OPENSSL_LIBRARIES})
 
 set_target_properties(
   qclient PROPERTIES
@@ -68,6 +72,7 @@ install(
   include/qclient/QClient.hh
   include/qclient/QHash.hh
   include/qclient/QSet.hh
+  include/qclient/TlsFilter.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qclient)
 
 install(
