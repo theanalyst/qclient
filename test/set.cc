@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include <gtest/gtest.h>
+#include "test-config.hh"
 #include "qclient/QSet.hh"
 #include "qclient/AsyncHandler.hh"
 #include <set>
@@ -29,15 +30,13 @@
 #include <algorithm>
 
 using namespace qclient;
-static std::string sHost = "localhost";
-static int sPort = 6380;
 
 //------------------------------------------------------------------------------
 // Test Set class - synchronous
 //------------------------------------------------------------------------------
 TEST(QSet, SetSync)
 {
-  QClient cl{sHost, sPort};
+  QClient cl{testconfig.host, testconfig.port};
   std::string set_key = "qclient_test:set_sync";
   QSet qset(cl, set_key);
   std::list<std::string> members = {"200", "300", "400"};
@@ -89,7 +88,7 @@ TEST(QSet, SetSync)
 //------------------------------------------------------------------------------
 TEST(QSet, SetAsync)
 {
-  QClient cl{sHost, sPort};
+  QClient cl{testconfig.host, testconfig.port};
   std::string set_key = "qclient_test:set_async";
   QSet qset(cl, set_key);
   qclient::AsyncHandler ah;

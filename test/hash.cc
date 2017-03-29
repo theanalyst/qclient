@@ -23,19 +23,18 @@
 
 #include <gtest/gtest.h>
 #include "qclient/QHash.hh"
+#include "test-config.hh"
 #include "qclient/AsyncHandler.hh"
 #include <algorithm>
 
 using namespace qclient;
-static std::string sHost = "localhost";
-static int sPort = 6380;
 
 //------------------------------------------------------------------------------
 // Test HASH interface - synchronous
 //------------------------------------------------------------------------------
 TEST(QHash, HashSync)
 {
-  QClient cl{sHost, sPort};
+  QClient cl{testconfig.host, testconfig.port};
   std::string hash_key = "qclient_test:hash";
   QHash qhash{cl, hash_key};
   std::vector<std::string> fields {"val1", "val2", "val3"};
@@ -152,7 +151,7 @@ TEST(QHash, HashSync)
 //------------------------------------------------------------------------------
 TEST(QHash, HashAsync)
 {
-  QClient cl{sHost, sPort};
+  QClient cl{testconfig.host, testconfig.port};
   std::string hash_key = "qclient_test:hash_async";
   QHash qhash(cl, hash_key);
   ASSERT_EQ(0, qhash.hlen());

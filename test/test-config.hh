@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ping.cc
+// File: test-config.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,45 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <gtest/gtest.h>
-#include "test-config.hh"
-#include "qclient/QSet.hh"
-#include "qclient/AsyncHandler.hh"
-#include <set>
-#include <list>
-#include <algorithm>
+#ifndef __QCLIENT_TEST_CONFIG_H__
+#define __QCLIENT_TEST_CONFIG_H__
 
-using namespace qclient;
-#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
+#include <string>
+#include <iostream>
+#include <vector>
 
-//------------------------------------------------------------------------------
-// Simply ping the server
-//------------------------------------------------------------------------------
-TEST(Ping, one)
-{
-  QClient cl{testconfig.host, testconfig.port};
+extern char **environ;
 
-  redisReplyPtr reply = cl.exec("PING", "hello there").get();
-  ASSERT_TRUE(reply != nullptr);
-  ASSERT_EQ(reply->type, REDIS_REPLY_STRING);
-  ASSERT_GT(reply->len, 0);
+struct TestConfig {
+  // parse environment variables to give the possibility to override defaults
+  TestConfig();
+  void parseSingle(const std::string &key, const std::string &value);
 
-  ASSERT_EQ(strcmp(reply->str, "hello there"), 0);
-}
+  std::string host = "localhost";
+  int port = 6379;
+};
 
-TEST(Ping, pipelined_10k) {
-  std::vector<std::future<redisReplyPtr>> responses;
+extern TestConfig testconfig;
 
-  QClient cl{testconfig.host, testconfig.port};
-
-  for(size_t i = 0; i < 10000; i++) {
-    responses.push_back(cl.exec("PING", SSTR("hello from ping #" << i)));
-  }
-
-  for(size_t i = 0; i < 10000; i++) {
-    redisReplyPtr reply = responses[i].get();
-    ASSERT_TRUE(reply != nullptr);
-    ASSERT_EQ(reply->type, REDIS_REPLY_STRING);
-    ASSERT_EQ(std::string(reply->str, reply->len), SSTR("hello from ping #" << i));
-  }
-}
+#endif
