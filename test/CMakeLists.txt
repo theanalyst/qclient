@@ -9,7 +9,8 @@ include_directories(
 add_executable(
   tests_qclient
   hash.cc
-  set.cc)
+  set.cc
+  ping.cc)
 
 target_link_libraries(
   tests_qclient
