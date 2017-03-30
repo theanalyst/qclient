@@ -88,10 +88,10 @@ private:
   TlsConfig tlsconfig;
   FilterType filtertype;
 
-  SSL_CTX *ctx;
-  SSL *ssl;
-  BIO *rbio;
-  BIO *wbio;
+  SSL_CTX *ctx = nullptr;
+  SSL *ssl = nullptr;
+  BIO *rbio = nullptr;
+  BIO *wbio = nullptr;
 
   RecvFunction recvFunc;
   SendFunction sendFunc;

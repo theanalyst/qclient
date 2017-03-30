@@ -243,7 +243,9 @@ TlsFilter::~TlsFilter() {
 LinkStatus TlsFilter::close(int defer) {
   std::lock_guard<std::mutex> lock(mtx);
 
-  SSL_shutdown(ssl);
-  handleTraffic();
+  if(ssl) {
+    SSL_shutdown(ssl);
+    handleTraffic();
+  }
   return 0;
 }
