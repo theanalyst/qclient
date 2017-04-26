@@ -25,7 +25,7 @@
 #define __QCLIENT_UTILS_H__
 
 #include <limits.h>
-#include "fmt/fmt/format.h"
+#include "fmt/format.h"
 
 namespace qclient {
 

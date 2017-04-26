@@ -30,6 +30,7 @@ add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -std=c++11 -g3 -fPIC
 # Build fmt library for string conversions
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
+  include_directories(src/fmt)
   add_subdirectory(src/fmt)
 endif()
 
