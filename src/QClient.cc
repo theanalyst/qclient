@@ -82,22 +82,6 @@ QClient::~QClient()
   cleanup();
 }
 
-std::future<redisReplyPtr>
-QClient::execute(const std::vector<std::string>& req)
-{
-  std::uint64_t indx = 0;
-  const char* cstr[req.size()];
-  size_t sizes[req.size()];
-
-  for (const auto& elem: req) {
-    cstr[indx] = elem.data();
-    sizes[indx] = elem.size();
-    ++indx;
-  }
-
-  return execute(req.size(), cstr, sizes);
-}
-
 std::future<redisReplyPtr> QClient::execute(const char* buffer,
                                             const size_t len)
 {

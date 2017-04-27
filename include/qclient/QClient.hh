@@ -99,7 +99,9 @@ public:
   QClient(const QClient&) = delete;
   void operator=(const QClient&) = delete;
 
-  std::future<redisReplyPtr> execute(const std::vector<std::string>& req);
+  std::future<redisReplyPtr> execute(const std::vector<std::string>& req) {
+    return execute(req.begin(), req.end());
+  }
   std::future<redisReplyPtr> execute(const char* buffer, size_t len);
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
                                      const size_t* sizes);
@@ -115,6 +117,18 @@ public:
   //----------------------------------------------------------------------------
   template<typename Iterator>
   std::future<redisReplyPtr> execute(const Iterator& begin, const Iterator& end);
+
+  //----------------------------------------------------------------------------
+  //! Execute a command provided by a container
+  //!
+  //! @param T container: must implement begin() and end()
+  //!
+  //! @return future object
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::future<redisReplyPtr> execute(const T& container) {
+    return this->execute(container.begin(), container.end());
+  }
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
