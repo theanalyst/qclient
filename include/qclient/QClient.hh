@@ -35,54 +35,17 @@
 #include <iostream>
 #include <string.h>
 #include "qclient/TlsFilter.hh"
+#include "qclient/EventFD.hh"
 
 namespace qclient
 {
+  class NetworkStream;
+
   using redisReplyPtr = std::shared_ptr<redisReply>;
   //! Response type holding the future object and a vector representing
   //! the executed command.
   using AsyncResponseType = std::pair<std::future<redisReplyPtr>,
                                       std::vector<std::string>>;
-
-class EventFD
-{
-public:
-  EventFD()
-  {
-    fd = eventfd(0, EFD_NONBLOCK);
-  }
-
-  ~EventFD()
-  {
-    close();
-  }
-
-  void close()
-  {
-    if (fd >= 0) {
-      ::close(fd);
-      fd = -1;
-    }
-  }
-
-  void notify(int64_t val = 1)
-  {
-    int rc = write(fd, &val, sizeof(val));
-
-    if (rc != sizeof(val)) {
-      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code "
-                << rc << ": " << strerror(errno) << std::endl;
-    }
-  }
-
-  inline int getFD() const
-  {
-    return fd;
-  }
-
-private:
-  int fd = -1;
-};
 
 //------------------------------------------------------------------------------
 //! Class QClient
@@ -231,9 +194,9 @@ private:
   bool transparentRedirects, exceptionsEnabled;
   bool available;
 
-  // TLS stuff
+  // Network stream
   TlsConfig tlsconfig;
-  std::atomic<TlsFilter*> tlsfilter { nullptr };
+  NetworkStream *networkStream = nullptr;
 
   std::atomic<int64_t> shutdown {false};
 

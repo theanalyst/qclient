@@ -1,20 +1,21 @@
-add_subdirectory(functional)
-
 #-------------------------------------------------------------------------------
-# Build unit tests
+# Build functional tests
 #-------------------------------------------------------------------------------
 include_directories(
   ${GTEST_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/../src
-  ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 
 add_executable(
-  qclient-tests
-  network-stream.cc)
+  qclient-functional-tests
+  hash.cc
+  set.cc
+  ping.cc
+  test-config.cc
+)
 
 target_link_libraries(
-  qclient-tests
+  qclient-functional-tests
   qclient
   ${GTEST_BOTH_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

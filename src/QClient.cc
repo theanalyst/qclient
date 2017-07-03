@@ -38,6 +38,9 @@
 #include <sstream>
 #include <iterator>
 
+#include "ConnectionInitiator.hh"
+#include "NetworkStream.hh"
+
 using namespace qclient;
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
@@ -117,12 +120,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
   }
 
   int bytes;
-  if(tlsconfig.active) {
-    bytes = (*tlsfilter).send(buffer, len);
-  }
-  else {
-    bytes = send(sock, buffer, len, 0);
-  }
+  bytes = networkStream->send(buffer, len);
 
   if(bytes != (int) len) {
     // Recoverable error: EWOULDBLOCK
@@ -140,7 +138,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
     // Handle non-recoverable errors, kill connection
     std::cerr << "qclient: error during send(), return value: " << bytes << ", errno: " << errno << ", "
               << strerror(errno) << std::endl;
-    ::shutdown(sock, SHUT_RDWR);
+    networkStream->shutdown();
 
     std::promise<redisReplyPtr> prom;
     prom.set_value(redisReplyPtr());
@@ -210,11 +208,10 @@ bool QClient::feed(const char* buf, size_t len)
 
 void QClient::cleanup()
 {
-  if (sock >= 0) {
-    ::shutdown(sock, SHUT_RDWR);
-    close(sock);
-    sock.store(-1);
-  }
+  if(networkStream) delete networkStream;
+  networkStream = nullptr;
+
+  sock.store(-1);
 
   if (reader != nullptr) {
     redisReaderFree(reader);
@@ -226,89 +223,17 @@ void QClient::cleanup()
     promises.front().set_value(redisReplyPtr());
     promises.pop();
   }
-
-  if(tlsfilter) delete tlsfilter;
-  tlsfilter.store(nullptr);
-}
-
-static RecvStatus recvfn(int socket, char *buffer, int len, int timeout) {
-  int ret = recv(socket, buffer, len, timeout);
-  int err = errno;
-
-  // Case 1: EOF, no more data to read, connection is closed
-  if(ret == 0) {
-    return RecvStatus(false, 0, 0);
-  }
-
-  // Case 2: Non-blocking socket: no data to read, connection still alive
-  if(ret == -1 && (err == EWOULDBLOCK || err == EAGAIN)) {
-    return RecvStatus(true, err, 0);
-  }
-
-  // Case 3: Socket error, connection is closed
-  if(ret < 0) {
-    return RecvStatus(false, ret, 0);
-  }
-
-  // Case 4: We have data
-  return RecvStatus(true, 0, ret);
-}
-
-LinkStatus sendfn(int socket, const char *buffer, int len, int timeout) {
-  return send(socket, buffer, len, timeout);
 }
 
 void QClient::connectTCP()
 {
-  struct addrinfo hints, *servinfo, *p;
-  int tmpsock = -1, rv;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_CANONNAME;
-
-  if ((rv = getaddrinfo(targetHost.c_str(), std::to_string(targetPort).c_str(),
-                        &hints, &servinfo)) != 0) {
-    std::cerr << "qclient: error when resolving " << targetHost << ": " <<
-              gai_strerror(rv) << std::endl;
-    return;
-  }
-
-  // loop through all the results and connect to the first we can
-  for (p = servinfo; p != NULL; p = p->ai_next) {
-    if ((tmpsock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-      continue;
-    }
-
-    if (::connect(tmpsock, p->ai_addr, p->ai_addrlen) == -1) {
-      close(tmpsock);
-      tmpsock = -1;
-      continue;
-    }
-
-    break;
-  }
-
-  freeaddrinfo(servinfo);
-
-  if (p == NULL) {
+  networkStream = new NetworkStream(targetHost, targetPort, tlsconfig);
+  if(!networkStream->ok()) {
     available = false;
     return;
   }
 
-  available = true;
-  fcntl(tmpsock, F_SETFL, fcntl(tmpsock, F_GETFL) | O_NONBLOCK);
-  if(tlsconfig.active) {
-    using std::placeholders::_1;
-    using std::placeholders::_2;
-    using std::placeholders::_3;
-
-    RecvFunction recvF = std::bind(recvfn, tmpsock, _1, _2, _3);
-    SendFunction sendF = std::bind(sendfn, tmpsock, _1, _2, 0);
-
-    tlsfilter.store(new TlsFilter(tlsconfig, FilterType::CLIENT, recvF, sendF));
-  }
-  sock.store(tmpsock);
+  sock.store(networkStream->getFd());
 }
 
 void QClient::connect()
@@ -365,13 +290,7 @@ void QClient::eventLoop()
 
       // legit connection, reset backoff
       backoff = std::chrono::milliseconds(1);
-
-      if(tlsconfig.active) {
-        status = (*tlsfilter).recv(buffer, BUFFER_SIZE, 0);
-      }
-      else {
-        status = recvfn(sock, buffer, BUFFER_SIZE, 0);
-      }
+      status = networkStream->recv(buffer, BUFFER_SIZE, 0);
 
       if(!status.connectionAlive) {
         break; // connection died on us, try to reconnect

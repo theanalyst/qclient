@@ -48,10 +48,12 @@ include_directories(
   ${OPENSSL_INCLUDE_DIR})
 
 add_library(qclient STATIC
+  src/AsyncHandler.cc
+  src/ConnectionInitiator.cc
+  src/NetworkStream.cc
   src/QClient.cc
   src/QHash.cc
   src/QSet.cc
-  src/AsyncHandler.cc
   src/TlsFilter.cc
 )
 
@@ -69,11 +71,8 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  FILES
-  include/qclient/QClient.hh
-  include/qclient/QHash.hh
-  include/qclient/QSet.hh
-  include/qclient/TlsFilter.hh
+  DIRECTORY
+  include/qclient
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qclient)
 
 install(
