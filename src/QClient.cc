@@ -82,6 +82,20 @@ QClient::~QClient()
   cleanup();
 }
 
+void QClient::blockUntilWritable() {
+  struct pollfd polls[2];
+  polls[0].fd = shutdownEventFD.getFD();
+  polls[0].events = POLLIN;
+  polls[1].fd = sock;
+  polls[1].events = POLLOUT;
+
+  int rpoll = poll(polls, 2, -1);
+  if(rpoll < 0 && errno != EINTR) {
+    std::cerr << "qclient: error during poll() in blockUntilWritable: " << errno << ", "
+              << strerror(errno) << std::endl;
+  }
+}
+
 std::future<redisReplyPtr> QClient::execute(const char* buffer,
                                             const size_t len)
 {
@@ -110,8 +124,21 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
     bytes = send(sock, buffer, len, 0);
   }
 
-  if(bytes < 0) {
-    std::cerr << "qclient: error during send(): " << errno << ", "
+  if(bytes != (int) len) {
+    // Recoverable error: EWOULDBLOCK
+    if(bytes < 0 && errno == EWOULDBLOCK) {
+      blockUntilWritable();
+      return execute(buffer, len);
+    }
+
+    // Recoverable error: Fewer bytes were written than anticipated
+    if(bytes > 0 && bytes < (int) len) {
+      blockUntilWritable();
+      return execute(buffer+bytes, len-bytes);
+    }
+
+    // Handle non-recoverable errors, kill connection
+    std::cerr << "qclient: error during send(), return value: " << bytes << ", errno: " << errno << ", "
               << strerror(errno) << std::endl;
     ::shutdown(sock, SHUT_RDWR);
 
@@ -204,7 +231,7 @@ void QClient::cleanup()
   tlsfilter.store(nullptr);
 }
 
-RecvStatus recvfn(int socket, char *buffer, int len, int timeout) {
+static RecvStatus recvfn(int socket, char *buffer, int len, int timeout) {
   int ret = recv(socket, buffer, len, timeout);
   int err = errno;
 
