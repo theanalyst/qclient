@@ -151,6 +151,15 @@ public:
   long long int sadd(std::list<std::string> lst_elem);
 
   //----------------------------------------------------------------------------
+  //! Redis SET add command for multiple elements - asynchronous
+  //!
+  //! @param set_elem values to be added to the set
+  //!
+  //! @return number of elements added to the set
+  //----------------------------------------------------------------------------
+  AsyncResponseType sadd_async(std::set<std::string> set_elem);
+
+  //----------------------------------------------------------------------------
   //! Redis SET remove command - synchronous
   //!
   //! @param member value to be removed from the set

@@ -148,4 +148,18 @@ QSet::sscan(std::string cursor, long long count)
   return retc_pair;
 }
 
+//------------------------------------------------------------------------------
+// Redis SET add command for multiple elements - asynchronous
+//------------------------------------------------------------------------------
+AsyncResponseType
+QSet::sadd_async(std::set<std::string> set_elem)
+{
+  std::vector<std::string> cmd;
+  (void) cmd.push_back("SADD");
+  (void) cmd.push_back(mKey);
+  (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+}
+
+
 QCLIENT_NAMESPACE_END

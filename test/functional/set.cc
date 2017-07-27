@@ -129,4 +129,19 @@ TEST(QSet, SetAsync)
                              [](long long int elem) {
                                return (elem != 1);
                              }));
+
+  // Bulk asynchronous add elements
+  std::set<std::string> set_elem;
+
+  for (auto i = 500; i < 600; ++i) {
+    value = "val" + std::to_string(i);
+    set_elem.insert(value);
+  }
+
+  ah.Register(qset.sadd_async(set_elem), qset.getClient());
+  ASSERT_TRUE(ah.Wait());
+  resp = ah.GetResponses();
+  ASSERT_EQ(100, resp[0]);
+  auto future = cl.execute({"DEL", set_key});
+  ASSERT_EQ(1, future.get()->integer);
 }
