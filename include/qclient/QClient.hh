@@ -36,6 +36,7 @@
 #include <string.h>
 #include "qclient/TlsFilter.hh"
 #include "qclient/EventFD.hh"
+#include "qclient/Members.hh"
 
 namespace qclient
 {
@@ -53,8 +54,11 @@ namespace qclient
 class QClient
 {
 public:
-  QClient(const std::string& host, const int port, bool redirects = false,
-          bool exceptions = false, TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
+  QClient(const std::string &host, int port, bool redirects = false, bool exceptions = false,
+          TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
+
+  QClient(const Members &members, bool redirects = false, bool exceptions = false,
+          TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
 
   ~QClient();
 
@@ -178,17 +182,16 @@ public:
 
 
 private:
-  // the host:port pair given in the constructor
-  std::string host;
-  int port;
+  // The cluster members, as given in the constructor.
+  size_t nextMember = 0;
+  Members members;
 
-  // the host:port pair we're actually connecting to
-  std::string targetHost;
-  int targetPort;
+  // the endpoint we're actually connecting to
+  Endpoint targetEndpoint;
 
-  // the host:port pair given in a redirect
-  std::string redirectedHost;
-  int redirectedPort;
+  // the endpoint given in a redirect
+  Endpoint redirectedEndpoint;
+
   bool redirectionActive = false;
 
   bool transparentRedirects, exceptionsEnabled;

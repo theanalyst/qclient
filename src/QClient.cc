@@ -71,8 +71,16 @@ void QClient::clearIntercepts()
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
                  bool exceptions, TlsConfig tlc, std::vector<std::string> handshake)
-  : host(host_), port(port_), transparentRedirects(redirects),
+  : members(host_, port_), transparentRedirects(redirects),
     exceptionsEnabled(exceptions), tlsconfig(tlc), sock(-1), handshakeCommand(handshake)
+{
+  startEventLoop();
+}
+
+QClient::QClient(const Members& members_, bool redirects,
+                 bool exceptions, TlsConfig tlc, std::vector<std::string> handshake)
+  : members(members_), transparentRedirects(redirects), exceptionsEnabled(exceptions),
+    tlsconfig(tlc), sock(-1), handshakeCommand(handshake)
 {
   startEventLoop();
 }
@@ -192,8 +200,7 @@ bool QClient::feed(const char* buf, size_t len)
         RedisServer redirect;
 
         if (response.size() == 3 && parseServer(response[2], redirect)) {
-          redirectedHost = redirect.host;
-          redirectedPort = redirect.port;
+          redirectedEndpoint = Endpoint(redirect.host, redirect.port);
           return false;
         }
       }
@@ -227,7 +234,7 @@ void QClient::cleanup()
 
 void QClient::connectTCP()
 {
-  networkStream = new NetworkStream(targetHost, targetPort, tlsconfig);
+  networkStream = new NetworkStream(targetEndpoint.getHost(), targetEndpoint.getPort(), tlsconfig);
   if(!networkStream->ok()) {
     available = false;
     return;
@@ -240,8 +247,10 @@ void QClient::connect()
 {
   std::unique_lock<std::recursive_mutex> lock(mtx);
   cleanup();
-  targetHost = host;
-  targetPort = port;
+
+  targetEndpoint = members.getEndpoints()[nextMember];
+  nextMember = (nextMember + 1) % members.size();
+
   processRedirection();
   discoverIntercept();
   reader = redisReaderCreate();
@@ -319,20 +328,16 @@ void QClient::eventLoop()
 
 void QClient::processRedirection()
 {
-  if (!redirectedHost.empty() && redirectedPort > 0) {
-    std::cerr << "qclient: redirecting to " << redirectedHost << ":" <<
-              redirectedPort << std::endl;
-    targetHost = redirectedHost;
-    targetPort = redirectedPort;
+  if (!redirectedEndpoint.empty()) {
+    std::cerr << "qclient: redirecting to " << redirectedEndpoint.toString() << std::endl;
+    targetEndpoint = redirectedEndpoint;
     redirectionActive = true;
   } else if (redirectionActive) {
-    std::cerr << "qclient: redirecting back to original host " << host << ":" <<
-              port << std::endl;
+    std::cerr << "qclient: redirecting back to original hosts " << std::endl;
     redirectionActive = false;
   }
 
-  redirectedHost.clear();
-  redirectedPort = -1;
+  redirectedEndpoint = {};
 }
 
 void QClient::discoverIntercept()
@@ -340,11 +345,10 @@ void QClient::discoverIntercept()
   // If this (host, port) pair is being intercepted, redirect to a different
   // (host, port) pair instead.
   std::lock_guard<std::mutex> lock(interceptsMutex);
-  auto it = intercepts.find(std::make_pair(targetHost, targetPort));
+  auto it = intercepts.find(std::make_pair(targetEndpoint.getHost(), targetEndpoint.getPort()));
 
   if (it != intercepts.end()) {
-    targetHost = it->second.first;
-    targetPort = it->second.second;
+    targetEndpoint = Endpoint(it->second.first, it->second.second);
   }
 }
 
