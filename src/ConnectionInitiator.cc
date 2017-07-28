@@ -66,7 +66,6 @@ ConnectionInitiator::ConnectionInitiator(const std::string &hostname, int port) 
     }
 
     if (::connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
-      localerrno = errno;
       close(fd);
       fd = -1;
       continue;
