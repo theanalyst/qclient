@@ -54,7 +54,7 @@ public:
   //! @param qcl pointer to client object used to send the request. This is
   //!        used in case the recovery mechanism is triggered.
   //----------------------------------------------------------------------------
-  void Register(AsyncResponseType resp_pair, QClient* qcl);
+  void Register(AsyncResponseType&& resp_pair, QClient* qcl);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -76,16 +76,24 @@ public:
   //----------------------------------------------------------------------------
   //! Get responses for async resquests
   //!
-  //! @return vector of the responses
+  //! @return list of responses
   //----------------------------------------------------------------------------
-  std::vector<long long int> GetResponses();
+  std::list<long long int> GetResponses();
 
 private:
-  //! Vector containing pairs of AsyncResponseType and ponter to the qclient
-  //! object used to send the request.
-  std::vector<std::pair<AsyncResponseType, QClient*>> mVectRequests;
-  std::vector<long long int> mVectResponses; ///< Vector of responses
-  std::mutex mVectMutex; ///< Mutex protecting access to the vector
+  //! Pairs of AsyncResponseType and pointer to the qclient object used to send
+  //! the request.
+  struct ReqType {
+    AsyncResponseType mAsyncResp;
+    QClient* mClient;
+
+    ReqType(AsyncResponseType&& aresp, QClient* client):
+      mAsyncResp(std::move(aresp)), mClient(client) {}
+  };
+
+  std::list<ReqType> mRequests; ///< List of executed requests
+  std::list<long long int> mResponses; ///< List of responses
+  std::mutex mLstMutex; ///< Mutex protecting access to the list
   std::list<std::string> mErrors; ///< List of errors
 };
 

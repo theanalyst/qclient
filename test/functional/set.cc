@@ -110,7 +110,7 @@ TEST(QSet, SetAsync)
 
   // Wait for all the replies
   ASSERT_TRUE(ah.Wait());
-  std::vector<long long int> resp = ah.GetResponses();
+  std::list<long long int> resp = ah.GetResponses();
   ASSERT_EQ(10, std::count_if(resp.begin(), resp.end(),
                               [](long long int elem) {
                                 return (elem != 1);
@@ -141,7 +141,7 @@ TEST(QSet, SetAsync)
   ah.Register(qset.sadd_async(set_elem), qset.getClient());
   ASSERT_TRUE(ah.Wait());
   resp = ah.GetResponses();
-  ASSERT_EQ(100, resp[0]);
+  ASSERT_EQ(100, *(resp.begin()));
   auto future = cl.execute({"DEL", set_key});
   ASSERT_EQ(1, future.get()->integer);
 }

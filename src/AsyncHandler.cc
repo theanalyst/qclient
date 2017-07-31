@@ -34,27 +34,37 @@ AsyncHandler::Wait()
   bool is_ok = true;
   redisReplyPtr reply;
   QClient* qcl;
-  std::lock_guard<std::mutex> lock(mVectMutex);
-  mVectResponses.clear();
+  std::lock_guard<std::mutex> lock(mLstMutex);
+  mResponses.clear();
 
-  for (auto& pair: mVectRequests) {
+  for (auto& elem: mRequests) {
     try {
-      qcl = pair.second;
-      reply = qcl->HandleResponse(std::move(pair.first));
+      qcl = elem.mClient;
+      reply = qcl->HandleResponse(std::move(elem.mAsyncResp));
 
-      if (reply->type != REDIS_REPLY_INTEGER) {
-        mVectResponses.emplace_back(-EINVAL);
-        is_ok &= false;
+      if (reply->type == REDIS_REPLY_INTEGER) {
+        mResponses.emplace_back(reply->integer);
+      } else if (reply->type == REDIS_REPLY_STATUS){
+        if (strncmp(reply->str, "OK", 2) == 0) {
+          mResponses.emplace_back(1);
+        } else {
+          std::cerr << "ERROR: REDIS_REPLY_STRING - " << reply->str << std::endl;
+          mResponses.emplace_back(-1);
+          is_ok &= false;
+        }
       } else {
-        mVectResponses.emplace_back(reply->integer);
+        std::cerr << "ERROR: reply_type: " << reply->type << std::endl;
+        mResponses.emplace_back(-EINVAL);
+        is_ok &= false;
       }
     } catch (std::runtime_error& qdb_err) {
-      mVectResponses.emplace_back(-ECOMM);
+      std::cerr << "Exception: " << qdb_err.what() << std::endl;
+      mResponses.emplace_back(-ECOMM);
       is_ok &= false;
     }
   }
 
-  mVectRequests.clear();
+  mRequests.clear();
   return is_ok;
 }
 
@@ -67,9 +77,9 @@ AsyncHandler::WaitForAtLeast(std::uint64_t num_req)
 {
   {
     // Wait only if we have enough requests in-flight
-    std::lock_guard<std::mutex> lock(mVectMutex);
+    std::lock_guard<std::mutex> lock(mLstMutex);
 
-    if (mVectRequests.size() <= num_req) {
+    if (mRequests.size() <= num_req) {
       return true;
     }
   }
@@ -80,21 +90,21 @@ AsyncHandler::WaitForAtLeast(std::uint64_t num_req)
 //------------------------------------------------------------------------------
 // Get responses for the async requests
 //------------------------------------------------------------------------------
-std::vector<long long int>
+std::list<long long int>
 AsyncHandler::GetResponses()
 {
-  std::lock_guard<std::mutex> lock(mVectMutex);
-  return mVectResponses;
+  std::lock_guard<std::mutex> lock(mLstMutex);
+  return mResponses;
 }
 
 //------------------------------------------------------------------------------
 // Register new future
 //------------------------------------------------------------------------------
 void
-AsyncHandler::Register(qclient::AsyncResponseType resp_pair, QClient* qcl)
+AsyncHandler::Register(qclient::AsyncResponseType&& resp_pair, QClient* qcl)
 {
-  std::lock_guard<std::mutex> lock(mVectMutex);
-  mVectRequests.emplace_back(std::move(resp_pair), qcl);
+  std::lock_guard<std::mutex> lock(mLstMutex);
+  mRequests.emplace_back(std::move(resp_pair), qcl);
 }
 
 QCLIENT_NAMESPACE_END

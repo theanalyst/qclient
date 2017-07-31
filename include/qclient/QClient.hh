@@ -170,7 +170,7 @@ public:
   //! containing the future object and the command.
   //----------------------------------------------------------------------------
   redisReplyPtr
-  HandleResponse(AsyncResponseType async_resp);
+  HandleResponse(AsyncResponseType&& async_resp);
 
   //----------------------------------------------------------------------------
   //! Handle response - convenience function taking as arguments a begin and an
@@ -263,8 +263,8 @@ private:
   QClient::HandleResponse(const Iterator& begin, const Iterator& end)
   {
     auto future = execute(begin, end);
-    return HandleResponse(std::make_pair(std::move(future),
-                                         std::vector<std::string>(begin, end)));
+    return HandleResponse(AsyncResponseType(std::move(future),
+                                            std::vector<std::string>(begin, end)));
   }
 }
 #endif

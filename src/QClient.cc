@@ -400,7 +400,7 @@ QClient::del(const std::string& key)
 // Handle response
 //------------------------------------------------------------------------------
 redisReplyPtr
-QClient::HandleResponse(AsyncResponseType resp)
+QClient::HandleResponse(AsyncResponseType&& resp)
 {
   int num_retries = 5;
   std::chrono::milliseconds delay(10);
