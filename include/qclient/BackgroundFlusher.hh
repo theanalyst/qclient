@@ -51,6 +51,7 @@ public:
   BackgroundFlusher(QClient &client, Notifier &notifier, size_t sizeLimit, size_t pipelineLength,
     BackgroundFlusherPersistency *persistency = nullptr);
 
+  int64_t getEnqueuedAndClear();
   void pushRequest(const std::vector<std::string> &operation);
   size_t size() const;
 private:
@@ -61,6 +62,7 @@ private:
 
   size_t pipelineLength;
   AssistedThread thread;
+  std::atomic<int64_t> enqueued {0};
 
   void main(ThreadAssistant &assistant);
   void processPipeline(ThreadAssistant &assistant);

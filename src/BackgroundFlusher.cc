@@ -35,12 +35,19 @@ size_t BackgroundFlusher::size() const {
   return queue.size();
 }
 
+// Return
+int64_t BackgroundFlusher::getEnqueuedAndClear() {
+  int64_t retvalue = enqueued.exchange(0);
+  return retvalue;
+}
+
 void BackgroundFlusher::pushRequest(const std::vector<std::string> &operation) {
   PushStatus status = queue.push(operation);
   if(!status.ok) {
     std::cerr << "could not append item to queue. Wait for: " << status.blockedFor.count() << std::endl;
     std::terminate();
   }
+  enqueued++;
 }
 
 static bool is_ready(std::future<redisReplyPtr> &fut) {
