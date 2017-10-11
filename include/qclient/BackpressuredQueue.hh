@@ -167,6 +167,21 @@ public:
     }
   }
 
+  // Wait until given index has been popped. Useful to synchronize threads waiting
+  // to do something until a certain element has been processed.
+  template<typename Duration>
+  bool waitForIndex(ItemIndex index, Duration duration) {
+    std::unique_lock<std::mutex> lock(mtx);
+    auto deadline = std::chrono::steady_clock::now() + duration;
+
+    while(std::chrono::steady_clock::now() < deadline) {
+      if(index < getStartingIndexNoLock()) return true;
+      waitingToPop.wait_until(lock, deadline);
+    }
+
+    return index < getStartingIndexNoLock();
+  }
+
   PushStatus push(const QueueItem &item, std::chrono::milliseconds maxBlockTime = std::chrono::milliseconds::max()) {
     // Keep track of time, in case we block.
     // Initialized lazily to avoid overhead when we don't block.
@@ -243,7 +258,22 @@ block:
     waitingToPop.wait_for(lock, waitTime);
   }
 
+  ItemIndex getStartingIndex() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return getStartingIndexNoLock();
+  }
+
+  ItemIndex getEndingIndex() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return nextIndex;
+  }
+
 private:
+  // mtx must be locked when calling this
+  ItemIndex getStartingIndexNoLock() const {
+    return nextIndex - contents.size();
+  }
+
   std::unique_ptr<PersistencyLayer<QueueItem>> persistencyLayer;
   ItemIndex nextIndex {0};
   BackpressureStrategy strategy;

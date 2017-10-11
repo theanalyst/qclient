@@ -35,9 +35,15 @@ size_t BackgroundFlusher::size() const {
   return queue.size();
 }
 
-// Return
+// Return number of enqueued items since last time this function was called.
 int64_t BackgroundFlusher::getEnqueuedAndClear() {
   int64_t retvalue = enqueued.exchange(0);
+  return retvalue;
+}
+
+// Return number of acknowledged (dequeued) items since last time this function was called.
+int64_t BackgroundFlusher::getAcknowledgedAndClear() {
+  int64_t retvalue = acknowledged.exchange(0);
   return retvalue;
 }
 
@@ -97,6 +103,7 @@ bool BackgroundFlusher::checkPendingQueue(std::list<std::future<redisReplyPtr>> 
       return false;
     }
     queue.pop();
+    acknowledged++;
   }
 
   return true;
@@ -173,6 +180,7 @@ void BackgroundFlusher::main(ThreadAssistant &assistant) {
 
     // All is well, launch the pipeline
     queue.pop();
+    acknowledged++;
     processPipeline(assistant);
   }
 }

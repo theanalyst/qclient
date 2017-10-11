@@ -52,8 +52,24 @@ public:
     BackgroundFlusherPersistency *persistency = nullptr);
 
   int64_t getEnqueuedAndClear();
+  int64_t getAcknowledgedAndClear();
+
   void pushRequest(const std::vector<std::string> &operation);
   size_t size() const;
+
+  template<typename Duration>
+  bool waitForIndex(ItemIndex index, Duration duration) {
+    return queue.waitForIndex(index, duration);
+  }
+
+  ItemIndex getEndingIndex() {
+    return queue.getEndingIndex();
+  }
+
+  ItemIndex getStartingIndex() {
+    return queue.getStartingIndex();
+  }
+
 private:
   BackpressuredQueue<std::vector<std::string>, BackpressureStrategyLimitSize> queue;
 
@@ -62,12 +78,15 @@ private:
 
   size_t pipelineLength;
   AssistedThread thread;
+
   std::atomic<int64_t> enqueued {0};
+  std::atomic<int64_t> acknowledged {0};
 
   void main(ThreadAssistant &assistant);
   void processPipeline(ThreadAssistant &assistant);
   bool checkPendingQueue(std::list<std::future<redisReplyPtr>> &inflight);
   bool verifyReply(redisReplyPtr &reply);
+
 };
 
 }
