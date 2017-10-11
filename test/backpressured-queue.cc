@@ -96,7 +96,7 @@ private:
 #define ASSERT_NOT_BLOCKED(st, result) { PushStatus status = st; ASSERT_EQ(status.ok, result); ASSERT_EQ(status.blockedFor, std::chrono::milliseconds(0)); }
 
 TEST(BackpressuredQueue, basic_sanity) {
-  BackpressuredQueue<int, BackpressureStrategyLimitSize> queue(4);
+  BackpressuredQueue<int, BackpressureStrategyLimitSize> queue(nullptr, 4);
   AsynchronousHelper helper;
 
   // A few successful operations..

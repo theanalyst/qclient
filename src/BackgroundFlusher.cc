@@ -27,8 +27,8 @@
 using namespace qclient;
 
 BackgroundFlusher::BackgroundFlusher(QClient &qcl, Notifier &notif,
-  size_t szLimit, size_t pipeline)
-: queue(szLimit), qclient(qcl), notifier(notif), pipelineLength(pipeline),
+  size_t szLimit, size_t pipeline, BackgroundFlusherPersistency *persistency)
+: queue(persistency, szLimit), qclient(qcl), notifier(notif), pipelineLength(pipeline),
   thread(&BackgroundFlusher::main, this) { }
 
 size_t BackgroundFlusher::size() const {

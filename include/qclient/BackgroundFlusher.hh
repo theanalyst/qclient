@@ -44,9 +44,12 @@ class ResponseVerifier {
   virtual void callback(const std::vector<std::string> &request, const redisReplyPtr &response);
 };
 
+using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
+
 class BackgroundFlusher {
 public:
-  BackgroundFlusher(QClient &client, Notifier &notifier, size_t sizeLimit, size_t pipelineLength);
+  BackgroundFlusher(QClient &client, Notifier &notifier, size_t sizeLimit, size_t pipelineLength,
+    BackgroundFlusherPersistency *persistency = nullptr);
 
   void pushRequest(const std::vector<std::string> &operation);
   size_t size() const;

@@ -44,12 +44,17 @@ namespace qclient {
 // PushStatus: Feedback to the client about the status of their push call.
 // ok: whether the item was placed on the queue.
 // blockedFor: the amount of time we blocked for.
+// assignedIndex: the index in the queue the item was assigned to
 //------------------------------------------------------------------------------
+using ItemIndex = int64_t;
+
 struct PushStatus {
   bool ok;
   std::chrono::milliseconds blockedFor;
-  PushStatus(bool ok_, std::chrono::milliseconds blocked)
-  : ok(ok_), blockedFor(blocked) {}
+  ItemIndex assignedIndex;
+
+  PushStatus(bool ok_, std::chrono::milliseconds blocked, ItemIndex index = -1)
+  : ok(ok_), blockedFor(blocked), assignedIndex(index) {}
 };
 
 //------------------------------------------------------------------------------
@@ -86,6 +91,33 @@ private:
 };
 
 //------------------------------------------------------------------------------
+// PersistencyLayer interface - inherit from here to implement extra
+// functionality. Default implementation does nothing at all.
+//------------------------------------------------------------------------------
+template<typename QueueItem>
+class PersistencyLayer {
+public:
+  PersistencyLayer() {}
+  virtual ~PersistencyLayer() {} // very important to be virtual!
+
+  virtual void record(ItemIndex index, const QueueItem &item) {}
+  virtual void pop() {}
+
+  // The following three functions are only used during reconstruction.
+  virtual ItemIndex getStartingIndex() {
+    return 0;
+  }
+
+  virtual ItemIndex getEndingIndex() {
+    return 0;
+  }
+
+  virtual bool retrieve(ItemIndex index, QueueItem &ret) {
+    return false;
+  }
+};
+
+//------------------------------------------------------------------------------
 // The main class.
 //------------------------------------------------------------------------------
 template<typename QueueItem, typename BackpressureStrategy>
@@ -94,8 +126,26 @@ public:
   using container = std::list<QueueItem>;
   using const_iterator = typename container::const_iterator;
 
+  // Ownership of "persistency" is passed on to this object.
   template<typename... Args>
-  BackpressuredQueue(Args&&... args) : strategy(std::forward<Args>(args)...) {}
+  BackpressuredQueue(PersistencyLayer<QueueItem> *persistency, Args&&... args)
+  : persistencyLayer(persistency), strategy(std::forward<Args>(args)...) {
+
+    if(persistencyLayer) {
+      nextIndex = persistencyLayer->getEndingIndex();
+
+      for(ItemIndex index = persistencyLayer->getStartingIndex(); index < persistencyLayer->getEndingIndex(); index++) {
+        QueueItem item;
+        if(!persistencyLayer->retrieve(index, item)) {
+          std::cerr << "Queue corruption, cannot reconstruct original contents. Failed on index " << index << std::endl;
+          exit(EXIT_FAILURE);
+        }
+
+        strategy.pushEvent(item);
+        contents.push_back(item);
+      }
+    }
+  }
 
   // Access the top element, assume it exists.
   QueueItem& top() {
@@ -106,6 +156,10 @@ public:
   // Pop an item from the queue, assume it exists.
   void pop() {
     std::unique_lock<std::mutex> lock(mtx);
+
+    if(persistencyLayer) {
+      persistencyLayer->pop();
+    }
 
     contents.pop_front();
     if(strategy.popEvent(contents.front())) {
@@ -119,6 +173,7 @@ public:
     std::chrono::steady_clock::time_point blockedSince;
     std::chrono::steady_clock::time_point deadline;
     std::chrono::milliseconds blockedFor(0);
+    ItemIndex assignedIndex;
 
     std::unique_lock<std::mutex> lock(mtx);
 
@@ -128,6 +183,8 @@ public:
       }
 
       // All clear, we can happily place the item on the queue.
+      assignedIndex = nextIndex++;
+      if(persistencyLayer) persistencyLayer->record(assignedIndex, item);
       contents.push_back(item);
 
       // Calculate how long we blocked for, if at all
@@ -136,7 +193,7 @@ public:
       }
 
       waitingToPop.notify_all();
-      return PushStatus(true, blockedFor);
+      return PushStatus(true, blockedFor, assignedIndex);
 block:
       // No block?
       if(maxBlockTime == std::chrono::milliseconds(0)) {
@@ -187,6 +244,8 @@ block:
   }
 
 private:
+  std::unique_ptr<PersistencyLayer<QueueItem>> persistencyLayer;
+  ItemIndex nextIndex {0};
   BackpressureStrategy strategy;
   std::list<QueueItem> contents;
 
