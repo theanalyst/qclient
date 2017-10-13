@@ -33,9 +33,11 @@ public:
   QScanner(QClient& cl, const std::string &pattern_, size_t count_ = 100)
   : qcl(cl), pattern(pattern_), count(count_), started(false), currentCursor("0") { }
 
-  std::vector<std::string> next() {
+  bool next(std::vector<std::string> &results) {
+    results.clear();
+
     if(started && currentCursor == "0") {
-      return {}; // full scan complete, no more elements
+      return false; // full scan complete, no more elements
     }
 
     started = true;
@@ -45,17 +47,14 @@ public:
     // Parse the Redis reply - update cursor
     currentCursor = std::string(reply->element[0]->str, static_cast<unsigned int>(reply->element[0]->len));
 
-    // Build return elements into a vector
-    std::vector<std::string> ret;
-
     // Get arrary part of the response
     redisReply* reply_ptr =  reply->element[1];
 
     for (unsigned long i = 0; i < reply_ptr->elements; ++i) {
-      ret.emplace_back(reply_ptr->element[i]->str, static_cast<unsigned int>(reply_ptr->element[i]->len));
+      results.emplace_back(reply_ptr->element[i]->str, static_cast<unsigned int>(reply_ptr->element[i]->len));
     }
 
-    return ret;
+    return true;
   }
 
 private:
