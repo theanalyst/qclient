@@ -152,9 +152,9 @@ QSet::sscan(std::string cursor, long long count)
 // Redis SET add command for multiple elements - asynchronous
 //------------------------------------------------------------------------------
 AsyncResponseType
-QSet::sadd_async(std::set<std::string> set_elem)
+QSet::sadd_async(const std::set<std::string>& set_elem)
 {
-  std::vector<std::string> cmd;
+  std::vector<std::string> cmd(set_elem.size());
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
@@ -165,9 +165,9 @@ QSet::sadd_async(std::set<std::string> set_elem)
 // Redis SET add command for multiple elements - asynchronous
 //------------------------------------------------------------------------------
 AsyncResponseType
-QSet::sadd_async(std::list<std::string> set_elem)
+QSet::sadd_async(const std::list<std::string>& set_elem)
 {
-  std::vector<std::string> cmd;
+  std::vector<std::string> cmd(set_elem.size());
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());

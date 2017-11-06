@@ -155,18 +155,29 @@ public:
   //!
   //! @param set_elem values to be added to the set
   //!
-  //! @return number of elements added to the set
+  //! @return response future object
   //----------------------------------------------------------------------------
-  AsyncResponseType sadd_async(std::set<std::string> set_elem);
+  AsyncResponseType sadd_async(const std::set<std::string>& set_elem);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple elements - asynchronous
   //!
   //! @param set_elem values to be added to the set
   //!
-  //! @return number of elements added to the set
+  //! @return response future object
   //----------------------------------------------------------------------------
-  AsyncResponseType sadd_async(std::list<std::string> set_elem);
+  AsyncResponseType sadd_async(const std::list<std::string>& set_elem);
+
+  //----------------------------------------------------------------------------
+  //! Redis SET add command for multiple elements - asynchronous
+  //!
+  //! @param begin begin iterator
+  //! @param end end iterator
+  //!
+  //! @return response future object
+  //----------------------------------------------------------------------------
+  template<typename Iterator>
+  AsyncResponseType sadd_async(const Iterator& begin, const Iterator& end);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command - synchronous
@@ -247,6 +258,17 @@ AsyncResponseType
 QSet::sadd_async(const T& member)
 {
   std::vector<std::string> cmd {"SADD", mKey, stringify(member)};
+  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+}
+
+template<typename Iterator>
+AsyncResponseType
+QSet::sadd_async(const Iterator& begin, const Iterator& end)
+{
+  std::vector<std::string> cmd(std::distance(begin, end));
+  (void) cmd.push_back("SADD");
+  (void) cmd.push_back(mKey);
+  (void) cmd.insert(cmd.end(), begin, end);
   return std::make_pair(mClient->execute(cmd), std::move(cmd));
 }
 
