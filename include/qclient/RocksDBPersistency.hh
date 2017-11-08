@@ -147,7 +147,7 @@ public:
     return endIndex;
   }
 
-  virtual bool retrieve(ItemIndex index, std::vector<std::string> &ret) {
+  virtual bool retrieve(ItemIndex index, std::vector<std::string> &ret) override {
     std::string buffer;
     rocksdb::Status status = db->Get(rocksdb::ReadOptions(), getKey(index), &buffer);
 
