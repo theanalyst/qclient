@@ -154,7 +154,8 @@ QSet::sscan(std::string cursor, long long count)
 AsyncResponseType
 QSet::sadd_async(const std::set<std::string>& set_elem)
 {
-  std::vector<std::string> cmd(set_elem.size());
+  std::vector<std::string> cmd;
+  cmd.reserve(set_elem.size() + 2);
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
@@ -167,7 +168,8 @@ QSet::sadd_async(const std::set<std::string>& set_elem)
 AsyncResponseType
 QSet::sadd_async(const std::list<std::string>& set_elem)
 {
-  std::vector<std::string> cmd(set_elem.size());
+  std::vector<std::string> cmd;
+  cmd.reserve(set_elem.size() + 2);
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());

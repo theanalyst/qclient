@@ -265,7 +265,8 @@ template<typename Iterator>
 AsyncResponseType
 QSet::sadd_async(const Iterator& begin, const Iterator& end)
 {
-  std::vector<std::string> cmd(std::distance(begin, end));
+  std::vector<std::string> cmd;
+  cmd.reserve(std::distance(begin, end) + 2);
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), begin, end);
