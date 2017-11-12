@@ -155,7 +155,7 @@ public:
   //! @return return future object
   //----------------------------------------------------------------------------
   template <typename T>
-  AsyncResponseType
+  std::future<redisReplyPtr>
   hset_async(const std::string& field, const T& value);
 
   //----------------------------------------------------------------------------
@@ -186,7 +186,7 @@ public:
   //!
   //! @return future object
   //----------------------------------------------------------------------------
-  AsyncResponseType
+  std::future<redisReplyPtr>
   hdel_async(const std::string& field);
 
   //----------------------------------------------------------------------------
@@ -218,7 +218,7 @@ public:
   //!
   //! @return future containing the response
   //----------------------------------------------------------------------------
-  AsyncResponseType
+  std::future<redisReplyPtr>
   hlen_async();
 
   //----------------------------------------------------------------------------
@@ -242,7 +242,7 @@ public:
   //! @return the value at "field" after the increment operation
   //----------------------------------------------------------------------------
   template <typename T>
-  AsyncResponseType
+  std::future<redisReplyPtr>
   hincrby_async(const std::string& field, const T& increment);
 
   //----------------------------------------------------------------------------
@@ -292,11 +292,11 @@ private:
 // HSET operation - asynchronous
 //------------------------------------------------------------------------------
 template <typename T>
-AsyncResponseType
+std::future<redisReplyPtr>
 QHash::hset_async(const std::string& field, const T& value)
 {
   std::vector<std::string> cmd {"HSET", mKey, field, stringify(value)};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 //------------------------------------------------------------------------------
@@ -339,11 +339,11 @@ bool QHash::hsetnx(const std::string& field, const T& value)
 // HINCRBY operation - asynchronous
 //------------------------------------------------------------------------------
 template <typename T>
-AsyncResponseType
+std::future<redisReplyPtr>
 QHash::hincrby_async(const std::string& field, const T& increment)
 {
   std::vector<std::string> cmd {"HINCRBY", mKey, field, stringify(increment)};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 //------------------------------------------------------------------------------

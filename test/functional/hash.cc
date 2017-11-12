@@ -168,9 +168,8 @@ TEST(QHash, HashAsync)
 
   ASSERT_TRUE(ah.Wait());
   // Get map length asynchronously
-  auto pair = qhash.hlen_async();
-  redisReplyPtr reply = pair.first.get();
-  ASSERT_EQ(num_elem, reply->integer);
+  auto reply = qhash.hlen_async();
+  ASSERT_EQ(num_elem, reply.get()->integer);
 
   // Delete asynchronously all elements
   for (std::uint64_t i = 0; i <= num_elem; ++i) {

@@ -54,7 +54,7 @@ public:
   //! @param qcl pointer to client object used to send the request. This is
   //!        used in case the recovery mechanism is triggered.
   //----------------------------------------------------------------------------
-  void Register(AsyncResponseType&& resp_pair, QClient* qcl);
+  void Register(std::future<redisReplyPtr>&& resp_pair, QClient* qcl);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -64,16 +64,6 @@ public:
   bool Wait();
 
   //----------------------------------------------------------------------------
-  //! Wait for pending requests and collect the results if there are more than
-  //! required the required number of in-flight requests.
-  //!
-  //! @param num_req minimum number of async requests we want to wait for
-  //!
-  //! @return true if all successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool WaitForAtLeast(std::uint64_t num_req);
-
-  //----------------------------------------------------------------------------
   //! Get responses for async resquests
   //!
   //! @return list of responses
@@ -81,13 +71,13 @@ public:
   std::list<long long int> GetResponses();
 
 private:
-  //! Pairs of AsyncResponseType and pointer to the qclient object used to send
-  //! the request.
+  //! Pairs of std::future<redisReplyPtr> and pointer to the qclient object
+  //! used to send the request
   struct ReqType {
-    AsyncResponseType mAsyncResp;
+    std::future<redisReplyPtr> mAsyncResp;
     QClient* mClient;
 
-    ReqType(AsyncResponseType&& aresp, QClient* client):
+    ReqType(std::future<redisReplyPtr>&& aresp, QClient* client):
       mAsyncResp(std::move(aresp)), mClient(client) {}
   };
 

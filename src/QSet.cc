@@ -23,8 +23,6 @@
 
 #include "qclient/QSet.hh"
 
-using namespace std;
-
 QCLIENT_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -53,7 +51,8 @@ long long int QSet::sadd(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("SADD");
-  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
+  redisReplyPtr reply =
+    mClient->HandleResponse(mClient->execute(lst_elem.begin(), lst_elem.end()));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey +
@@ -71,7 +70,9 @@ long long int QSet::srem(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("SREM");
-  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
+  redisReplyPtr reply =
+    mClient->HandleResponse(mClient->execute(lst_elem.begin(),
+                                             lst_elem.end()));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey +
@@ -151,7 +152,7 @@ QSet::sscan(std::string cursor, long long count)
 //------------------------------------------------------------------------------
 // Redis SET add command for multiple elements - asynchronous
 //------------------------------------------------------------------------------
-AsyncResponseType
+std::future<redisReplyPtr>
 QSet::sadd_async(const std::set<std::string>& set_elem)
 {
   std::vector<std::string> cmd;
@@ -159,13 +160,13 @@ QSet::sadd_async(const std::set<std::string>& set_elem)
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 //------------------------------------------------------------------------------
 // Redis SET add command for multiple elements - asynchronous
 //------------------------------------------------------------------------------
-AsyncResponseType
+std::future<redisReplyPtr>
 QSet::sadd_async(const std::list<std::string>& set_elem)
 {
   std::vector<std::string> cmd;
@@ -173,7 +174,7 @@ QSet::sadd_async(const std::list<std::string>& set_elem)
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 QCLIENT_NAMESPACE_END

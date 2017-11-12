@@ -69,25 +69,6 @@ AsyncHandler::Wait()
 }
 
 //------------------------------------------------------------------------------
-// Wait for pending requests and collect the results if there are more than
-// required the required number of in-flight requests.
-//------------------------------------------------------------------------------
-bool
-AsyncHandler::WaitForAtLeast(std::uint64_t num_req)
-{
-  {
-    // Wait only if we have enough requests in-flight
-    std::lock_guard<std::mutex> lock(mLstMutex);
-
-    if (mRequests.size() <= num_req) {
-      return true;
-    }
-  }
-
-  return Wait();
-}
-
-//------------------------------------------------------------------------------
 // Get responses for the async requests
 //------------------------------------------------------------------------------
 std::list<long long int>
@@ -101,10 +82,10 @@ AsyncHandler::GetResponses()
 // Register new future
 //------------------------------------------------------------------------------
 void
-AsyncHandler::Register(qclient::AsyncResponseType&& resp_pair, QClient* qcl)
+AsyncHandler::Register(std::future<redisReplyPtr>&& resp, QClient* qcl)
 {
   std::lock_guard<std::mutex> lock(mLstMutex);
-  mRequests.emplace_back(std::move(resp_pair), qcl);
+  mRequests.emplace_back(std::move(resp), qcl);
 }
 
 QCLIENT_NAMESPACE_END

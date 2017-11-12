@@ -41,12 +41,7 @@
 namespace qclient
 {
   class NetworkStream;
-
   using redisReplyPtr = std::shared_ptr<redisReply>;
-  //! Response type holding the future object and a vector representing
-  //! the executed command.
-  using AsyncResponseType = std::pair<std::future<redisReplyPtr>,
-                                      std::vector<std::string>>;
 
 //------------------------------------------------------------------------------
 //! Class QClient
@@ -146,7 +141,7 @@ public:
   //!
   //! @return future object containing the response and the command
   //----------------------------------------------------------------------------
-  AsyncResponseType
+  std::future<redisReplyPtr>
   del_async(const std::string& key);
 
   //----------------------------------------------------------------------------
@@ -170,16 +165,7 @@ public:
   //! containing the future object and the command.
   //----------------------------------------------------------------------------
   redisReplyPtr
-  HandleResponse(AsyncResponseType&& async_resp);
-
-  //----------------------------------------------------------------------------
-  //! Handle response - convenience function taking as arguments a begin and an
-  //! end iterator to a container of strings. (vector or list)
-  //----------------------------------------------------------------------------
-  template<typename Iterator>
-  redisReplyPtr
-  HandleResponse(const Iterator& begin, const Iterator& end);
-
+  HandleResponse(std::future<redisReplyPtr>&& async_resp);
 
 private:
   // The cluster members, as given in the constructor.
@@ -253,18 +239,6 @@ private:
     }
 
     return execute(size, cstr, sizes);
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle response - convenience function
-  //----------------------------------------------------------------------------
-  template <typename Iterator>
-  redisReplyPtr
-  QClient::HandleResponse(const Iterator& begin, const Iterator& end)
-  {
-    auto future = execute(begin, end);
-    return HandleResponse(AsyncResponseType(std::move(future),
-                                            std::vector<std::string>(begin, end)));
   }
 }
 #endif

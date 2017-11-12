@@ -86,11 +86,11 @@ QHash::hdel(const std::string& field)
 //------------------------------------------------------------------------------
 // HDEL command - asynchronous
 //------------------------------------------------------------------------------
-AsyncResponseType
+std::future<redisReplyPtr>
 QHash::hdel_async(const std::string& field)
 {
   std::vector<std::string> cmd {"HDEL", mKey, field};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 //------------------------------------------------------------------------------
@@ -154,11 +154,11 @@ QHash::hlen()
 //------------------------------------------------------------------------------
 // HLEN command - asynchronous
 //------------------------------------------------------------------------------
-AsyncResponseType
+std::future<redisReplyPtr>
 QHash::hlen_async()
 {
   std::vector<std::string> cmd {"HLEN", mKey};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 //------------------------------------------------------------------------------
@@ -246,7 +246,9 @@ QHash::hmset(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("HMSET");
-  redisReplyPtr reply = mClient->HandleResponse(lst_elem.begin(), lst_elem.end());
+  redisReplyPtr reply =
+    mClient->HandleResponse(mClient->execute(lst_elem.begin(),
+                                             lst_elem.end()));
 
   if (reply->type != REDIS_REPLY_STATUS) {
     throw std::runtime_error("[FATAL] Error hmset key: " + mKey +

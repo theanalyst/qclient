@@ -23,7 +23,6 @@
 
 #include "qclient/QClient.hh"
 #include "qclient/Utils.hh"
-
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
@@ -37,7 +36,6 @@
 #include <fcntl.h>
 #include <sstream>
 #include <iterator>
-
 #include "ConnectionInitiator.hh"
 #include "NetworkStream.hh"
 
@@ -372,11 +370,11 @@ QClient::exists(const std::string& key)
 //------------------------------------------------------------------------------
 // Wrapper function for del async command
 //------------------------------------------------------------------------------
-AsyncResponseType
+std::future<redisReplyPtr>
 QClient::del_async(const std::string& key)
 {
   std::vector<std::string> cmd {"DEL", key};
-  return std::make_pair(execute(cmd), std::move(cmd));
+  return execute(cmd);
 }
 
 //------------------------------------------------------------------------------
@@ -400,31 +398,12 @@ QClient::del(const std::string& key)
 // Handle response
 //------------------------------------------------------------------------------
 redisReplyPtr
-QClient::HandleResponse(AsyncResponseType&& resp)
+QClient::HandleResponse(std::future<redisReplyPtr>&& resp)
 {
-  int num_retries = 5;
-  std::chrono::milliseconds delay(10);
-  redisReplyPtr reply = resp.first.get();
-
-  // Handle transient errors by resubmitting the request
-  while (!reply && (num_retries > 0)) {
-    auto futur = execute(resp.second);
-    reply = futur.get();
-    --num_retries;
-    std::this_thread::sleep_for(delay);
-  }
-
-  if (!reply) {
-    throw std::runtime_error("[FATAL] Unable to connect to KV-backend");
-  }
+  redisReplyPtr reply = resp.get();
 
   if (reply->type == REDIS_REPLY_ERROR) {
-    auto cmd = resp.second;
-    std::ostringstream oss;
-    std::copy(cmd.begin(), cmd.end(),
-              std::ostream_iterator<std::string>(oss, " "));
-    throw std::runtime_error("[FATAL] Error REDIS_REPLY_ERROR for command: "
-                             + oss.str());
+    throw std::runtime_error("[FATAL] Error REDIS_REPLY_ERROR ");
   }
 
   return reply;
@@ -436,7 +415,5 @@ QClient::HandleResponse(AsyncResponseType&& resp)
 redisReplyPtr
 QClient::HandleResponse(std::vector<std::string> cmd)
 {
-  auto future = execute(cmd);
-  return HandleResponse(std::make_pair(std::move(future),
-                                       std::move(cmd)));
+  return HandleResponse(execute(cmd));
 }

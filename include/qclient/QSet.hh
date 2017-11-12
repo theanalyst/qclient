@@ -138,7 +138,7 @@ public:
   //! @reutrn future object
   //----------------------------------------------------------------------------
   template <typename T>
-  AsyncResponseType
+  std::future<redisReplyPtr>
   sadd_async(const T& member);
 
   //----------------------------------------------------------------------------
@@ -157,7 +157,7 @@ public:
   //!
   //! @return response future object
   //----------------------------------------------------------------------------
-  AsyncResponseType sadd_async(const std::set<std::string>& set_elem);
+  std::future<redisReplyPtr> sadd_async(const std::set<std::string>& set_elem);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple elements - asynchronous
@@ -166,7 +166,7 @@ public:
   //!
   //! @return response future object
   //----------------------------------------------------------------------------
-  AsyncResponseType sadd_async(const std::list<std::string>& set_elem);
+  std::future<redisReplyPtr> sadd_async(const std::list<std::string>& set_elem);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple elements - asynchronous
@@ -177,7 +177,7 @@ public:
   //! @return response future object
   //----------------------------------------------------------------------------
   template<typename Iterator>
-  AsyncResponseType sadd_async(const Iterator& begin, const Iterator& end);
+  std::future<redisReplyPtr> sadd_async(const Iterator& begin, const Iterator& end);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command - synchronous
@@ -197,7 +197,7 @@ public:
   //! @return true if member removed, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  AsyncResponseType
+  std::future<redisReplyPtr>
   srem_async(const T& member);
 
   //----------------------------------------------------------------------------
@@ -254,15 +254,15 @@ private:
 // Set related templated methods implementation
 //------------------------------------------------------------------------------
 template <typename T>
-AsyncResponseType
+std::future<redisReplyPtr>
 QSet::sadd_async(const T& member)
 {
   std::vector<std::string> cmd {"SADD", mKey, stringify(member)};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 template<typename Iterator>
-AsyncResponseType
+std::future<redisReplyPtr>
 QSet::sadd_async(const Iterator& begin, const Iterator& end)
 {
   std::vector<std::string> cmd;
@@ -270,7 +270,7 @@ QSet::sadd_async(const Iterator& begin, const Iterator& end)
   (void) cmd.push_back("SADD");
   (void) cmd.push_back(mKey);
   (void) cmd.insert(cmd.end(), begin, end);
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 template <typename T>
@@ -288,11 +288,11 @@ bool QSet::sadd(const T& member)
 }
 
 template <typename T>
-AsyncResponseType
+std::future<redisReplyPtr>
 QSet::srem_async(const T& member)
 {
   std::vector<std::string> cmd {"SREM", mKey, stringify(member)};
-  return std::make_pair(mClient->execute(cmd), std::move(cmd));
+  return mClient->execute(cmd);
 }
 
 template <typename T>
