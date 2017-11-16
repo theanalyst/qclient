@@ -82,6 +82,29 @@ public:
     return members.size();
   }
 
+  bool parse(const std::string& input) {
+    bool valid = false;
+    std::istringstream iss(input);
+    std::string token;
+
+    while (std::getline(iss, token, ' ')) {
+      size_t pos = token.find(':');
+
+      if (pos != std::string::npos) {
+        try {
+          std::string host = token.substr(0, pos);
+          uint32_t port = std::stoul(token.substr(pos + 1));
+          members.emplace_back(host, port);
+          valid = true;
+        } catch (const std::exception& e) {
+          continue;
+        }
+      }
+    }
+
+    return valid;
+  }
+
 private:
   std::vector<Endpoint> members;
 };
