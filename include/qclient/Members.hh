@@ -51,6 +51,18 @@ public:
     return ss.str();
   }
 
+  bool operator==(const Endpoint &other) const {
+    return host == other.host && port == other.port;
+  }
+
+  bool operator<(const Endpoint &other) const {
+    if(host != other.host) {
+      return host < other.host;
+    }
+
+    return port < other.port;
+  }
+
 private:
   std::string host;
   int port = -1;
@@ -82,6 +94,16 @@ public:
     return members.size();
   }
 
+  bool empty() const {
+    return members.empty();
+  }
+
+  static Members fromString(const std::string &input) {
+    Members ret;
+    ret.parse(input);
+    return ret;
+  }
+
   bool parse(const std::string& input) {
     bool valid = false;
     std::istringstream iss(input);
@@ -103,6 +125,32 @@ public:
     }
 
     return valid;
+  }
+
+  std::string toString() const {
+    std::ostringstream ss;
+    for(size_t i = 0; i < members.size(); i++) {
+      ss << members[i].getHost() << ":" << members[i].getPort();
+      if(i != members.size() - 1) {
+        ss << ",";
+      }
+    }
+
+    return ss.str();
+  }
+
+  bool operator<(const Members& other) const {
+    if(members.size() != other.members.size()) {
+      return members.size() < other.members.size();
+    }
+
+    for(size_t i = 0; i < other.size(); i++) {
+      if(!(members[i] == other.members[i])) {
+        return members[i] < other.members[i];
+      }
+    }
+
+    return false; // the two are equal
   }
 
 private:
