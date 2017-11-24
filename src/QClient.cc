@@ -68,17 +68,17 @@ void QClient::clearIntercepts()
 // QClient class implementation
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 bool exceptions, TlsConfig tlc, std::vector<std::string> handshake)
+                 bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
-    exceptionsEnabled(exceptions), tlsconfig(tlc), sock(-1), handshakeCommand(handshake)
+    exceptionsEnabled(exceptions), tlsconfig(tlc), sock(-1), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
 
 QClient::QClient(const Members& members_, bool redirects,
-                 bool exceptions, TlsConfig tlc, std::vector<std::string> handshake)
+                 bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(members_), transparentRedirects(redirects), exceptionsEnabled(exceptions),
-    tlsconfig(tlc), sock(-1), handshakeCommand(handshake)
+    tlsconfig(tlc), sock(-1), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -190,9 +190,17 @@ bool QClient::feed(const char* buf, size_t len)
 
     // new request to process
     if (!promises.empty()) {
-      redisReply* rr = (redisReply*) reply;
+      redisReplyPtr rr = redisReplyPtr(redisReplyPtr((redisReply*) reply, freeReplyObject));
 
-      if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
+      if(handshakePending) {
+        if(!handshake->validateResponse(rr)) {
+          // Error during handshaking, drop connection
+          return false;
+        }
+
+        handshakePending = false;
+      }
+      else if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
           strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
         std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
         RedisServer redirect;
@@ -203,7 +211,7 @@ bool QClient::feed(const char* buf, size_t len)
         }
       }
 
-      promises.front().set_value(redisReplyPtr((redisReply*) reply, freeReplyObject));
+      promises.front().set_value(rr);
       promises.pop();
     }
   }
@@ -254,8 +262,10 @@ void QClient::connect()
   reader = redisReaderCreate();
   connectTCP();
 
-  if (!handshakeCommand.empty()) {
-    execute(handshakeCommand);
+  handshakePending = false;
+  if(handshake) {
+    execute(handshake->provideHandshake());
+    handshakePending = true;
   }
 }
 

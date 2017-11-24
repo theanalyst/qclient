@@ -44,16 +44,29 @@ namespace qclient
   using redisReplyPtr = std::shared_ptr<redisReply>;
 
 //------------------------------------------------------------------------------
+//! Class handshake - inherit from here.
+//! Defines the first ever request to send to the remote host, and validates
+//! the response. If response is not as expected, the connection is shut down.
+//------------------------------------------------------------------------------
+class Handshake
+{
+public:
+  virtual ~Handshake() {}
+  virtual std::vector<std::string> provideHandshake() = 0;
+  virtual bool validateResponse(const redisReplyPtr &reply) = 0;
+};
+
+//------------------------------------------------------------------------------
 //! Class QClient
 //------------------------------------------------------------------------------
 class QClient
 {
 public:
   QClient(const std::string &host, int port, bool redirects = false, bool exceptions = false,
-          TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
+          TlsConfig tlsconfig = {}, std::unique_ptr<Handshake> handshake = {} );
 
   QClient(const Members &members, bool redirects = false, bool exceptions = false,
-          TlsConfig tlsconfig = {}, std::vector<std::string> handshake = {});
+          TlsConfig tlsconfig = {}, std::unique_ptr<Handshake> handshake = {} );
 
   ~QClient();
 
@@ -207,7 +220,8 @@ private:
 
   void discoverIntercept();
   void processRedirection();
-  std::vector<std::string> handshakeCommand;
+  std::unique_ptr<Handshake> handshake;
+  bool handshakePending = true;
   std::thread eventLoopThread;
 
   //----------------------------------------------------------------------------
