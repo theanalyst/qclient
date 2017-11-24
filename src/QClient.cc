@@ -111,7 +111,7 @@ std::future<redisReplyPtr> QClient::execute(const char* buffer,
   std::lock_guard<std::recursive_mutex> lock(mtx);
 
   // not connected temporarily?
-  if (sock <= 0) {
+  if (!networkStream->ok()) {
     std::promise<redisReplyPtr> prom;
 
     // not available at all?

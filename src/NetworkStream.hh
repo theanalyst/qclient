@@ -36,7 +36,7 @@ public:
   ~NetworkStream();
 
   bool ok() {
-    return (fd > 0) && (localerrno == 0) && (error.empty());
+    return (fd > 0) && (localerrno == 0) && (error.empty()) && (!fdShutdown);
   }
 
   int getErrno() {
