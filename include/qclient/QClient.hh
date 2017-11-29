@@ -207,7 +207,6 @@ private:
   void connect();
   void blockUntilWritable();
 
-  std::atomic<int> sock;
   redisReader* reader = nullptr;
 
   void cleanup();

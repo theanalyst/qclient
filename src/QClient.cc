@@ -27,12 +27,6 @@
 #include <string.h>
 #include <poll.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <fcntl.h>
 #include <sstream>
 #include <iterator>
@@ -70,7 +64,7 @@ void QClient::clearIntercepts()
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
                  bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
-    exceptionsEnabled(exceptions), tlsconfig(tlc), sock(-1), handshake(std::move(handshake_))
+    exceptionsEnabled(exceptions), tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -78,7 +72,7 @@ QClient::QClient(const std::string& host_, const int port_, bool redirects,
 QClient::QClient(const Members& members_, bool redirects,
                  bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(members_), transparentRedirects(redirects), exceptionsEnabled(exceptions),
-    tlsconfig(tlc), sock(-1), handshake(std::move(handshake_))
+    tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -95,7 +89,7 @@ void QClient::blockUntilWritable() {
   struct pollfd polls[2];
   polls[0].fd = shutdownEventFD.getFD();
   polls[0].events = POLLIN;
-  polls[1].fd = sock;
+  polls[1].fd = networkStream->getFd();
   polls[1].events = POLLOUT;
 
   int rpoll = poll(polls, 2, -1);
@@ -224,8 +218,6 @@ void QClient::cleanup()
   if(networkStream) delete networkStream;
   networkStream = nullptr;
 
-  sock.store(-1);
-
   if (reader != nullptr) {
     redisReaderFree(reader);
     reader = nullptr;
@@ -245,8 +237,6 @@ void QClient::connectTCP()
     available = false;
     return;
   }
-
-  sock.store(networkStream->getFd());
 }
 
 void QClient::connect()
@@ -281,11 +271,11 @@ void QClient::eventLoop()
     struct pollfd polls[2];
     polls[0].fd = shutdownEventFD.getFD();
     polls[0].events = POLLIN;
-    polls[1].fd = sock;
+    polls[1].fd = networkStream->getFd();
     polls[1].events = POLLIN;
 
     RecvStatus status(true, 0, 0);
-    while (sock > 0) {
+    while (networkStream->ok()) {
       lock.unlock();
 
       // If the previous iteration returned any bytes at all, try to read again

@@ -25,6 +25,7 @@
 #define __QCLIENT_NETWORK_STREAM_H__
 
 #include <string>
+#include <atomic>
 #include "ConnectionInitiator.hh"
 #include "qclient/TlsFilter.hh"
 
@@ -36,7 +37,7 @@ public:
   ~NetworkStream();
 
   bool ok() {
-    return (fd > 0) && (localerrno == 0) && (error.empty()) && (!fdShutdown);
+    return isOk;
   }
 
   int getErrno() {
@@ -62,9 +63,12 @@ private:
   int localerrno = 0;
   std::string error;
 
+  // fd is immutable after construction, safe to access concurrently.
   int fd = -1;
+
   bool fdShutdown = false;
   TlsFilter *tlsfilter = nullptr;
+  std::atomic<bool> isOk;
 
   void close();
 };

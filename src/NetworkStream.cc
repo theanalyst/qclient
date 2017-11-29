@@ -65,10 +65,13 @@ NetworkStream::NetworkStream(const std::string &hst, int prt, TlsConfig tlsconfi
   if(!initiator.ok()) {
     localerrno = initiator.getErrno();
     error = initiator.getError();
+    isOk = false;
     return;
   }
 
   fd = initiator.getFd();
+  isOk = (fd >= 0);
+
   if(tlsconfig.active) {
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -86,6 +89,7 @@ void NetworkStream::shutdown() {
 
   int ret = ::shutdown(fd, SHUT_RDWR);
   fdShutdown = true;
+  isOk = false;
 
   if(ret != 0) {
     std::cerr << "qclient: Error during socket shutdown for fd " << fd << " towards " << host << ":" << port << ", retval: " << ret
