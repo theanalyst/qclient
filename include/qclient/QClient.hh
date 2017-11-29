@@ -69,14 +69,14 @@ public:
   //----------------------------------------------------------------------------
   QClient(const std::string &host, int port, bool redirects = false,
           bool exceptions = false, TlsConfig tlsconfig = {},
-          std::vector<std::string> handshake = {});
+          std::unique_ptr<Handshake> handshake = {} );
 
   //----------------------------------------------------------------------------
   //! Constructor taking a list of members for the cluster
   //----------------------------------------------------------------------------
   QClient(const Members &members, bool redirects = false,
           bool exceptions = false, TlsConfig tlsconfig = {},
-          std::vector<std::string> handshake = {});
+          std::unique_ptr<Handshake> handshake = {} );
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -98,7 +98,7 @@ public:
   //!
   //! @return future holding a redis reply
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> execute(const char* buffer, size_t len);
+  std::future<redisReplyPtr> execute(char* buffer, const size_t len);
 
   //----------------------------------------------------------------------------
   //! Convenience function to encode redis command given as a std::string to
