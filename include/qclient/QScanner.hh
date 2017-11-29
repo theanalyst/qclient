@@ -42,7 +42,8 @@ public:
 
     started = true;
 
-    redisReplyPtr reply = qcl.HandleResponse({"SCAN", currentCursor, "MATCH", pattern, "COUNT", std::to_string(count)});
+    redisReplyPtr reply = qcl.HandleResponse(std::vector<std::string>(
+      {"SCAN", currentCursor, "MATCH", pattern, "COUNT", std::to_string(count)}));
 
     // Parse the Redis reply - update cursor
     currentCursor = std::string(reply->element[0]->str, static_cast<unsigned int>(reply->element[0]->len));

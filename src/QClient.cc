@@ -101,6 +101,15 @@ std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
   return execute(buffer, len);
 }
 
+std::future<redisReplyPtr> QClient::execute(const std::string& cmd)
+{
+  char* buffer = NULL;
+  int len = redisFormatCommand(&buffer, cmd.c_str());
+  std::future<redisReplyPtr> ret = execute(buffer, len);
+  free(buffer);
+  return ret;
+}
+
 void QClient::startEventLoop()
 {
   writerThread = new WriterThread(shutdownEventFD);
@@ -301,7 +310,8 @@ void QClient::discoverIntercept()
 long long int
 QClient::exists(const std::string& key)
 {
-  redisReplyPtr reply = HandleResponse({"EXISTS", key});
+  redisReplyPtr reply = HandleResponse(std::vector<std::string>(
+    {"EXISTS", key}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error exists key: " + key +
@@ -328,7 +338,7 @@ QClient::del_async(const std::string& key)
 long long int
 QClient::del(const std::string& key)
 {
-  redisReplyPtr reply = HandleResponse(del_async(key));
+  redisReplyPtr reply = HandleResponse(std::vector<std::string>({"DEL", key}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error del key: " + key +
@@ -343,22 +353,30 @@ QClient::del(const std::string& key)
 // Handle response
 //------------------------------------------------------------------------------
 redisReplyPtr
-QClient::HandleResponse(std::future<redisReplyPtr>&& resp)
+QClient::HandleResponse(std::future<redisReplyPtr>&& resp,
+                        const std::string& cmd)
 {
-  redisReplyPtr reply = resp.get();
+  int num_retries = 3;
+  redisReplyPtr reply;
 
-  if (reply->type == REDIS_REPLY_ERROR) {
+  do {
+    --num_retries;
+    reply = resp.get();
+
+    if (reply == nullptr) {
+      resp = execute(cmd);
+    } else {
+      break;
+    }
+  } while (num_retries != 0);
+
+  if ((reply == nullptr) && (num_retries == 0)) {
+    throw std::runtime_error("[FATAL] NULL response after 3 retries");
+  }
+
+  if (reply && reply->type == REDIS_REPLY_ERROR) {
     throw std::runtime_error("[FATAL] Error REDIS_REPLY_ERROR ");
   }
 
   return reply;
-}
-
-//------------------------------------------------------------------------------
-// Handle response - convenience function
-//------------------------------------------------------------------------------
-redisReplyPtr
-QClient::HandleResponse(std::vector<std::string> cmd)
-{
-  return HandleResponse(execute(cmd));
 }

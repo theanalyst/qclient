@@ -25,9 +25,9 @@
 #include "qclient/QClient.hh"
 #include "qclient/Namespace.hh"
 #include "qclient/Utils.hh"
+#include "qclient/AsyncHandler.hh"
 #include <vector>
 #include <set>
-
 
 QCLIENT_NAMESPACE_BEGIN
 
@@ -134,12 +134,10 @@ public:
   //! Redis SET add command - asynchronous
   //!
   //! @param member value to be added to the set
-  //!
-  //! @reutrn future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr>
-  sadd_async(const T& member);
+  void sadd_async(const T& member, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple members - synchronous
@@ -154,30 +152,27 @@ public:
   //! Redis SET add command for multiple elements - asynchronous
   //!
   //! @param set_elem values to be added to the set
-  //!
-  //! @return response future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> sadd_async(const std::set<std::string>& set_elem);
+  void sadd_async(const std::set<std::string>& set_elem, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple elements - asynchronous
   //!
   //! @param set_elem values to be added to the set
-  //!
-  //! @return response future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> sadd_async(const std::list<std::string>& set_elem);
+  void sadd_async(const std::list<std::string>& set_elem, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple elements - asynchronous
   //!
   //! @param begin begin iterator
   //! @param end end iterator
-  //!
-  //! @return response future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
   template<typename Iterator>
-  std::future<redisReplyPtr> sadd_async(const Iterator& begin, const Iterator& end);
+  void sadd_async(const Iterator& begin, const Iterator& end, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command - synchronous
@@ -193,12 +188,10 @@ public:
   //! Redis SET remove command - asynchronous
   //!
   //! @param member value to be removed from the set
-  //!
-  //! @return true if member removed, otherwise false
+  //! @param ah async handler
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr>
-  srem_async(const T& member);
+  void srem_async(const T& member, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command for multiple members - synchronous
@@ -254,29 +247,32 @@ private:
 // Set related templated methods implementation
 //------------------------------------------------------------------------------
 template <typename T>
-std::future<redisReplyPtr>
-QSet::sadd_async(const T& member)
+void QSet::sadd_async(const T& member, AsyncHandler* ah)
 {
-  std::vector<std::string> cmd {"SADD", mKey, stringify(member)};
-  return mClient->execute(cmd);
+  fmt::MemoryWriter cmd;
+  cmd << "SADD" << " " << mKey << " " << member;
+  ah->Register(mClient, cmd.str());
 }
 
 template<typename Iterator>
-std::future<redisReplyPtr>
-QSet::sadd_async(const Iterator& begin, const Iterator& end)
+void
+QSet::sadd_async(const Iterator& begin, const Iterator& end, AsyncHandler* ah)
 {
-  std::vector<std::string> cmd;
-  cmd.reserve(std::distance(begin, end) + 2);
-  (void) cmd.push_back("SADD");
-  (void) cmd.push_back(mKey);
-  (void) cmd.insert(cmd.end(), begin, end);
-  return mClient->execute(cmd);
+  fmt::MemoryWriter cmd;
+  cmd << "SADD" << " " << mKey;
+
+  for (auto it = begin; it != end; ++it) {
+    cmd << " " << *it;
+  }
+
+  ah->Register(mClient, cmd.str());
 }
 
 template <typename T>
 bool QSet::sadd(const T& member)
 {
-  redisReplyPtr reply = mClient->HandleResponse(sadd_async(member));
+  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
+    {"SADD", mKey, stringify(member)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " field: "
@@ -288,17 +284,19 @@ bool QSet::sadd(const T& member)
 }
 
 template <typename T>
-std::future<redisReplyPtr>
-QSet::srem_async(const T& member)
+void
+QSet::srem_async(const T& member, AsyncHandler* ah)
 {
-  std::vector<std::string> cmd {"SREM", mKey, stringify(member)};
-  return mClient->execute(cmd);
+  fmt::MemoryWriter cmd;
+  cmd << "SREM" << " " << mKey << " " << member;
+  ah->Register(mClient, cmd.str());
 }
 
 template <typename T>
 bool QSet::srem(const T& member)
 {
-  redisReplyPtr reply = mClient->HandleResponse(srem_async(member));
+  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
+    {"SREM", mKey, stringify(member)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
@@ -313,7 +311,8 @@ template <typename T>
 bool QSet::sismember(const T& member)
 {
   redisReplyPtr reply =
-    mClient->HandleResponse({"SISMEMBER", mKey, stringify(member)});
+    mClient->HandleResponse(std::vector<std::string>(
+      {"SISMEMBER", mKey, stringify(member)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "

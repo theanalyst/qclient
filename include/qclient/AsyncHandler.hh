@@ -23,11 +23,16 @@
 
 #pragma once
 #include "qclient/Namespace.hh"
-#include "qclient/QSet.hh"
-#include "qclient/QHash.hh"
+#include "qclient/QClient.hh"
 #include <list>
+#include <future>
+#include <mutex>
+
 
 QCLIENT_NAMESPACE_BEGIN
+
+//! Forward declaration
+class QClient;
 
 //------------------------------------------------------------------------------
 //! Class AsyncHandler
@@ -49,12 +54,10 @@ public:
   //----------------------------------------------------------------------------
   //! Register a new async call
   //!
-  //! @param resp_pair pair containing the furture object and the command it
-  //!        corresponds to
-  //! @param qcl pointer to client object used to send the request. This is
-  //!        used in case the recovery mechanism is triggered.
+  //! @param qcl QClient used to send the request
+  //! @param cmd command to be executed
   //----------------------------------------------------------------------------
-  void Register(std::future<redisReplyPtr>&& resp_pair, QClient* qcl);
+  void Register(QClient* qcl, const std::string& cmd);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -74,11 +77,13 @@ private:
   //! Pairs of std::future<redisReplyPtr> and pointer to the qclient object
   //! used to send the request
   struct ReqType {
-    std::future<redisReplyPtr> mAsyncResp;
     QClient* mClient;
+    std::string mCmd;
+    std::future<redisReplyPtr> mAsyncResp;
 
-    ReqType(std::future<redisReplyPtr>&& aresp, QClient* client):
-      mAsyncResp(std::move(aresp)), mClient(client) {}
+    ReqType(QClient* qcl, const std::string& cmd,
+            std::future<redisReplyPtr>&& resp):
+      mClient(qcl), mCmd(cmd), mAsyncResp(std::move(resp)) {}
   };
 
   std::list<ReqType> mRequests; ///< List of executed requests

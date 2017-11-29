@@ -25,6 +25,7 @@
 #include "qclient/Namespace.hh"
 #include "qclient/QClient.hh"
 #include "qclient/Utils.hh"
+#include "qclient/AsyncHandler.hh"
 #include <unordered_map>
 
 QCLIENT_NAMESPACE_BEGIN
@@ -151,12 +152,10 @@ public:
   //!
   //! @param field hash field
   //! @param value value to set
-  //!
-  //! @return return future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr>
-  hset_async(const std::string& field, const T& value);
+  void hset_async(const std::string& field, const T& value, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! HASH set if doesn't exist command - synchronous
@@ -183,11 +182,10 @@ public:
   //! HASH del command - asynchronous
   //!
   //! @param field hash field
-  //!
-  //! @return future object
+  //! @param ah async handler
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr>
-  hdel_async(const std::string& field);
+  void
+  hdel_async(const std::string& field, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! HASH get all command - synchronous
@@ -216,10 +214,10 @@ public:
   //----------------------------------------------------------------------------
   //! HASH length command - asynchronous
   //!
-  //! @return future containing the response
+  //! @param ah async handler
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr>
-  hlen_async();
+  void
+  hlen_async(AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! HASH increment_by command - synchronous
@@ -238,12 +236,11 @@ public:
   //!
   //! @param field hash field
   //! @param increment value to increment by
-  //!
-  //! @return the value at "field" after the increment operation
+  //! @param ah async handler
   //----------------------------------------------------------------------------
   template <typename T>
-  std::future<redisReplyPtr>
-  hincrby_async(const std::string& field, const T& increment);
+  void
+  hincrby_async(const std::string& field, const T& increment, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! HASH increment_by_float command - synchronous
@@ -292,11 +289,12 @@ private:
 // HSET operation - asynchronous
 //------------------------------------------------------------------------------
 template <typename T>
-std::future<redisReplyPtr>
-QHash::hset_async(const std::string& field, const T& value)
+void
+QHash::hset_async(const std::string& field, const T& value, AsyncHandler* ah)
 {
-  std::vector<std::string> cmd {"HSET", mKey, field, stringify(value)};
-  return mClient->execute(cmd);
+  fmt::MemoryWriter cmd;
+  cmd << "HSET" << " " << mKey << " " << field << " " << value;
+  ah->Register(mClient, cmd.str());
 }
 
 //------------------------------------------------------------------------------
@@ -306,7 +304,8 @@ template <typename T>
 bool
 QHash::hset(const std::string& field, const T& value)
 {
-  redisReplyPtr reply = mClient->HandleResponse(hset_async(field, value));
+  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
+    {"HSET", mKey, field, stringify(value)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
@@ -323,8 +322,8 @@ QHash::hset(const std::string& field, const T& value)
 template <typename T>
 bool QHash::hsetnx(const std::string& field, const T& value)
 {
-  redisReplyPtr reply =
-    mClient->HandleResponse({"HSETNX", mKey, field, stringify(value)});
+  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
+    {"HSETNX", mKey, field, stringify(value)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "
@@ -339,11 +338,13 @@ bool QHash::hsetnx(const std::string& field, const T& value)
 // HINCRBY operation - asynchronous
 //------------------------------------------------------------------------------
 template <typename T>
-std::future<redisReplyPtr>
-QHash::hincrby_async(const std::string& field, const T& increment)
+void
+QHash::hincrby_async(const std::string& field, const T& increment,
+                     AsyncHandler* ah)
 {
-  std::vector<std::string> cmd {"HINCRBY", mKey, field, stringify(increment)};
-  return mClient->execute(cmd);
+  fmt::MemoryWriter cmd;
+  cmd << "HINCRBY" << " " << mKey << " " << field << " " << increment;
+  ah->Register(mClient, cmd.str());
 }
 
 //------------------------------------------------------------------------------
@@ -353,7 +354,8 @@ template <typename T>
 long long int QHash::hincrby(const std::string& field, const T& increment)
 {
   redisReplyPtr reply =
-    mClient->HandleResponse({"HINCRBY", mKey, field, stringify(increment)});
+    mClient->HandleResponse(std::vector<std::string>(
+      {"HINCRBY", mKey, field, stringify(increment)}));
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hincrby key: " + mKey + " field: "
@@ -370,8 +372,8 @@ long long int QHash::hincrby(const std::string& field, const T& increment)
 template <typename T>
 double QHash::hincrbyfloat(const std::string& field, const T& increment)
 {
-  redisReplyPtr reply =
-    mClient->HandleResponse({"HINCRBYFLOAT", mKey, field, stringify(increment)});
+  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
+    {"HINCRBYFLOAT", mKey, field, stringify(increment)}));
 
   if (reply->type != REDIS_REPLY_STRING) {
     throw std::runtime_error("[FATAL] Error hincrbyfloat key: " + mKey + " field: "

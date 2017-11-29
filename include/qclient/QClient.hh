@@ -37,6 +37,7 @@
 #include "qclient/TlsFilter.hh"
 #include "qclient/EventFD.hh"
 #include "qclient/Members.hh"
+#include "qclient/Utils.hh"
 
 namespace qclient
 {
@@ -63,48 +64,75 @@ public:
 class QClient
 {
 public:
-  QClient(const std::string &host, int port, bool redirects = false, bool exceptions = false,
-          TlsConfig tlsconfig = {}, std::unique_ptr<Handshake> handshake = {} );
+  //----------------------------------------------------------------------------
+  //! Constructor taking simple host and port
+  //----------------------------------------------------------------------------
+  QClient(const std::string &host, int port, bool redirects = false,
+          bool exceptions = false, TlsConfig tlsconfig = {},
+          std::vector<std::string> handshake = {});
 
-  QClient(const Members &members, bool redirects = false, bool exceptions = false,
-          TlsConfig tlsconfig = {}, std::unique_ptr<Handshake> handshake = {} );
+  //----------------------------------------------------------------------------
+  //! Constructor taking a list of members for the cluster
+  //----------------------------------------------------------------------------
+  QClient(const Members &members, bool redirects = false,
+          bool exceptions = false, TlsConfig tlsconfig = {},
+          std::vector<std::string> handshake = {});
 
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~QClient();
 
-  // Disallow copy and assign
+  //----------------------------------------------------------------------------
+  //! Disallow copy and assign
+  //----------------------------------------------------------------------------
   QClient(const QClient&) = delete;
   void operator=(const QClient&) = delete;
 
-  std::future<redisReplyPtr> execute(const std::vector<std::string>& req) {
-    return execute(req.begin(), req.end());
-  }
+  //----------------------------------------------------------------------------
+  //! Primary execute command that takes a redis encoded buffer and sends it
+  //! over the network
+  //!
+  //! @param buffer Redis encoded buffer containing a request
+  //! @param len length of the buffer
+  //!
+  //! @return future holding a redis reply
+  //----------------------------------------------------------------------------
   std::future<redisReplyPtr> execute(const char* buffer, size_t len);
+
+  //----------------------------------------------------------------------------
+  //! Convenience function to encode redis command given as a std::string to
+  //! a redis buffer.
+  //!
+  //! @param cmd redis command e.g. "GET <key> <value>"
+  //!
+  //! @return future holding a redis reply
+  //----------------------------------------------------------------------------
+  std::future<redisReplyPtr> execute(const std::string& cmd);
+
+  //----------------------------------------------------------------------------
+  //! Convenience function to encode a redis command given as an array of char*
+  //! and sizes to a redis buffer.
+  //!
+  //! @param nchunks number of chunks in the arrays
+  //! @param chunks array of char*
+  //! @param sizes array of sizes of the individual chunks
+  //!
+  //! @return future holding a redis reply
+  //----------------------------------------------------------------------------
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
                                      const size_t* sizes);
 
   //----------------------------------------------------------------------------
-  //! Execute a command given by the begin and end iterator to a container of
-  //! strings.
-  //!
-  //! @param begin iterator pointing to the beginning of the container
-  //! @param end iterator pionting to the end of the end of the container
-  //!
-  //! @return future object
-  //----------------------------------------------------------------------------
-  template<typename Iterator>
-  std::future<redisReplyPtr> execute(const Iterator& begin, const Iterator& end);
-
-  //----------------------------------------------------------------------------
-  //! Execute a command provided by a container
+  //! Conveninence function to encode a redis command given as a container of
+  //! strings to a redis buffer.
   //!
   //! @param T container: must implement begin() and end()
   //!
   //! @return future object
   //----------------------------------------------------------------------------
   template<typename T>
-  std::future<redisReplyPtr> execute(const T& container) {
-    return this->execute(container.begin(), container.end());
-  }
+  std::future<redisReplyPtr> execute(const T& container);
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
@@ -160,6 +188,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Handle response. There are several scenarios to handle:
+  //!
   //! 1. REDIS_REPLY_ERROR - error from the Quarkdb server - FATAL
   //! 2. nullptr response - this should be retried as the client might be able
   //!      to reconnect to another machine in the cluster. If unsuccessful after
@@ -172,14 +201,20 @@ public:
   //! @return response object
   //----------------------------------------------------------------------------
   redisReplyPtr
-  HandleResponse(std::vector<std::string> cmd);
+  HandleResponse(std::future<redisReplyPtr>&& async_resp,
+                 const std::string& cmd);
 
   //----------------------------------------------------------------------------
-  //! Handle response - convenience function taking as argument a pair
-  //! containing the future object and the command.
+  //! Convenience handle response method taking as argument a container holding
+  //! the command to be executed
+  //!
+  //! @param cmd container of strings representing the command
+  //!
+  //! @return response object
   //----------------------------------------------------------------------------
+  template <typename Container>
   redisReplyPtr
-  HandleResponse(std::future<redisReplyPtr>&& async_resp);
+  HandleResponse(const Container& cmd);
 
 private:
   // The cluster members, as given in the constructor.
@@ -223,35 +258,53 @@ private:
   bool handshakePending = true;
   std::thread eventLoopThread;
 
-  //----------------------------------------------------------------------------
   // We consult this map each time a new connection is to be opened
-  //----------------------------------------------------------------------------
   static std::mutex interceptsMutex;
   static std::map<std::pair<std::string, int>, std::pair<std::string, int>>
       intercepts;
 };
 
-
   //----------------------------------------------------------------------------
-  // Execute a command given by the begin and end iterator to a container of
-  // strings.
+  // Conveninence function to encode a redis command given as a container of
+  // strings to a redis buffer
   //----------------------------------------------------------------------------
-  template <typename Iterator>
+  template <typename Container>
   std::future<redisReplyPtr>
-  QClient::execute(const Iterator& begin, const Iterator& end)
+  QClient::execute(const Container& cont)
   {
-    std::uint64_t size = std::distance(begin, end);
+    std::uint64_t size = cont.size();
     std::uint64_t indx = 0;
     const char* cstr[size];
     size_t sizes[size];
 
-    for (auto it = begin; it != end; ++it) {
+    for (auto it = cont.begin(); it != cont.end(); ++it) {
       cstr[indx] = it->data();
       sizes[indx] = it->size();
       ++indx;
     }
 
     return execute(size, cstr, sizes);
+  }
+
+  //------------------------------------------------------------------------------
+  // Convenience method to handle response
+  //------------------------------------------------------------------------------
+  template <typename Container>
+  redisReplyPtr
+  QClient::HandleResponse(const Container& cont)
+  {
+    fmt::MemoryWriter out;
+
+    if (!cont.empty()) {
+      auto it = cont.begin();
+      out << *it;
+
+      while (++it != cont.end()) {
+        out << " " << *it;
+      }
+    }
+
+    return HandleResponse(execute(out.str()), out.str());
   }
 }
 #endif

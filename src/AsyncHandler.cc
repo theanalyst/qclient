@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "qclient/AsyncHandler.hh"
+#include "qclient/QClient.hh"
+#include <iostream>
 
 QCLIENT_NAMESPACE_BEGIN
 
@@ -33,14 +35,12 @@ AsyncHandler::Wait()
 {
   bool is_ok = true;
   redisReplyPtr reply;
-  QClient* qcl;
   std::lock_guard<std::mutex> lock(mLstMutex);
   mResponses.clear();
 
   for (auto& elem: mRequests) {
     try {
-      qcl = elem.mClient;
-      reply = qcl->HandleResponse(std::move(elem.mAsyncResp));
+      reply = elem.mClient->HandleResponse(std::move(elem.mAsyncResp), elem.mCmd);
 
       if (reply->type == REDIS_REPLY_INTEGER) {
         mResponses.emplace_back(reply->integer);
@@ -82,10 +82,12 @@ AsyncHandler::GetResponses()
 // Register new future
 //------------------------------------------------------------------------------
 void
-AsyncHandler::Register(std::future<redisReplyPtr>&& resp, QClient* qcl)
+AsyncHandler::Register(QClient* qcl, const std::string& cmd)
 {
+  std::future<redisReplyPtr> reply = qcl->execute(cmd);
   std::lock_guard<std::mutex> lock(mLstMutex);
-  mRequests.emplace_back(std::move(resp), qcl);
+  mResponses.clear();
+  mRequests.emplace_back(qcl, cmd, std::move(reply));
 }
 
 QCLIENT_NAMESPACE_END
