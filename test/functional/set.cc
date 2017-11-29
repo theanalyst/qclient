@@ -79,7 +79,7 @@ TEST(QSet, SetSync)
     }
   } while (cursor != "0");
 
-  auto future = cl.execute({"DEL", set_key});
+  auto future = cl.execute(std::vector<std::string>({"DEL", set_key}));
   ASSERT_EQ(1, future.get()->integer);
 }
 
@@ -97,7 +97,7 @@ TEST(QSet, SetAsync)
   // Add some elements
   for (auto i = 0; i < 100; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.sadd_async(value), qset.getClient());
+    qset.sadd_async(value, &ah);
   }
 
   ASSERT_TRUE(ah.Wait());
@@ -105,7 +105,7 @@ TEST(QSet, SetAsync)
   // Add some more elements that will trigger some errors
   for (auto i = 90; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.sadd_async(value), qset.getClient());
+    qset.sadd_async(value, &ah);
   }
 
   // Wait for all the replies
@@ -120,7 +120,7 @@ TEST(QSet, SetAsync)
   // Remove all elements
   for (auto i = 0; i < 110; ++i) {
     value = "val" + std::to_string(i);
-    ah.Register(qset.srem_async(value), qset.getClient());
+    qset.srem_async(value, &ah);
   }
 
   ASSERT_TRUE(ah.Wait());
@@ -138,10 +138,10 @@ TEST(QSet, SetAsync)
     set_elem.insert(value);
   }
 
-  ah.Register(qset.sadd_async(set_elem), qset.getClient());
+  qset.sadd_async(set_elem, &ah);
   ASSERT_TRUE(ah.Wait());
   resp = ah.GetResponses();
   ASSERT_EQ(100, *(resp.begin()));
-  auto future = cl.execute({"DEL", set_key});
+  auto future = cl.execute(std::vector<std::string>({"DEL", set_key}));
   ASSERT_EQ(1, future.get()->integer);
 }

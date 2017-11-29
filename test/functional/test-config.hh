@@ -37,7 +37,7 @@ struct TestConfig {
   void parseSingle(const std::string &key, const std::string &value);
 
   std::string host = "localhost";
-  int port = 6379;
+  int port = 7778;
 
   qclient::TlsConfig tlsconfig;
 };

@@ -85,7 +85,7 @@ TEST(QHash, HashSync)
   }
 
   ASSERT_TRUE(qhash.hget("dummy_field").empty());
-  std::future<redisReplyPtr> future = cl.execute({"DEL", hash_key});
+  std::future<redisReplyPtr> future = cl.execute(std::vector<std::string>({"DEL", hash_key}));
   ASSERT_EQ(1, future.get()->integer);
   // Test hscan command
   std::unordered_map<int, int> map;
@@ -118,7 +118,7 @@ TEST(QHash, HashSync)
   }
 
   ASSERT_TRUE(map.size() == ret_map.size());
-  auto future1 = cl.execute({"DEL", hash_key});
+  auto future1 = cl.execute(std::vector<std::string>({"DEL", hash_key}));
   ASSERT_EQ(1, future1.get()->integer);
 
   // Test hmset functionality
@@ -142,7 +142,7 @@ TEST(QHash, HashSync)
   }
 
   ASSERT_TRUE((long long int)map_elem.size() == qhash.hlen());
-  future1 = cl.execute({"DEL", hash_key});
+  future1 = cl.execute(std::vector<std::string>({"DEL", hash_key}));
   ASSERT_EQ(1, future1.get()->integer);
 }
 
@@ -163,18 +163,20 @@ TEST(QHash, HashAsync)
   for (std::uint64_t i = 0; i < num_elem; ++i) {
     field = "field" + std::to_string(i);
     value = std::to_string(i);
-    ah.Register(qhash.hset_async(field, value), qhash.getClient());
+    qhash.hset_async(field, value, &ah);
   }
 
   ASSERT_TRUE(ah.Wait());
   // Get map length asynchronously
-  auto reply = qhash.hlen_async();
-  ASSERT_EQ(num_elem, reply.get()->integer);
+  qhash.hlen_async(&ah);
+  ASSERT_TRUE(ah.Wait());
+  auto resp = ah.GetResponses();
+  ASSERT_EQ(num_elem, *resp.begin());
 
   // Delete asynchronously all elements
   for (std::uint64_t i = 0; i <= num_elem; ++i) {
     field = "field" + std::to_string(i);
-    ah.Register(qhash.hdel_async(field), qhash.getClient());
+    qhash.hdel_async(field, &ah);
   }
 
   ASSERT_TRUE(ah.Wait());
