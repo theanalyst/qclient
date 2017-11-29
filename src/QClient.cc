@@ -105,9 +105,7 @@ std::future<redisReplyPtr> QClient::execute(const std::string& cmd)
 {
   char* buffer = NULL;
   int len = redisFormatCommand(&buffer, cmd.c_str());
-  std::future<redisReplyPtr> ret = execute(buffer, len);
-  free(buffer);
-  return ret;
+  return execute(buffer, len);
 }
 
 void QClient::startEventLoop()
