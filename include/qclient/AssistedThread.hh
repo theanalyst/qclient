@@ -28,6 +28,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <iostream>
 
 namespace qclient {
 
@@ -35,6 +36,10 @@ class AssistedThread;
 class ThreadAssistant {
 public:
   ThreadAssistant(bool flag) : stopFlag(flag) {}
+
+  void reset() {
+    stopFlag = false;
+  }
 
   void requestTermination() {
     std::lock_guard<std::mutex> lock(mtx);
@@ -52,6 +57,14 @@ public:
 
     if(stopFlag) return;
     notifier.wait_for(lock, duration);
+  }
+
+  template<typename T>
+  void wait_until(T duration) {
+    std::unique_lock<std::mutex> lock(mtx);
+
+    if(stopFlag) return;
+    notifier.wait_until(lock, duration);
   }
 
 private:
@@ -73,9 +86,18 @@ public:
   AssistedThread(Args&&... args) : assistant(false), joined(false), th(std::forward<Args>(args)..., std::ref(assistant)) {
   }
 
-  // No assignment!
+  // No assignment
   AssistedThread& operator=(const AssistedThread&) = delete;
   AssistedThread& operator=(AssistedThread&& src) = delete;
+
+  template<typename... Args>
+  void reset(Args&&... args) {
+    join();
+
+    assistant.reset();
+    joined = false;
+    th = std::thread(std::forward<Args>(args)..., std::ref(assistant));
+  }
 
   virtual ~AssistedThread() {
     join();
@@ -88,8 +110,16 @@ public:
 
   void join() {
     if(joined) return;
-
     stop();
+
+    blockUntilThreadJoins();
+  }
+
+  // Different meaning than join, which explicitly asks the thread to
+  // terminate. Here, we simply wait until the thread exits on its own.
+  void blockUntilThreadJoins() {
+    if(joined) return;
+
     th.join();
     joined = true;
   }

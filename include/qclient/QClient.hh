@@ -41,6 +41,7 @@
 namespace qclient
 {
   class NetworkStream;
+  class WriterThread;
   using redisReplyPtr = std::shared_ptr<redisReply>;
 
 //------------------------------------------------------------------------------
@@ -205,7 +206,6 @@ private:
   void startEventLoop();
   void eventLoop();
   void connect();
-  void blockUntilWritable();
 
   redisReader* reader = nullptr;
 
@@ -214,7 +214,7 @@ private:
   void connectTCP();
 
   std::recursive_mutex mtx;
-  std::queue<std::promise<redisReplyPtr>> promises;
+  WriterThread *writerThread = nullptr;
   EventFD shutdownEventFD;
 
   void discoverIntercept();

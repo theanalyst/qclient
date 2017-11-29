@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: EventFD.hh
+// File: WriterThread.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,48 +21,82 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_EVENTFD_H__
-#define __QCLIENT_EVENTFD_H__
+#ifndef __QCLIENT_WRITER_THREAD_H__
+#define __QCLIENT_WRITER_THREAD_H__
 
-#include <iostream>
-#include <unistd.h>
-#include <sys/eventfd.h>
-#include <string.h>
+#include <hiredis/hiredis.h>
+#include "qclient/AssistedThread.hh"
+#include "qclient/EventFD.hh"
+#include "NetworkStream.hh"
+#include <deque>
+#include <future>
 
 namespace qclient {
 
-class EventFD {
+using redisReplyPtr = std::shared_ptr<redisReply>;
+
+class StagedRequest {
 public:
-  EventFD() {
-    fd = eventfd(0, EFD_NONBLOCK);
+  StagedRequest(char *buff, size_t llen) {
+    buffer = buff;
+    len = llen;
   }
 
-  ~EventFD() {
-    close();
+  StagedRequest(const StagedRequest& other) = delete;
+  StagedRequest(StagedRequest&& other) = delete;
+
+  ~StagedRequest() {
+    free(buffer);
+    buffer = nullptr;
   }
 
-  void close() {
-    if (fd >= 0) {
-      ::close(fd);
-      fd = -1;
-    }
+  char* getBuffer() {
+    return buffer;
   }
 
-  void notify(int64_t val = 1) {
-    int rc = write(fd, &val, sizeof(val));
-
-    if (rc != sizeof(val)) {
-      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code "
-                << rc << ": " << strerror(errno) << std::endl;
-    }
+  size_t getLen() const {
+    return len;
   }
 
-  inline int getFD() const {
-    return fd;
+  void set_value(const redisReplyPtr &reply) {
+    promise.set_value(reply);
+  }
+
+  std::future<redisReplyPtr> get_future() {
+    return promise.get_future();
   }
 
 private:
-  int fd = -1;
+  char *buffer;
+  size_t len;
+  std::promise<redisReplyPtr> promise;
+};
+
+class WriterThread {
+public:
+  WriterThread(EventFD &shutdownFD);
+  ~WriterThread();
+
+  void activate(NetworkStream *stream);
+  void deactivate();
+
+  std::future<redisReplyPtr> stage(char *buffer, size_t len);
+  void satisfy(redisReplyPtr &reply);
+
+  void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
+  void clearPending();
+
+private:
+  EventFD &shutdownEventFD;
+  AssistedThread thread;
+
+  std::mutex appendMtx;
+  std::mutex stagingMtx;
+  std::condition_variable stagingCV;
+  std::deque<StagedRequest> stagedRequests;
+  int nextToFlush;
+  int nextToAcknowledge;
+
 };
 
 }

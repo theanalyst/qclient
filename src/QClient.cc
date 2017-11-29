@@ -32,6 +32,7 @@
 #include <iterator>
 #include "ConnectionInitiator.hh"
 #include "NetworkStream.hh"
+#include "WriterThread.hh"
 
 using namespace qclient;
 
@@ -83,70 +84,13 @@ QClient::~QClient()
   shutdownEventFD.notify();
   eventLoopThread.join();
   cleanup();
+  delete writerThread;
 }
 
-void QClient::blockUntilWritable() {
-  struct pollfd polls[2];
-  polls[0].fd = shutdownEventFD.getFD();
-  polls[0].events = POLLIN;
-  polls[1].fd = networkStream->getFd();
-  polls[1].events = POLLOUT;
-
-  int rpoll = poll(polls, 2, -1);
-  if(rpoll < 0 && errno != EINTR) {
-    std::cerr << "qclient: error during poll() in blockUntilWritable: " << errno << ", "
-              << strerror(errno) << std::endl;
-  }
-}
-
-std::future<redisReplyPtr> QClient::execute(const char* buffer,
-                                            const size_t len)
+std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len)
 {
-  std::lock_guard<std::recursive_mutex> lock(mtx);
-
-  // not connected temporarily?
-  if (!networkStream->ok()) {
-    std::promise<redisReplyPtr> prom;
-
-    // not available at all?
-    if(exceptionsEnabled && !available) {
-      prom.set_exception(std::make_exception_ptr(std::runtime_error("unavailable")));
-    }
-    else {
-      prom.set_value(redisReplyPtr());
-    }
-
-    return prom.get_future();
-  }
-
-  int bytes;
-  bytes = networkStream->send(buffer, len);
-
-  if(bytes != (int) len) {
-    // Recoverable error: EWOULDBLOCK
-    if(bytes < 0 && errno == EWOULDBLOCK) {
-      blockUntilWritable();
-      return execute(buffer, len);
-    }
-
-    // Recoverable error: Fewer bytes were written than anticipated
-    if(bytes > 0 && bytes < (int) len) {
-      blockUntilWritable();
-      return execute(buffer+bytes, len-bytes);
-    }
-
-    // Handle non-recoverable errors, kill connection
-    std::cerr << "qclient: error during send(), return value: " << bytes << ", errno: " << errno << ", "
-              << strerror(errno) << std::endl;
-    networkStream->shutdown();
-
-    std::promise<redisReplyPtr> prom;
-    prom.set_value(redisReplyPtr());
-    return prom.get_future();
-  }
-
-  promises.emplace();
-  return promises.back().get_future();
+  std::unique_lock<std::recursive_mutex> lock(mtx);
+  return writerThread->stage(buffer, len);
 }
 
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
@@ -154,13 +98,12 @@ std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
 {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  std::future<redisReplyPtr> ret = execute(buffer, len);
-  free(buffer);
-  return ret;
+  return execute(buffer, len);
 }
 
 void QClient::startEventLoop()
 {
+  writerThread = new WriterThread(shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
@@ -182,32 +125,35 @@ bool QClient::feed(const char* buf, size_t len)
       break;
     }
 
-    // new request to process
-    if (!promises.empty()) {
-      redisReplyPtr rr = redisReplyPtr(redisReplyPtr((redisReply*) reply, freeReplyObject));
+    // We have a new response from the server.
+    redisReplyPtr rr = redisReplyPtr(redisReplyPtr((redisReply*) reply, freeReplyObject));
 
-      if(handshakePending) {
-        if(!handshake->validateResponse(rr)) {
-          // Error during handshaking, drop connection
-          return false;
-        }
-
-        handshakePending = false;
-      }
-      else if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
-          strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
-        std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
-        RedisServer redirect;
-
-        if (response.size() == 3 && parseServer(response[2], redirect)) {
-          redirectedEndpoint = Endpoint(redirect.host, redirect.port);
-          return false;
-        }
+    // Is this a response to the handshake?
+    if(handshakePending) {
+      if(!handshake->validateResponse(rr)) {
+        // Error during handshaking, drop connection
+        return false;
       }
 
-      promises.front().set_value(rr);
-      promises.pop();
+      // Handshake was good, carry on.
+      handshakePending = false;
     }
+
+    // Is this a redirect?
+    if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
+        strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
+
+      std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
+      RedisServer redirect;
+
+      if (response.size() == 3 && parseServer(response[2], redirect)) {
+        redirectedEndpoint = Endpoint(redirect.host, redirect.port);
+        return false;
+      }
+    }
+
+    // We're all good, satisfy request.
+    writerThread->satisfy(rr);
   }
 
   return true;
@@ -215,6 +161,7 @@ bool QClient::feed(const char* buf, size_t len)
 
 void QClient::cleanup()
 {
+  writerThread->deactivate();
   if(networkStream) delete networkStream;
   networkStream = nullptr;
 
@@ -223,11 +170,7 @@ void QClient::cleanup()
     reader = nullptr;
   }
 
-  // return NULL to all pending requests
-  while (!promises.empty()) {
-    promises.front().set_value(redisReplyPtr());
-    promises.pop();
-  }
+  writerThread->clearPending();
 }
 
 void QClient::connectTCP()
@@ -237,6 +180,8 @@ void QClient::connectTCP()
     available = false;
     return;
   }
+
+  writerThread->activate(networkStream);
 }
 
 void QClient::connect()

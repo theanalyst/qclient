@@ -56,6 +56,7 @@ add_library(qclient STATIC
   src/QHash.cc
   src/QSet.cc
   src/TlsFilter.cc
+  src/WriterThread.cc
 )
 
 target_link_libraries(
