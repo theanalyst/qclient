@@ -94,8 +94,8 @@ private:
   std::mutex stagingMtx;
   std::condition_variable stagingCV;
   std::deque<StagedRequest> stagedRequests;
-  int nextToFlush;
-  int nextToAcknowledge;
+  int nextToFlush = 0;
+  int nextToAcknowledge = 0;
 
   void clearAcknowledged(size_t leeway);
 };
