@@ -63,17 +63,17 @@ void QClient::clearIntercepts()
 // QClient class implementation
 //------------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
-    exceptionsEnabled(exceptions), tlsconfig(tlc), handshake(std::move(handshake_))
+    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
 
 QClient::QClient(const Members& members_, bool redirects,
-                 bool exceptions, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
-  : members(members_), transparentRedirects(redirects), exceptionsEnabled(exceptions),
-    tlsconfig(tlc), handshake(std::move(handshake_))
+                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+  : members(members_), transparentRedirects(redirects),
+    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -110,6 +110,9 @@ std::future<redisReplyPtr> QClient::execute(const std::string& cmd)
 
 void QClient::startEventLoop()
 {
+  // Give some leeway when starting up before declaring the cluster broken.
+  lastAvailable = std::chrono::steady_clock::now();
+
   writerThread = new WriterThread(shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
@@ -159,7 +162,18 @@ bool QClient::feed(const char* buf, size_t len)
       }
     }
 
+    // Is this a transient "unavailable" error?
+    // Checking for "ERR unavailable" is a QDB specific hack! We should introduce
+    // a new response type, ie "UNAVAILABLE reason for unavailability"
+    if(retryStrategy.enabled && rr->type == REDIS_REPLY_ERROR &&
+       strncmp(rr->str, "ERR unavailable", strlen("ERR unavailable")) == 0) {
+
+      // Break connection, try again.
+      return false;
+    }
+
     // We're all good, satisfy request.
+    successfulResponses = true;
     writerThread->satisfy(rr);
   }
 
@@ -177,14 +191,16 @@ void QClient::cleanup()
     reader = nullptr;
   }
 
-  writerThread->clearPending();
+  successfulResponses = false;
+  if(!retryStrategy.enabled || lastAvailable + retryStrategy.timeout < std::chrono::steady_clock::now()) {
+    writerThread->clearPending();
+  }
 }
 
 void QClient::connectTCP()
 {
   networkStream = new NetworkStream(targetEndpoint.getHost(), targetEndpoint.getPort(), tlsconfig);
   if(!networkStream->ok()) {
-    available = false;
     return;
   }
 
@@ -267,6 +283,11 @@ void QClient::eventLoop()
 
     lock.unlock();
     std::this_thread::sleep_for(backoff);
+
+    // Give some more leeway, update lastAvailable after sleeping.
+    if(successfulResponses) {
+      lastAvailable = std::chrono::steady_clock::now();
+    }
 
     if (backoff < std::chrono::milliseconds(2048)) {
       backoff++;

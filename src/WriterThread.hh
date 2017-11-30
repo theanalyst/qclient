@@ -97,6 +97,7 @@ private:
   int nextToFlush;
   int nextToAcknowledge;
 
+  void clearAcknowledged(size_t leeway);
 };
 
 }

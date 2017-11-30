@@ -59,6 +59,22 @@ public:
 };
 
 //------------------------------------------------------------------------------
+//! Struct RetryStrategy
+//------------------------------------------------------------------------------
+struct RetryStrategy {
+  RetryStrategy() {}
+  RetryStrategy(bool en, std::chrono::seconds tim)
+  : enabled(en), timeout(tim) {}
+
+  bool enabled = false;
+
+  //----------------------------------------------------------------------------
+  //! Timeout is per-connection, not per request.
+  //----------------------------------------------------------------------------
+  std::chrono::seconds timeout {0};
+};
+
+//------------------------------------------------------------------------------
 //! Class QClient
 //------------------------------------------------------------------------------
 class QClient
@@ -68,14 +84,14 @@ public:
   //! Constructor taking simple host and port
   //----------------------------------------------------------------------------
   QClient(const std::string &host, int port, bool redirects = false,
-          bool exceptions = false, TlsConfig tlsconfig = {},
+          RetryStrategy retryStrategy = {}, TlsConfig tlsconfig = {},
           std::unique_ptr<Handshake> handshake = {} );
 
   //----------------------------------------------------------------------------
   //! Constructor taking a list of members for the cluster
   //----------------------------------------------------------------------------
   QClient(const Members &members, bool redirects = false,
-          bool exceptions = false, TlsConfig tlsconfig = {},
+          RetryStrategy retryStrategy = {}, TlsConfig tlsconfig = {},
           std::unique_ptr<Handshake> handshake = {} );
 
   //----------------------------------------------------------------------------
@@ -229,8 +245,11 @@ private:
 
   bool redirectionActive = false;
 
-  bool transparentRedirects, exceptionsEnabled;
-  bool available;
+  bool transparentRedirects;
+  RetryStrategy retryStrategy;
+
+  std::chrono::steady_clock::time_point lastAvailable;
+  bool successfulResponses;
 
   // Network stream
   TlsConfig tlsconfig;

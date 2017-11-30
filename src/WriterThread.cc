@@ -48,6 +48,30 @@ void WriterThread::deactivate() {
   lock.unlock();
 
   thread.join();
+
+  // Clear all acknowledged without leeway.
+  clearAcknowledged(0);
+
+  // We'll need to send again the first few "unacknowledged but flushed" items.
+  nextToFlush = 0;
+}
+
+void WriterThread::clearAcknowledged(size_t leeway) {
+  // Clear acknowledged requests, but keeping a leeway of N top items.
+  // There's a race right after ::send - the response might come at any time,
+  // even though eventLoop is not done yet with this item. Removing it would
+  // cause bad things to happen, so we keep a leeway of a acknowledged items.
+  // (Only the top one is needed to keep, but let's be conservative)
+
+  // Assumption: It's safe to make changes to stagedRequests.
+  // stagingMtx is either locked, or only one thread is accessing it.
+
+  while(nextToAcknowledge > (int) leeway) {
+    nextToFlush--;
+    nextToAcknowledge--;
+
+    stagedRequests.pop_front();
+  }
 }
 
 void WriterThread::clearPending() {
@@ -172,11 +196,5 @@ void WriterThread::satisfy(redisReplyPtr &reply) {
 
   stagedRequests[nextToAcknowledge].set_value(reply);
   nextToAcknowledge++;
-
-  while(nextToAcknowledge > 3) {
-    nextToFlush--;
-    nextToAcknowledge--;
-
-    stagedRequests.pop_front();
-  }
+  clearAcknowledged(3);
 }
