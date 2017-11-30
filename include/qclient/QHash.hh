@@ -139,15 +139,6 @@ public:
   bool hset(const std::string& field, const T& value);
 
   //----------------------------------------------------------------------------
-  //! HASH multi set command - synchronous
-  //!
-  //! @param lst_elem elements to set in key-value "pairs"
-  //!
-  //! @return return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool hmset(std::list<std::string> lst_elem);
-
-  //----------------------------------------------------------------------------
   //! HASH set command - asynchronous
   //!
   //! @param field hash field
@@ -168,6 +159,15 @@ public:
   //----------------------------------------------------------------------------
   template <typename T>
   bool hsetnx(const std::string& field, const T& value);
+
+  //----------------------------------------------------------------------------
+  //! HASH multi set command - synchronous
+  //!
+  //! @param lst_elem elements to set in key-value "pairs"
+  //!
+  //! @return return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool hmset(std::list<std::string> lst_elem);
 
   //----------------------------------------------------------------------------
   //! HASH del command - synchronous
@@ -292,9 +292,7 @@ template <typename T>
 void
 QHash::hset_async(const std::string& field, const T& value, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "HSET" << " " << mKey << " " << field << " " << value;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"HSET", mKey, field, stringify(value)});
 }
 
 //------------------------------------------------------------------------------
@@ -304,13 +302,11 @@ template <typename T>
 bool
 QHash::hset(const std::string& field, const T& value)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HSET", mKey, field, stringify(value)}));
+  redisReplyPtr reply = mClient->exec("HSET", mKey, field, stringify(value)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -322,13 +318,11 @@ QHash::hset(const std::string& field, const T& value)
 template <typename T>
 bool QHash::hsetnx(const std::string& field, const T& value)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HSETNX", mKey, field, stringify(value)}));
+  redisReplyPtr reply = mClient->exec("HSETNX", mKey, field, stringify(value)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -342,9 +336,7 @@ void
 QHash::hincrby_async(const std::string& field, const T& increment,
                      AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "HINCRBY" << " " << mKey << " " << field << " " << increment;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"HINCRBY", mKey, field, stringify(increment)});
 }
 
 //------------------------------------------------------------------------------
@@ -353,14 +345,12 @@ QHash::hincrby_async(const std::string& field, const T& increment,
 template <typename T>
 long long int QHash::hincrby(const std::string& field, const T& increment)
 {
-  redisReplyPtr reply =
-    mClient->HandleResponse(std::vector<std::string>(
-      {"HINCRBY", mKey, field, stringify(increment)}));
+  redisReplyPtr reply = mClient->exec("HINCRBY", mKey, field,
+                                      stringify(increment)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hincrby key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   return reply->integer;
@@ -372,13 +362,12 @@ long long int QHash::hincrby(const std::string& field, const T& increment)
 template <typename T>
 double QHash::hincrbyfloat(const std::string& field, const T& increment)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HINCRBYFLOAT", mKey, field, stringify(increment)}));
+  redisReplyPtr reply = mClient->exec("HINCRBYFLOAT", mKey, field,
+                                      stringify(increment)).get();
 
-  if (reply->type != REDIS_REPLY_STRING) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_STRING)) {
     throw std::runtime_error("[FATAL] Error hincrbyfloat key: " + mKey + " field: "
-                             + field + " : Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + " : Unexpected/null reply");
   }
 
   std::string resp{reply->str, (size_t)reply->len};

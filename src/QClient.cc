@@ -60,8 +60,8 @@ void QClient::clearIntercepts()
 }
 
 //------------------------------------------------------------------------------
-// QClient class implementation
-//------------------------------------------------------------------------------
+// Constructor taking host and port
+//-----------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
                  RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
@@ -70,6 +70,10 @@ QClient::QClient(const std::string& host_, const int port_, bool redirects,
   startEventLoop();
 }
 
+
+//------------------------------------------------------------------------------
+// Constructor taking list of members for the cluster
+//------------------------------------------------------------------------------
 QClient::QClient(const Members& members_, bool redirects,
                  RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(members_), transparentRedirects(redirects),
@@ -78,6 +82,9 @@ QClient::QClient(const Members& members_, bool redirects,
   startEventLoop();
 }
 
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 QClient::~QClient()
 {
   shutdown = true;
@@ -87,12 +94,20 @@ QClient::~QClient()
   delete writerThread;
 }
 
+//------------------------------------------------------------------------------
+// Primary execute command that takes a redis encoded buffer and sends it
+// over the network
+//------------------------------------------------------------------------------
 std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len)
 {
   std::unique_lock<std::recursive_mutex> lock(mtx);
   return writerThread->stage(buffer, len);
 }
 
+//------------------------------------------------------------------------------
+// Convenience function to encode a redis command given as an array of char*
+// and sizes to a redis buffer
+//------------------------------------------------------------------------------
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
                                             const size_t* sizes)
 {
@@ -101,13 +116,9 @@ std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
   return execute(buffer, len);
 }
 
-std::future<redisReplyPtr> QClient::execute(const std::string& cmd)
-{
-  char* buffer = NULL;
-  int len = redisFormatCommand(&buffer, cmd.c_str());
-  return execute(buffer, len);
-}
-
+//------------------------------------------------------------------------------
+// Event loop for the client
+//------------------------------------------------------------------------------
 void QClient::startEventLoop()
 {
   // Give some leeway when starting up before declaring the cluster broken.
@@ -118,6 +129,9 @@ void QClient::startEventLoop()
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 bool QClient::feed(const char* buf, size_t len)
 {
   if (len > 0) {
@@ -180,10 +194,17 @@ bool QClient::feed(const char* buf, size_t len)
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Cleanup before reconnection or when exiting
+//------------------------------------------------------------------------------
 void QClient::cleanup()
 {
   writerThread->deactivate();
-  if(networkStream) delete networkStream;
+
+  if(networkStream) {
+    delete networkStream;
+  }
+
   networkStream = nullptr;
 
   if (reader != nullptr) {
@@ -197,9 +218,14 @@ void QClient::cleanup()
   }
 }
 
+//------------------------------------------------------------------------------
+// Set up TCP connection
+//------------------------------------------------------------------------------
 void QClient::connectTCP()
 {
-  networkStream = new NetworkStream(targetEndpoint.getHost(), targetEndpoint.getPort(), tlsconfig);
+  networkStream = new NetworkStream(targetEndpoint.getHost(),
+                                    targetEndpoint.getPort(), tlsconfig);
+
   if(!networkStream->ok()) {
     return;
   }
@@ -207,6 +233,9 @@ void QClient::connectTCP()
   writerThread->activate(networkStream);
 }
 
+//------------------------------------------------------------------------------
+// Connect
+//------------------------------------------------------------------------------
 void QClient::connect()
 {
   std::unique_lock<std::recursive_mutex> lock(mtx);
@@ -219,8 +248,8 @@ void QClient::connect()
   discoverIntercept();
   reader = redisReaderCreate();
   connectTCP();
-
   handshakePending = false;
+
   if(handshake) {
     execute(handshake->provideHandshake());
     handshakePending = true;
@@ -329,13 +358,11 @@ void QClient::discoverIntercept()
 long long int
 QClient::exists(const std::string& key)
 {
-  redisReplyPtr reply = HandleResponse(std::vector<std::string>(
-    {"EXISTS", key}));
+  redisReplyPtr reply = exec("EXISTS", key).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error exists key: " + key +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply ");
   }
 
   return reply->integer;
@@ -347,8 +374,7 @@ QClient::exists(const std::string& key)
 std::future<redisReplyPtr>
 QClient::del_async(const std::string& key)
 {
-  std::vector<std::string> cmd {"DEL", key};
-  return execute(cmd);
+  return exec("DEL", key);
 }
 
 //------------------------------------------------------------------------------
@@ -357,45 +383,12 @@ QClient::del_async(const std::string& key)
 long long int
 QClient::del(const std::string& key)
 {
-  redisReplyPtr reply = HandleResponse(std::vector<std::string>({"DEL", key}));
+  redisReplyPtr reply = exec("DEL", key).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error del key: " + key +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply ");
   }
 
   return reply->integer;
-}
-
-//------------------------------------------------------------------------------
-// Handle response
-//------------------------------------------------------------------------------
-redisReplyPtr
-QClient::HandleResponse(std::future<redisReplyPtr>&& resp,
-                        const std::string& cmd)
-{
-  int num_retries = 3;
-  redisReplyPtr reply;
-
-  do {
-    --num_retries;
-    reply = resp.get();
-
-    if (reply == nullptr) {
-      resp = execute(cmd);
-    } else {
-      break;
-    }
-  } while (num_retries != 0);
-
-  if ((reply == nullptr) && (num_retries == 0)) {
-    throw std::runtime_error("[FATAL] NULL response after 3 retries");
-  }
-
-  if (reply && reply->type == REDIS_REPLY_ERROR) {
-    throw std::runtime_error("[FATAL] Error REDIS_REPLY_ERROR ");
-  }
-
-  return reply;
 }

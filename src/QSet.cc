@@ -51,12 +51,11 @@ long long int QSet::sadd(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("SADD");
-  redisReplyPtr reply = mClient->HandleResponse(lst_elem);
+  redisReplyPtr reply = mClient->execute(lst_elem).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey +
-                             " with multiple members: Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             " with multiple members: Unexpected/null reply");
   }
 
   return reply->integer;
@@ -69,12 +68,11 @@ long long int QSet::srem(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("SREM");
-  redisReplyPtr reply = mClient->HandleResponse(lst_elem);
+  redisReplyPtr reply = mClient->execute(lst_elem).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey +
-                             " with multiple members: Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             " with multiple members: Unexpected/null reply");
   }
 
   return reply->integer;
@@ -85,13 +83,11 @@ long long int QSet::srem(std::list<std::string> lst_elem)
 //------------------------------------------------------------------------------
 long long int QSet::scard()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"SCARD", mKey}));
+  redisReplyPtr reply = mClient->exec("SCARD", mKey).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error scard key: " + mKey +
-                             " : Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             " : Unexpected/null reply");
   }
 
   return reply->integer;
@@ -102,13 +98,11 @@ long long int QSet::scard()
 //------------------------------------------------------------------------------
 std::set<std::string> QSet::smembers()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"SMEMBERS", mKey}));
+  redisReplyPtr reply = mClient->exec("SMEMBERS", mKey).get();
 
-  if (reply->type != REDIS_REPLY_ARRAY) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_ARRAY)) {
     throw std::runtime_error("[FATAL] Error smembers key: " + mKey +
-                             " : Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             " : Unexpected/null reply");
   }
 
   std::set<std::string> ret;
@@ -129,8 +123,7 @@ QSet::sscan(std::string cursor, long long count)
   // TODO (gbitzes): add support for COUNT parameter
   //  auto future = mClient->execute({"SSCAN", mKey, cursor, "COUNT",
   //  std::to_string(count)});
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"SSCAN", mKey, cursor}));
+  redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor).get();
 
   // Parse the Redis reply
   std::string new_cursor {reply->element[0]->str,
@@ -155,14 +148,12 @@ QSet::sscan(std::string cursor, long long count)
 void
 QSet::sadd_async(const std::set<std::string>& set_elem, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "SADD" << " " << mKey;
-
-  for (const auto& elem: set_elem) {
-    cmd << " " << elem;
-  }
-
-  ah->Register(mClient, cmd.str());
+  std::vector<std::string> cmd;
+  cmd.reserve(set_elem.size() + 2);
+  (void) cmd.push_back("SADD");
+  (void) cmd.push_back(mKey);
+  (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
+  ah->Register(mClient, cmd);
 }
 
 //------------------------------------------------------------------------------
@@ -171,14 +162,12 @@ QSet::sadd_async(const std::set<std::string>& set_elem, AsyncHandler* ah)
 void
 QSet::sadd_async(const std::list<std::string>& set_elem, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "SADD" << " " << mKey;
-
-  for (const auto& elem: set_elem) {
-    cmd << " " << elem;
-  }
-
-  ah->Register(mClient, cmd.str());
+  std::vector<std::string> cmd;
+  cmd.reserve(set_elem.size() + 2);
+  (void) cmd.push_back("SADD");
+  (void) cmd.push_back(mKey);
+  (void) cmd.insert(cmd.end(), set_elem.begin(), set_elem.end());
+  ah->Register(mClient, cmd);
 }
 
 QCLIENT_NAMESPACE_END

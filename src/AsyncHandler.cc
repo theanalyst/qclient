@@ -40,7 +40,12 @@ AsyncHandler::Wait()
 
   for (auto& elem: mRequests) {
     try {
-      reply = elem.mClient->HandleResponse(std::move(elem.mAsyncResp), elem.mCmd);
+      reply = elem.mAsyncResp.get();
+
+      if (reply == nullptr) {
+        throw std::runtime_error("[FATAL] Error request could not be sent to "
+                                 "the QuarkDB backend");
+      }
 
       if (reply->type == REDIS_REPLY_INTEGER) {
         mResponses.emplace_back(reply->integer);
@@ -82,12 +87,12 @@ AsyncHandler::GetResponses()
 // Register new future
 //------------------------------------------------------------------------------
 void
-AsyncHandler::Register(QClient* qcl, const std::string& cmd)
+AsyncHandler::Register(QClient* qcl, const std::vector<std::string>& cmd)
 {
   std::future<redisReplyPtr> reply = qcl->execute(cmd);
   std::lock_guard<std::mutex> lock(mLstMutex);
   mResponses.clear();
-  mRequests.emplace_back(qcl, cmd, std::move(reply));
+  mRequests.emplace_back(qcl, std::move(reply));
 }
 
 QCLIENT_NAMESPACE_END

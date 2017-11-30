@@ -55,9 +55,9 @@ public:
   //! Register a new async call
   //!
   //! @param qcl QClient used to send the request
-  //! @param cmd command to be executed
+  //! @param cmd vector holding command to be executed
   //----------------------------------------------------------------------------
-  void Register(QClient* qcl, const std::string& cmd);
+  void Register(QClient* qcl, const std::vector<std::string>& cmd);
 
   //----------------------------------------------------------------------------
   //! Wait for all pending requests and collect the results
@@ -78,12 +78,10 @@ private:
   //! used to send the request
   struct ReqType {
     QClient* mClient;
-    std::string mCmd;
     std::future<redisReplyPtr> mAsyncResp;
 
-    ReqType(QClient* qcl, const std::string& cmd,
-            std::future<redisReplyPtr>&& resp):
-      mClient(qcl), mCmd(cmd), mAsyncResp(std::move(resp)) {}
+    ReqType(QClient* qcl, std::future<redisReplyPtr>&& resp):
+      mClient(qcl), mAsyncResp(std::move(resp)) {}
   };
 
   std::list<ReqType> mRequests; ///< List of executed requests

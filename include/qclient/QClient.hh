@@ -117,18 +117,8 @@ public:
   std::future<redisReplyPtr> execute(char* buffer, const size_t len);
 
   //----------------------------------------------------------------------------
-  //! Convenience function to encode redis command given as a std::string to
-  //! a redis buffer.
-  //!
-  //! @param cmd redis command e.g. "GET <key> <value>"
-  //!
-  //! @return future holding a redis reply
-  //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> execute(const std::string& cmd);
-
-  //----------------------------------------------------------------------------
   //! Convenience function to encode a redis command given as an array of char*
-  //! and sizes to a redis buffer.
+  //! and sizes to a redis buffer
   //!
   //! @param nchunks number of chunks in the arrays
   //! @param chunks array of char*
@@ -141,7 +131,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Conveninence function to encode a redis command given as a container of
-  //! strings to a redis buffer.
+  //! strings to a redis buffer
   //!
   //! @param T container: must implement begin() and end()
   //!
@@ -202,35 +192,6 @@ public:
   std::future<redisReplyPtr>
   del_async(const std::string& key);
 
-  //----------------------------------------------------------------------------
-  //! Handle response. There are several scenarios to handle:
-  //!
-  //! 1. REDIS_REPLY_ERROR - error from the Quarkdb server - FATAL
-  //! 2. nullptr response - this should be retried as the client might be able
-  //!      to reconnect to another machine in the cluster. If unsuccessful after
-  //!      a number of retries then throw a std::runtime_error.
-  //! 3. std::runtime_error - client could not send a requests and there are no
-  //!      more machines available in the cluster - FATAL
-  //!
-  //! @param cmd command to be executed
-  //!
-  //! @return response object
-  //----------------------------------------------------------------------------
-  redisReplyPtr
-  HandleResponse(std::future<redisReplyPtr>&& async_resp,
-                 const std::string& cmd);
-
-  //----------------------------------------------------------------------------
-  //! Convenience handle response method taking as argument a container holding
-  //! the command to be executed
-  //!
-  //! @param cmd container of strings representing the command
-  //!
-  //! @return response object
-  //----------------------------------------------------------------------------
-  template <typename Container>
-  redisReplyPtr
-  HandleResponse(const Container& cmd);
 
 private:
   // The cluster members, as given in the constructor.
@@ -303,27 +264,6 @@ private:
     }
 
     return execute(size, cstr, sizes);
-  }
-
-  //------------------------------------------------------------------------------
-  // Convenience method to handle response
-  //------------------------------------------------------------------------------
-  template <typename Container>
-  redisReplyPtr
-  QClient::HandleResponse(const Container& cont)
-  {
-    fmt::MemoryWriter out;
-
-    if (!cont.empty()) {
-      auto it = cont.begin();
-      out << *it;
-
-      while (++it != cont.end()) {
-        out << " " << *it;
-      }
-    }
-
-    return HandleResponse(execute(out.str()), out.str());
   }
 }
 #endif

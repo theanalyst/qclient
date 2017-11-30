@@ -249,35 +249,29 @@ private:
 template <typename T>
 void QSet::sadd_async(const T& member, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "SADD" << " " << mKey << " " << member;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"SADD", mKey, stringify(member)});
 }
 
 template<typename Iterator>
 void
 QSet::sadd_async(const Iterator& begin, const Iterator& end, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "SADD" << " " << mKey;
-
-  for (auto it = begin; it != end; ++it) {
-    cmd << " " << *it;
-  }
-
-  ah->Register(mClient, cmd.str());
+  std::vector<std::string> cmd;
+  cmd.reserve(std::distance(begin, end) + 2);
+  (void) cmd.push_back("SADD");
+  (void) cmd.push_back(mKey);
+  (void) cmd.insert(cmd.end(), begin, end);
+  ah->Register(mClient, cmd);
 }
 
 template <typename T>
 bool QSet::sadd(const T& member)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"SADD", mKey, stringify(member)}));
+  redisReplyPtr reply = mClient->exec("SADD", mKey, stringify(member)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " field: "
-                             + stringify(member) + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -287,21 +281,17 @@ template <typename T>
 void
 QSet::srem_async(const T& member, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "SREM" << " " << mKey << " " << member;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"SREM", mKey, stringify(member)});
 }
 
 template <typename T>
 bool QSet::srem(const T& member)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"SREM", mKey, stringify(member)}));
+  redisReplyPtr reply = mClient->exec("SREM", mKey, stringify(member)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
-                             + stringify(member) + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -310,14 +300,11 @@ bool QSet::srem(const T& member)
 template <typename T>
 bool QSet::sismember(const T& member)
 {
-  redisReplyPtr reply =
-    mClient->HandleResponse(std::vector<std::string>(
-      {"SISMEMBER", mKey, stringify(member)}));
+  redisReplyPtr reply = mClient->exec("SISMEMBER", mKey, stringify(member)).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "
-                             + stringify(member) + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + stringify(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);

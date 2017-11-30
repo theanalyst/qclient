@@ -51,13 +51,12 @@ std::string
 QHash::hget(const std::string& field)
 {
   std::string resp{""};
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HGET", mKey, field}));
+  redisReplyPtr reply = mClient->exec("HGET", mKey, field).get();
 
-  if ((reply->type != REDIS_REPLY_STRING) && (reply->type != REDIS_REPLY_NIL)) {
+  if ((reply == nullptr) || ((reply->type != REDIS_REPLY_STRING) &&
+                             (reply->type != REDIS_REPLY_NIL))) {
     throw std::runtime_error("[FATAL] Error hget key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   if (reply->type == REDIS_REPLY_STRING) {
@@ -73,13 +72,11 @@ QHash::hget(const std::string& field)
 bool
 QHash::hdel(const std::string& field)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HDEL", mKey, field}));
+  redisReplyPtr reply = mClient->exec("HDEL", mKey, field).get();
 
-  if (reply->type != REDIS_REPLY_INTEGER) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hdel key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -91,9 +88,7 @@ QHash::hdel(const std::string& field)
 void
 QHash::hdel_async(const std::string& field, AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "HDEL" << " " << mKey << " " << field;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"HDEL", mKey, field});
 }
 
 //------------------------------------------------------------------------------
@@ -102,13 +97,11 @@ QHash::hdel_async(const std::string& field, AsyncHandler* ah)
 std::vector<std::string>
 QHash::hgetall()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HGETALL", mKey}));
+  redisReplyPtr reply = mClient->exec("HGETALL", mKey).get();
 
-  if (reply->type != REDIS_REPLY_ARRAY) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_ARRAY)) {
     throw std::runtime_error("[FATAL] Error hgetall key: " + mKey +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply");
   }
 
   std::vector<std::string> resp;
@@ -127,13 +120,11 @@ QHash::hgetall()
 bool
 QHash::hexists(const std::string& field)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HEXISTS", mKey, field}));
+  redisReplyPtr reply = mClient->exec("HEXISTS", mKey, field).get();
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hexists key: " + mKey + " field: "
-                             + field + ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             + field + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -145,13 +136,11 @@ QHash::hexists(const std::string& field)
 long long int
 QHash::hlen()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HLEN", mKey}));
+  redisReplyPtr reply = mClient->exec("HLEN", mKey).get();
 
   if (reply->type != REDIS_REPLY_INTEGER) {
     throw std::runtime_error("[FATAL] Error hlen key: " + mKey +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply");
   }
 
   return reply->integer;
@@ -163,9 +152,7 @@ QHash::hlen()
 void
 QHash::hlen_async(AsyncHandler* ah)
 {
-  fmt::MemoryWriter cmd;
-  cmd << "HLEN" << " " << mKey;
-  ah->Register(mClient, cmd.str());
+  ah->Register(mClient, {"HLEN", mKey});
 }
 
 //------------------------------------------------------------------------------
@@ -174,13 +161,11 @@ QHash::hlen_async(AsyncHandler* ah)
 std::vector<std::string>
 QHash::hkeys()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HKEYS", mKey}));
+  redisReplyPtr reply = mClient->exec("HKEYS", mKey).get();
 
-  if (reply->type != REDIS_REPLY_ARRAY) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_ARRAY)) {
     throw std::runtime_error("[FATAL] Error hkeys key: " + mKey +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply");
   }
 
   std::vector<std::string> resp;
@@ -199,13 +184,11 @@ QHash::hkeys()
 std::vector<std::string>
 QHash::hvals()
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HVALS", mKey}));
+  redisReplyPtr reply = mClient->exec("HVALS", mKey).get();
 
-  if (reply->type != REDIS_REPLY_ARRAY) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_ARRAY)) {
     throw std::runtime_error("[FATAL] Error hvals key: " + mKey +
-                             ": Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             ": Unexpected/null reply");
   }
 
   std::vector<std::string> resp;
@@ -224,8 +207,13 @@ QHash::hvals()
 std::pair<std::string, std::unordered_map<std::string, std::string> >
 QHash::hscan(const std::string& cursor, long long count)
 {
-  redisReplyPtr reply = mClient->HandleResponse(std::vector<std::string>(
-    {"HSCAN", mKey, cursor, "COUNT", std::to_string(count)}));
+  redisReplyPtr reply = mClient->exec("HSCAN", mKey, cursor, "COUNT",
+                                      stringify(count)).get();
+
+  if (reply == nullptr) {
+    throw std::runtime_error("[FATAL] Error hscan key: " + mKey +
+                             ": Unexpected/null reply");
+  }
 
   // Parse the Redis reply
   std::string new_cursor = std::string(reply->element[0]->str,
@@ -250,19 +238,17 @@ QHash::hscan(const std::string& cursor, long long count)
 //------------------------------------------------------------------------------
 // HASH multi set command - synchronous
 //------------------------------------------------------------------------------
-bool
-QHash::hmset(std::list<std::string> lst_elem)
+bool QHash::hmset(std::list<std::string> lst_elem)
 {
   (void) lst_elem.push_front(mKey);
   (void) lst_elem.push_front("HMSET");
-  redisReplyPtr reply =
-    mClient->HandleResponse(lst_elem);
+  redisReplyPtr reply =  mClient->execute(lst_elem).get();
 
-  if (reply->type != REDIS_REPLY_STATUS) {
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_STATUS)) {
     throw std::runtime_error("[FATAL] Error hmset key: " + mKey +
-                             " with multiple members: Unexpected reply type: " +
-                             std::to_string(reply->type));
+                             " with multiple members: Unexpected/null reply type");
   }
+
   return true;
 }
 
