@@ -25,6 +25,7 @@
 #define __QCLIENT_QSCANNER_H__
 
 #include <sstream>
+#include "qclient/Utils.hh"
 
 namespace qclient {
 
@@ -42,8 +43,13 @@ public:
 
     started = true;
 
-    redisReplyPtr reply = qcl.HandleResponse(std::vector<std::string>(
-      {"SCAN", currentCursor, "MATCH", pattern, "COUNT", std::to_string(count)}));
+    redisReplyPtr reply = qcl.exec("SCAN", currentCursor, "MATCH", pattern,
+                                   "COUNT", stringify(count)).get();
+
+    if (reply == nullptr) {
+      throw std::runtime_error("[FATAL] Error scan pattern: " + pattern +
+                               ": Unexpected/null reply");
+    }
 
     // Parse the Redis reply - update cursor
     currentCursor = std::string(reply->element[0]->str, static_cast<unsigned int>(reply->element[0]->len));
