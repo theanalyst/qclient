@@ -111,43 +111,89 @@ bool BackgroundFlusher::checkPendingQueue(std::list<std::future<redisReplyPtr>> 
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
+void BackgroundFlusher::monitorAckReception(ThreadAssistant &assistant) {
+  while(!assistant.terminationRequested()) {
+    std::unique_lock<std::mutex> lock(inFlightMtx);
+
+    if(inFlight.size() == 0) {
+      // Empty queue, sleep
+      inFlightCV.wait_for(lock, std::chrono::milliseconds(500));
+      continue;
+    }
+
+    // Fetch reference to top item
+    std::future<redisReplyPtr> &item = inFlight.front();
+    lock.unlock();
+
+    if(item.wait_for(std::chrono::milliseconds(500)) != std::future_status::ready) {
+      continue;
+    }
+
+    redisReplyPtr response = item.get();
+    if(!verifyReply(response)) {
+      // Stop the pipeline, we have an error
+      break;
+    }
+
+    // All clear, acknowledgement was OK.
+    lock.lock();
+
+    if(pipelineLength - 10 <= inFlight.size()) {
+      // The writer thread is most likely blocked on receiving more acks, free it.
+      acknowledgementCV.notify_one();
+    }
+
+    inFlight.pop_front();
+    queue.pop();
+    acknowledged++;
+  }
+
+  haltPipeline = true;
+}
+
 void BackgroundFlusher::processPipeline(ThreadAssistant &assistant) {
+  inFlight.clear();
+  haltPipeline = false;
+  AssistedThread ackmonitor(&BackgroundFlusher::monitorAckReception, this);
+
   // When in this function, we know the connection is stable, so we can push
   // out many updates at a time.
 
-  std::list<std::future<redisReplyPtr>> inflight;
   auto pipelineFrontier = queue.begin();
 
-  while(!assistant.terminationRequested()) {
-    // Have any of the responses arrived?
-    if(!checkPendingQueue(inflight)) {
-      // Error, return to parent. All inFlight requests are discarded,
-      // we'll send them again in the next round.
-      return;
-    }
+  while(!assistant.terminationRequested() && !haltPipeline) {
+    std::unique_lock<std::mutex> lock(inFlightMtx);
 
     // Can I push out one more item?
-    if(inflight.size() < pipelineLength && inflight.size() < queue.size()) {
+    if(inFlight.size() < pipelineLength && inFlight.size() < queue.size()) {
       // Adjust pipelineFrontier
-      if(inflight.size() == 0) {
+      if(inFlight.size() == 0) {
         pipelineFrontier = queue.begin();
       }
       else {
         pipelineFrontier++;
       }
 
-      inflight.push_back(qclient.execute(*pipelineFrontier));
+      lock.unlock();
+      std::future<redisReplyPtr> fut = qclient.execute(*pipelineFrontier);
+
+      lock.lock();
+      inFlight.push_back(std::move(fut));
+      if(inFlight.size() == 0) {
+        inFlightCV.notify_one();
+      }
     }
     else {
       // No - why not?
       // 1. I've reached the pipelineLength limit. In such case, block on receiving
       //    a response.
-      if(pipelineLength <= inflight.size()) {
-        inflight.front().wait_for(std::chrono::milliseconds(500));
+      if(pipelineLength <= inFlight.size()) {
+        acknowledgementCV.wait_for(lock, std::chrono::milliseconds(500));
       }
       // 2. No more entries to push. Wait until more are received.
-      else if(inflight.size() == queue.size()){
-        queue.wait_for(inflight.size(), std::chrono::milliseconds(500));
+      else if(inFlight.size() == queue.size()){
+        lock.unlock();
+        queue.wait_for(inFlight.size(), std::chrono::milliseconds(500));
       }
     }
   }

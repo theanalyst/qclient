@@ -77,8 +77,6 @@ private:
   Notifier &notifier;
 
   size_t pipelineLength;
-  AssistedThread thread;
-
   std::atomic<int64_t> enqueued {0};
   std::atomic<int64_t> acknowledged {0};
 
@@ -86,7 +84,15 @@ private:
   void processPipeline(ThreadAssistant &assistant);
   bool checkPendingQueue(std::list<std::future<redisReplyPtr>> &inflight);
   bool verifyReply(redisReplyPtr &reply);
+  void monitorAckReception(ThreadAssistant &assistant);
 
+  std::atomic<bool> haltPipeline {false};
+  std::mutex inFlightMtx;
+  std::condition_variable inFlightCV;
+  std::condition_variable acknowledgementCV;
+  std::list<std::future<redisReplyPtr>> inFlight;
+
+  AssistedThread thread;
 };
 
 }
