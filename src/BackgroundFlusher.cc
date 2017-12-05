@@ -192,8 +192,9 @@ void BackgroundFlusher::processPipeline(ThreadAssistant &assistant) {
       }
       // 2. No more entries to push. Wait until more are received.
       else if(inFlight.size() == queue.size()){
+        int64_t inFlightSize = inFlight.size();
         lock.unlock();
-        queue.wait_for(inFlight.size(), std::chrono::milliseconds(500));
+        queue.wait_for(inFlightSize, std::chrono::milliseconds(500));
       }
     }
   }
