@@ -26,7 +26,7 @@
 
 #include <string>
 #include <atomic>
-#include "ConnectionInitiator.hh"
+#include "qclient/ConnectionInitiator.hh"
 #include "qclient/TlsFilter.hh"
 
 namespace qclient {

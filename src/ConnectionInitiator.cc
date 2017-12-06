@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ConnectionInitiator.hh"
+#include "qclient/ConnectionInitiator.hh"
 #include "qclient/Utils.hh"
 
 #include <sys/types.h>

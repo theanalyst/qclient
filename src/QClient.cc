@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <sstream>
 #include <iterator>
-#include "ConnectionInitiator.hh"
+#include "qclient/ConnectionInitiator.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
 

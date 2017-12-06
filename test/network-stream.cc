@@ -24,7 +24,7 @@
 #include <gtest/gtest.h>
 #include "qclient/QClient.hh"
 #include <functional>
-#include "ConnectionInitiator.hh"
+#include "qclient/ConnectionInitiator.hh"
 
 using namespace qclient;
 
