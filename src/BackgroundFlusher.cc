@@ -27,12 +27,12 @@
 using namespace qclient;
 
 BackgroundFlusher::BackgroundFlusher(QClient &qcl, Notifier &notif,
-  size_t szLimit, size_t pipeline, BackgroundFlusherPersistency *persistency)
-: queue(persistency, szLimit), qclient(qcl), notifier(notif), pipelineLength(pipeline),
+  size_t szLimit, size_t pipeline, BackgroundFlusherPersistency *pers)
+: persistency(pers), qclient(qcl), notifier(notif), pipelineLength(pipeline),
   thread(&BackgroundFlusher::main, this) { }
 
 size_t BackgroundFlusher::size() const {
-  return queue.size();
+  return persistency->getEndingIndex() - persistency->getStartingIndex();
 }
 
 // Return number of enqueued items since last time this function was called.
@@ -48,11 +48,9 @@ int64_t BackgroundFlusher::getAcknowledgedAndClear() {
 }
 
 void BackgroundFlusher::pushRequest(const std::vector<std::string> &operation) {
-  PushStatus status = queue.push(operation);
-  if(!status.ok) {
-    std::cerr << "could not append item to queue. Wait for: " << status.blockedFor.count() << std::endl;
-    std::terminate();
-  }
+  std::lock_guard<std::mutex> lock(newEntriesMtx);
+  persistency->record(persistency->getEndingIndex(), operation);
+  newEntriesCV.notify_all();
   enqueued++;
 }
 
@@ -91,6 +89,13 @@ bool BackgroundFlusher::verifyReply(redisReplyPtr &reply) {
   return true;
 }
 
+void BackgroundFlusher::itemWasAcknowledged() {
+  std::lock_guard<std::mutex> lock(acknowledgementMtx);
+  persistency->pop();
+  acknowledged++;
+  acknowledgementCV.notify_all();
+}
+
 bool BackgroundFlusher::checkPendingQueue(std::list<std::future<redisReplyPtr>> &inflight) {
   while(true) {
     if(inflight.size() == 0) return true;
@@ -102,8 +107,8 @@ bool BackgroundFlusher::checkPendingQueue(std::list<std::future<redisReplyPtr>> 
     if(!verifyReply(reply)) {
       return false;
     }
-    queue.pop();
-    acknowledged++;
+
+    itemWasAcknowledged();
   }
 
   return true;
@@ -138,14 +143,8 @@ void BackgroundFlusher::monitorAckReception(ThreadAssistant &assistant) {
     // All clear, acknowledgement was OK.
     lock.lock();
 
-    if(pipelineLength - 10 <= inFlight.size()) {
-      // The writer thread is most likely blocked on receiving more acks, free it.
-      acknowledgementCV.notify_one();
-    }
-
     inFlight.pop_front();
-    queue.pop();
-    acknowledged++;
+    itemWasAcknowledged();
   }
 
   haltPipeline = true;
@@ -159,23 +158,23 @@ void BackgroundFlusher::processPipeline(ThreadAssistant &assistant) {
   // When in this function, we know the connection is stable, so we can push
   // out many updates at a time.
 
-  auto pipelineFrontier = queue.begin();
+  ItemIndex currentIndex = persistency->getStartingIndex();
 
   while(!assistant.terminationRequested() && !haltPipeline) {
     std::unique_lock<std::mutex> lock(inFlightMtx);
 
     // Can I push out one more item?
-    if(inFlight.size() < pipelineLength && inFlight.size() < queue.size()) {
-      // Adjust pipelineFrontier
-      if(inFlight.size() == 0) {
-        pipelineFrontier = queue.begin();
-      }
-      else {
-        pipelineFrontier++;
+    if(inFlight.size() < pipelineLength && currentIndex < persistency->getEndingIndex())  {
+      lock.unlock();
+
+      std::vector<std::string> contents;
+      if(!persistency->retrieve(currentIndex, contents)) {
+        std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index " << currentIndex << std::endl;
+        std::terminate();
       }
 
-      lock.unlock();
-      std::future<redisReplyPtr> fut = qclient.execute(*pipelineFrontier);
+      currentIndex++;
+      std::future<redisReplyPtr> fut = qclient.execute(contents);
 
       lock.lock();
       inFlight.push_back(std::move(fut));
@@ -189,13 +188,17 @@ void BackgroundFlusher::processPipeline(ThreadAssistant &assistant) {
       //    a response.
       if(pipelineLength <= inFlight.size()) {
         acknowledgementCV.wait_for(lock, std::chrono::milliseconds(500));
+        continue;
       }
+
       // 2. No more entries to push. Wait until more are received.
-      else if(inFlight.size() == queue.size()){
-        int64_t inFlightSize = inFlight.size();
-        lock.unlock();
-        queue.wait_for(inFlightSize, std::chrono::milliseconds(500));
+      lock.unlock();
+      std::unique_lock<std::mutex> lock2(newEntriesMtx);
+      if(currentIndex < persistency->getEndingIndex()) {
+        continue;
       }
+
+      newEntriesCV.wait_for(lock2, std::chrono::milliseconds(500));
     }
   }
 }
@@ -207,13 +210,19 @@ void BackgroundFlusher::main(ThreadAssistant &assistant) {
 
   while(!assistant.terminationRequested()) {
     // Are there entries to push? If not, wait until more are received.
-    if(queue.size() == 0) {
-      queue.wait_for(0, std::chrono::milliseconds(500));
+    if(persistency->getStartingIndex() == persistency->getEndingIndex()) {
+      this->waitForIndex(persistency->getEndingIndex(), std::chrono::milliseconds(500));
       continue;
     }
 
+    std::vector<std::string> contents;
+    if(!persistency->retrieve(persistency->getStartingIndex(), contents)) {
+      std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index " << persistency->getStartingIndex() << std::endl;
+      std::terminate();
+    }
+
     // There are! Send the top one, wait maximum 2 sec for reply..
-    std::future<redisReplyPtr> future = qclient.execute(queue.top());
+    std::future<redisReplyPtr> future = qclient.execute(contents);
     if(future.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
       continue;
     }
@@ -226,8 +235,7 @@ void BackgroundFlusher::main(ThreadAssistant &assistant) {
     }
 
     // All is well, launch the pipeline
-    queue.pop();
-    acknowledged++;
+    itemWasAcknowledged();
     processPipeline(assistant);
   }
 }

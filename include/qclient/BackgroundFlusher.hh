@@ -57,21 +57,35 @@ public:
   void pushRequest(const std::vector<std::string> &operation);
   size_t size() const;
 
+  bool hasItemBeenAcked(ItemIndex index) {
+    return (index < persistency->getStartingIndex());
+  }
+
   template<typename Duration>
   bool waitForIndex(ItemIndex index, Duration duration) {
-    return queue.waitForIndex(index, duration);
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    auto deadline = start + duration;
+
+    std::unique_lock<std::mutex> lock(acknowledgementMtx);
+    while(std::chrono::steady_clock::now() < deadline) {
+      if(hasItemBeenAcked(index)) return true;
+      acknowledgementCV.wait_for(lock, duration);
+    }
+
+    return hasItemBeenAcked(index);
   }
 
   ItemIndex getEndingIndex() {
-    return queue.getEndingIndex();
+    return persistency->getStartingIndex();
   }
 
   ItemIndex getStartingIndex() {
-    return queue.getStartingIndex();
+    return persistency->getEndingIndex();
   }
 
 private:
-  BackpressuredQueue<std::vector<std::string>, BackpressureStrategyLimitSize> queue;
+  void itemWasAcknowledged();
+  std::unique_ptr<BackgroundFlusherPersistency> persistency;
 
   QClient &qclient;
   Notifier &notifier;
@@ -86,9 +100,14 @@ private:
   bool verifyReply(redisReplyPtr &reply);
   void monitorAckReception(ThreadAssistant &assistant);
 
+  std::mutex newEntriesMtx;
+  std::condition_variable newEntriesCV;
+
   std::atomic<bool> haltPipeline {false};
   std::mutex inFlightMtx;
   std::condition_variable inFlightCV;
+
+  std::mutex acknowledgementMtx;
   std::condition_variable acknowledgementCV;
   std::list<std::future<redisReplyPtr>> inFlight;
 
