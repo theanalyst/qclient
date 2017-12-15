@@ -76,7 +76,7 @@ bool BackgroundFlusher::verifyReply(redisReplyPtr &reply) {
   if(reply->type == REDIS_REPLY_ERROR) {
     std::string err(reply->str, reply->len);
 
-    if(startswith(err, "unavailable")) {
+    if(startswith(err, "ERR unavailable")) {
       notifier.eventNetworkIssue(err);
     }
     else {
