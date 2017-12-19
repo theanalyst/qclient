@@ -120,10 +120,12 @@ std::set<std::string> QSet::smembers()
 std::pair< std::string, std::vector<std::string> >
 QSet::sscan(std::string cursor, long long count)
 {
-  // TODO (gbitzes): add support for COUNT parameter
-  //  auto future = mClient->execute({"SSCAN", mKey, cursor, "COUNT",
-  //  std::to_string(count)});
-  redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor).get();
+  redisReplyPtr reply = mClient->exec("SSCAN", mKey, "0", "COUNT", stringify(count)).get();
+
+  if (reply == nullptr) {
+    throw std::runtime_error("[FATAL] Error hscan key: " + mKey +
+                             ": Unexpected/null reply");
+  }
 
   // Parse the Redis reply
   std::string new_cursor {reply->element[0]->str,
