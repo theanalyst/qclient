@@ -236,7 +236,7 @@ public:
   //!          returned in the current step
   //----------------------------------------------------------------------------
   std::pair< std::string, std::vector<std::string> >
-  sscan(std::string cursor, long long count = 1000);
+  sscan(const std::string &cursor, long long count = 1000);
 
 private:
   QClient* mClient; ///< Qclient client object

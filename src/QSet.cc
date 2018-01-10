@@ -118,9 +118,9 @@ std::set<std::string> QSet::smembers()
 // Redis SET SCAN command - synchronous
 //------------------------------------------------------------------------------
 std::pair< std::string, std::vector<std::string> >
-QSet::sscan(std::string cursor, long long count)
+QSet::sscan(const std::string &cursor, long long count)
 {
-  redisReplyPtr reply = mClient->exec("SSCAN", mKey, "0", "COUNT", stringify(count)).get();
+  redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor, "COUNT", stringify(count)).get();
 
   if (reply == nullptr) {
     throw std::runtime_error("[FATAL] Error hscan key: " + mKey +
