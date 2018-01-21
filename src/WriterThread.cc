@@ -37,6 +37,7 @@ WriterThread::~WriterThread() {
 void WriterThread::activate(NetworkStream *stream) {
   nextToFlush = 0;
   nextToAcknowledge = 0;
+  inHandshake = (handshake.get() != nullptr);
   thread.reset(&WriterThread::eventLoop, this, stream);
 }
 
@@ -54,6 +55,10 @@ void WriterThread::deactivate() {
 
   // We'll need to send again the first few "unacknowledged but flushed" items.
   nextToFlush = 0;
+
+  // Clear handshake
+  handshake.reset();
+  inHandshake = true;
 }
 
 void WriterThread::clearAcknowledged(size_t leeway) {
@@ -94,6 +99,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   polls[1].fd = networkStream->getFd();
   polls[1].events = POLLOUT;
 
+  std::unique_ptr<StagedRequest> localHandshake;
   StagedRequest *beingProcessed = nullptr;
   size_t bytesWritten = 0;
   bool canWrite = true;
@@ -121,7 +127,19 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
     if(beingProcessed == nullptr) {
       std::unique_lock<std::mutex> lock(stagingMtx);
 
-      if(nextToFlush < (int) stagedRequests.size()) {
+      if(inHandshake) {
+        if(!handshake) {
+          // We're supposed to be doing a handshake, but no handshake is available,
+          // sleep until it's provided.
+          stagingCV.wait_for(lock, std::chrono::milliseconds(100));
+          continue;
+        }
+
+        localHandshake = std::move(handshake);
+        beingProcessed = localHandshake.get();
+        bytesWritten = 0;
+      }
+      else if(nextToFlush < (int) stagedRequests.size()) {
         beingProcessed = &stagedRequests.at(nextToFlush);
         nextToFlush++;
         bytesWritten = 0;
@@ -174,10 +192,11 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       // Yep, set to null and process next one.
       beingProcessed = nullptr;
     }
-
-    // Fewer bytes were written than the full length of the request, the
-    // kernel buffers must be full. Poll until the socket is writable.
-    canWrite = false;
+    else {
+      // Fewer bytes were written than the full length of the request, the
+      // kernel buffers must be full. Poll until the socket is writable.
+      canWrite = false;
+    }
   }
 
 }
@@ -189,6 +208,32 @@ std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len) {
   stagedRequests.emplace_back(std::move(buffer), len);
   stagingCV.notify_one();
   return stagedRequests.back().get_future();
+}
+
+void WriterThread::stageHandshake(char *buffer, size_t len) {
+  std::lock_guard<std::mutex> lock2(appendMtx);
+  std::lock_guard<std::mutex> lock(stagingMtx);
+
+  if(!inHandshake) {
+    std::cerr << "qclient: bug, attempted to call stageHandshake while inHandshake is false" << std::endl;
+    exit(1);
+  }
+
+  if(handshake) {
+    std::cerr << "qclient: bug, attempted to call stageHandshake while handshake already exists" << std::endl;
+    exit(1);
+  }
+
+  handshake.reset(new StagedRequest(std::move(buffer), len));
+  stagingCV.notify_one();
+}
+
+void WriterThread::handshakeCompleted() {
+  std::lock_guard<std::mutex> lock2(appendMtx);
+  std::lock_guard<std::mutex> lock(stagingMtx);
+
+  inHandshake = false;
+  stagingCV.notify_one();
 }
 
 void WriterThread::satisfy(redisReplyPtr &reply) {

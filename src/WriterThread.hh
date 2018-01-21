@@ -78,6 +78,8 @@ public:
   ~WriterThread();
 
   void activate(NetworkStream *stream);
+  void stageHandshake(char *buffer, size_t len);
+  void handshakeCompleted();
   void deactivate();
 
   std::future<redisReplyPtr> stage(char *buffer, size_t len);
@@ -97,6 +99,8 @@ private:
   int nextToFlush = 0;
   int nextToAcknowledge = 0;
 
+  std::unique_ptr<StagedRequest> handshake;
+  bool inHandshake = true;
   void clearAcknowledged(size_t leeway);
 };
 

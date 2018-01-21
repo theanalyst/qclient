@@ -116,6 +116,26 @@ std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
   return execute(buffer, len);
 }
 
+void QClient::stageHandshake(const std::vector<std::string> &cont) {
+  std::unique_lock<std::recursive_mutex> lock(mtx);
+
+  std::uint64_t size = cont.size();
+  std::uint64_t indx = 0;
+  const char* cstr[size];
+  size_t sizes[size];
+
+  for (auto it = cont.begin(); it != cont.end(); ++it) {
+    cstr[indx] = it->data();
+    sizes[indx] = it->size();
+    ++indx;
+  }
+
+  char* buffer = NULL;
+
+  int len = redisFormatCommandArgv(&buffer, size, cstr, sizes);
+  writerThread->stageHandshake(buffer, len);
+}
+
 //------------------------------------------------------------------------------
 // Event loop for the client
 //------------------------------------------------------------------------------
@@ -154,13 +174,26 @@ bool QClient::feed(const char* buf, size_t len)
 
     // Is this a response to the handshake?
     if(handshakePending) {
-      if(!handshake->validateResponse(rr)) {
+      Handshake::Status status = handshake->validateResponse(rr);
+
+      if(status == Handshake::Status::INVALID) {
         // Error during handshaking, drop connection
         return false;
       }
 
-      // Handshake was good, carry on.
-      handshakePending = false;
+      successfulResponses = true;
+      if(status == Handshake::Status::VALID_COMPLETE) {
+        // We're done handshaking
+        handshakePending = false;
+        writerThread->handshakeCompleted();
+      }
+
+      if(status == Handshake::Status::VALID_INCOMPLETE) {
+        // Still more requests to go
+        stageHandshake(handshake->provideHandshake());
+      }
+
+      continue;
     }
 
     // Is this a redirect?
@@ -230,7 +263,18 @@ void QClient::connectTCP()
     return;
   }
 
+  if(handshake) {
+    handshake->restart();
+    stageHandshake(handshake->provideHandshake());
+    handshakePending = true;
+  }
+  else {
+    writerThread->handshakeCompleted();
+    handshakePending = false;
+  }
+
   writerThread->activate(networkStream);
+
 }
 
 //------------------------------------------------------------------------------
@@ -248,12 +292,6 @@ void QClient::connect()
   discoverIntercept();
   reader = redisReaderCreate();
   connectTCP();
-  handshakePending = false;
-
-  if(handshake) {
-    execute(handshake->provideHandshake());
-    handshakePending = true;
-  }
 }
 
 void QClient::eventLoop()

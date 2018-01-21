@@ -53,9 +53,16 @@ namespace qclient
 class Handshake
 {
 public:
+  enum class Status {
+    INVALID = 0,
+    VALID_INCOMPLETE,
+    VALID_COMPLETE
+  };
+
   virtual ~Handshake() {}
   virtual std::vector<std::string> provideHandshake() = 0;
-  virtual bool validateResponse(const redisReplyPtr &reply) = 0;
+  virtual Status validateResponse(const redisReplyPtr &reply) = 0;
+  virtual void restart() = 0;
 };
 
 //------------------------------------------------------------------------------
@@ -221,6 +228,7 @@ private:
   void startEventLoop();
   void eventLoop();
   void connect();
+  void stageHandshake(const std::vector<std::string> &cont);
 
   redisReader* reader = nullptr;
 
