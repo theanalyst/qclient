@@ -76,11 +76,11 @@ public:
   }
 
   ItemIndex getEndingIndex() {
-    return persistency->getStartingIndex();
+    return persistency->getEndingIndex();
   }
 
   ItemIndex getStartingIndex() {
-    return persistency->getEndingIndex();
+    return persistency->getStartingIndex();
   }
 
 private:
