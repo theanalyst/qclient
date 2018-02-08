@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 #include "qclient/QHash.hh"
 #include "test-config.hh"
 #include "qclient/AsyncHandler.hh"
@@ -98,8 +98,7 @@ TEST(QHash, HashSync)
 
   std::string cursor = "0";
   long long count = 1000;
-  std::pair<std::string, std::unordered_map<std::string, std::string> > reply;
-  reply = qhash.hscan(cursor, count);
+  auto reply = qhash.hscan(cursor, count);
   cursor = reply.first;
 
   for (auto && elem : reply.second) {
