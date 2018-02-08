@@ -204,7 +204,7 @@ QHash::hvals()
 //------------------------------------------------------------------------------
 // HSCAN command - synchronous
 //------------------------------------------------------------------------------
-std::pair<std::string, std::unordered_map<std::string, std::string> >
+std::pair<std::string, std::map<std::string, std::string> >
 QHash::hscan(const std::string& cursor, long long count)
 {
   redisReplyPtr reply = mClient->exec("HSCAN", mKey, cursor, "COUNT",
@@ -219,7 +219,7 @@ QHash::hscan(const std::string& cursor, long long count)
   std::string new_cursor = std::string(reply->element[0]->str,
                                        reply->element[0]->len);
   // First element is the new cursor
-  std::pair<std::string, std::unordered_map<std::string, std::string> > retc_pair;
+  std::pair<std::string, std::map<std::string, std::string> > retc_pair;
   retc_pair.first = new_cursor;
   // Get array part of the response
   redisReply* array = reply->element[1];
@@ -250,6 +250,59 @@ bool QHash::hmset(std::list<std::string> lst_elem)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// HASH Get iterator
+//------------------------------------------------------------------------------
+QHash::Iterator QHash::getIterator(size_t count, const std::string &startCursor) {
+  return QHash::Iterator(*this, count, startCursor);
+}
+
+//------------------------------------------------------------------------------
+// HASH Iterator implementation
+//------------------------------------------------------------------------------
+QHash::Iterator::Iterator(QHash &qh, size_t cnt, const std::string &crs)
+: qhash(qh), count(cnt), cursor(crs) {
+  fillFromBackend();
+}
+
+bool QHash::Iterator::valid() const {
+  return ! results.empty();
+}
+
+void QHash::Iterator::fillFromBackend() {
+  while(!reachedEnd && results.empty()) {
+    reqs++;
+    std::pair<std::string, std::map<std::string, std::string> > answer =
+    qhash.hscan(cursor, count);
+
+    cursor = answer.first;
+    results = std::move(answer.second);
+
+    if(cursor == "0") {
+      reachedEnd = true;
+    }
+  }
+}
+
+void QHash::Iterator::next() {
+  if(!results.empty()) {
+    results.erase(results.begin());
+  }
+  fillFromBackend();
+}
+
+std::string QHash::Iterator::getKey() const {
+  return results.begin()->first;
+}
+
+std::string QHash::Iterator::getValue() const {
+  return results.begin()->second;
+}
+
+size_t QHash::Iterator::requestsSoFar() const {
+  return reqs;
 }
 
 QCLIENT_NAMESPACE_END

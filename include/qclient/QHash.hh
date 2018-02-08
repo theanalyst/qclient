@@ -277,8 +277,35 @@ public:
   //! @return pair representing the cursor value and a map of the elements
   //!         returned in the current step
   //-----------------------------------------------------------------------------
-  std::pair<std::string, std::unordered_map<std::string, std::string> >
+  std::pair<std::string, std::map<std::string, std::string> >
   hscan(const std::string& cursor, long long count = 1000);
+
+  //----------------------------------------------------------------------------
+  //! Iterator class
+  //-----------------------------------------------------------------------------
+  class Iterator {
+  public:
+    bool valid() const;
+    void next();
+
+    std::string getKey() const;
+    std::string getValue() const;
+    size_t requestsSoFar() const;
+
+  private:
+    friend class QHash;
+    Iterator(QHash &qhash, size_t count, const std::string &startCursor);
+    void fillFromBackend();
+
+    QHash &qhash;
+    uint32_t count;
+    std::string cursor;
+    bool reachedEnd = false;
+    std::map<std::string, std::string> results;
+    size_t reqs = 0;
+  };
+
+  Iterator getIterator(size_t count = 100000, const std::string &startCursor = "0");
 
 private:
   QClient* mClient; ///< Client to talk to the backend
