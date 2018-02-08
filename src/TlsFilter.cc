@@ -92,7 +92,13 @@ void TlsFilter::createContext() {
 }
 
 void TlsFilter::configureContext() {
+
+#if defined(SSL_CTX_set_ecdh_auto)
   SSL_CTX_set_ecdh_auto(ctx, 1);
+#else
+  SSL_CTX_set_tmp_ecdh(ctx,
+                       EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+#endif
 
   /* Set the key and cert */
   if(SSL_CTX_use_certificate_file(ctx, tlsconfig.certificatePath.c_str(), SSL_FILETYPE_PEM) < 0) {
