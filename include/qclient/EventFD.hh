@@ -26,15 +26,20 @@
 
 #include <iostream>
 #include <unistd.h>
-#include <sys/eventfd.h>
 #include <string.h>
 
 namespace qclient {
 
+// We use pipe for now, not the kernel sys/eventfd.h. :P Not supported on Mac OS.
+
 class EventFD {
 public:
   EventFD() {
-    fd = eventfd(0, EFD_NONBLOCK);
+    int status = pipe(fildes);
+    if(status != 0) {
+      std::cerr << "EventFD: CRITICAL: Could not obtain file descriptors for EventFD class, errno = " << errno << std::endl;
+      std::quick_exit(1);
+    }
   }
 
   ~EventFD() {
@@ -42,27 +47,26 @@ public:
   }
 
   void close() {
-    if (fd >= 0) {
-      ::close(fd);
-      fd = -1;
-    }
+    ::close(fildes[0]);
+    ::close(fildes[1]);
   }
 
-  void notify(int64_t val = 1) {
-    int rc = write(fd, &val, sizeof(val));
+  void notify() {
+    char val = 1;
+    int rc = write(fildes[1], &val, sizeof(val));
 
     if (rc != sizeof(val)) {
-      std::cerr << "qclient: CRITICAL: could not write to eventFD, return code "
+      std::cerr << "qclient: CRITICAL: could not write to EventFD pipe, return code "
                 << rc << ": " << strerror(errno) << std::endl;
     }
   }
 
   inline int getFD() const {
-    return fd;
+    return fildes[0];
   }
 
 private:
-  int fd = -1;
+  int fildes[2];
 };
 
 }
