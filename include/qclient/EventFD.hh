@@ -27,6 +27,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <string.h>
+#include <cstdlib>
 
 namespace qclient {
 
@@ -38,7 +39,7 @@ public:
     int status = pipe(fildes);
     if(status != 0) {
       std::cerr << "EventFD: CRITICAL: Could not obtain file descriptors for EventFD class, errno = " << errno << std::endl;
-      std::quick_exit(1);
+      std::abort();
     }
   }
 

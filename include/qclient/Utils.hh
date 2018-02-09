@@ -32,7 +32,7 @@ namespace qclient {
 inline bool my_strtoll(const std::string &str, int64_t &ret) {
   char *endptr = NULL;
   ret = strtoll(str.c_str(), &endptr, 10);
-  if(endptr != str.c_str() + str.size() || ret == LLONG_MIN || ret == LONG_LONG_MAX) {
+  if(endptr != str.c_str() + str.size() || ret == LLONG_MIN || ret == LLONG_MAX) {
     return false;
   }
   return true;
