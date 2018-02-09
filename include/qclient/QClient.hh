@@ -24,7 +24,6 @@
 #ifndef __QCLIENT_QCLIENT_H__
 #define __QCLIENT_QCLIENT_H__
 
-#include <sys/eventfd.h>
 #include <mutex>
 #include <future>
 #include <queue>
