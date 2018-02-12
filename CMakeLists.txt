@@ -50,6 +50,7 @@ include_directories(
 add_library(qclient STATIC
   src/AsyncHandler.cc
   src/BackgroundFlusher.cc
+  src/CallbackExecutorThread.cc
   src/ConnectionInitiator.cc
   src/FutureHandler.cc
   src/NetworkStream.cc

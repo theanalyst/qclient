@@ -29,6 +29,7 @@
 #include "qclient/EventFD.hh"
 #include "qclient/FutureHandler.hh"
 #include "NetworkStream.hh"
+#include "CallbackExecutorThread.hh"
 #include <deque>
 #include <future>
 
@@ -60,6 +61,10 @@ public:
     return len;
   }
 
+  QCallback* getCallback() {
+    return callback;
+  }
+
   void set_value(redisReplyPtr &&reply) {
     if(callback) {
       callback->handleResponse(std::move(reply));
@@ -89,6 +94,7 @@ public:
   void clearPending();
 
 private:
+  CallbackExecutorThread cbExecutor;
   EventFD &shutdownEventFD;
   AssistedThread thread;
 

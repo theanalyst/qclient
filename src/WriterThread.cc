@@ -83,7 +83,7 @@ void WriterThread::clearPending() {
   std::lock_guard<std::mutex> lock(stagingMtx);
 
   for(size_t i = nextToAcknowledge; i < stagedRequests.size(); i++) {
-    stagedRequests[i].set_value(redisReplyPtr());
+    cbExecutor.stage(stagedRequests[i].getCallback(), redisReplyPtr());
   }
 
   nextToFlush = 0;
@@ -238,7 +238,7 @@ void WriterThread::handshakeCompleted() {
 void WriterThread::satisfy(redisReplyPtr &&reply) {
   std::lock_guard<std::mutex> lock(stagingMtx);
 
-  stagedRequests[nextToAcknowledge].set_value(std::move(reply));
+  cbExecutor.stage(stagedRequests[nextToAcknowledge].getCallback(), std::move(reply));
   nextToAcknowledge++;
   clearAcknowledged(3);
 }

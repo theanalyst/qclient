@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: QCallback.hh
+// File: CallbackExecutorThread.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,28 +21,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_QCALLBACK_H
-#define QCLIENT_QCALLBACK_H
+#ifndef QCLIENT_CALLBACK_EXECUTOR_H
+#define QCLIENT_CALLBACK_EXECUTOR_H
 
-#include <mutex>
-#include <future>
-#include <queue>
-#include <map>
-#include <list>
-#include <hiredis/hiredis.h>
+#include <string>
+#include <atomic>
+#include "qclient/QCallback.hh"
+#include "qclient/AssistedThread.hh"
 
 namespace qclient {
 
-using redisReplyPtr = std::shared_ptr<redisReply>;
+struct PendingCallback {
+  PendingCallback(QCallback *cb, redisReplyPtr &&rep) : callback(cb),
+  reply(std::move(rep)) {}
 
-class QCallback {
+  QCallback *callback;
+  redisReplyPtr reply;
+};
+
+class CallbackExecutorThread {
 public:
-  QCallback() {}
-  virtual ~QCallback() {}
+  CallbackExecutorThread();
+  ~CallbackExecutorThread();
 
-  // It is NOT safe to issue further requests to the driving QClient if reply
-  // is nullptr, as it could be in the process of shutting down!
-  virtual void handleResponse(redisReplyPtr &&reply) = 0;
+  void main(ThreadAssistant &assistant);
+  void stage(QCallback *callback, redisReplyPtr &&reply);
+
+private:
+  AssistedThread thread;
+
+  std::deque<PendingCallback> callbackStore1;
+  std::deque<PendingCallback> callbackStore2;
+
+  std::deque<PendingCallback> *pendingCallbacks;
+  std::mutex mtx;
+  std::condition_variable cv;
+
+  std::deque<PendingCallback>& swapStoresAndReturnOld();
 };
 
 }
