@@ -37,6 +37,7 @@ public:
   virtual void handleResponse(redisReplyPtr &&reply) override;
 
 private:
+  std::mutex mtx;
   std::deque<std::promise<redisReplyPtr>> promises;
 };
 
