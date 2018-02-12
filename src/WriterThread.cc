@@ -201,13 +201,12 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 
 }
 
-std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len) {
+void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
   std::lock_guard<std::mutex> lock2(appendMtx);
   std::lock_guard<std::mutex> lock(stagingMtx);
 
-  stagedRequests.emplace_back(std::move(buffer), len);
+  stagedRequests.emplace_back(callback, std::move(buffer), len);
   stagingCV.notify_one();
-  return stagedRequests.back().get_future();
 }
 
 void WriterThread::stageHandshake(char *buffer, size_t len) {
@@ -224,7 +223,7 @@ void WriterThread::stageHandshake(char *buffer, size_t len) {
     exit(1);
   }
 
-  handshake.reset(new StagedRequest(std::move(buffer), len));
+  handshake.reset(new StagedRequest(nullptr, std::move(buffer), len));
   stagingCV.notify_one();
 }
 
@@ -236,10 +235,10 @@ void WriterThread::handshakeCompleted() {
   stagingCV.notify_one();
 }
 
-void WriterThread::satisfy(redisReplyPtr &reply) {
+void WriterThread::satisfy(redisReplyPtr &&reply) {
   std::lock_guard<std::mutex> lock(stagingMtx);
 
-  stagedRequests[nextToAcknowledge].set_value(reply);
+  stagedRequests[nextToAcknowledge].set_value(std::move(reply));
   nextToAcknowledge++;
   clearAcknowledged(3);
 }

@@ -29,7 +29,6 @@
 #include <queue>
 #include <map>
 #include <list>
-#include <hiredis/hiredis.h>
 #include <unistd.h>
 #include <iostream>
 #include <string.h>
@@ -37,12 +36,13 @@
 #include "qclient/EventFD.hh"
 #include "qclient/Members.hh"
 #include "qclient/Utils.hh"
+#include "qclient/FutureHandler.hh"
 
 namespace qclient
 {
+  class QCallback;
   class NetworkStream;
   class WriterThread;
-  using redisReplyPtr = std::shared_ptr<redisReply>;
 
 //------------------------------------------------------------------------------
 //! Class handshake - inherit from here.
@@ -121,6 +121,7 @@ public:
   //! @return future holding a redis reply
   //----------------------------------------------------------------------------
   std::future<redisReplyPtr> execute(char* buffer, const size_t len);
+  void execute(QCallback *callback, char* buffer, const size_t len);
 
   //----------------------------------------------------------------------------
   //! Convenience function to encode a redis command given as an array of char*
@@ -134,6 +135,7 @@ public:
   //----------------------------------------------------------------------------
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
                                      const size_t* sizes);
+  void execute(QCallback *callback, size_t nchunks, const char** chunks, const size_t* sizes);
 
   //----------------------------------------------------------------------------
   //! Conveninence function to encode a redis command given as a container of
@@ -146,6 +148,9 @@ public:
   template<typename T>
   std::future<redisReplyPtr> execute(const T& container);
 
+  template<typename T>
+  void execute(QCallback *callback, const T& container);
+
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
   // This makes it possible to call exec("get", "key") instead of having to
@@ -154,9 +159,17 @@ public:
   // Extremely useful in macros, which don't support universal initialization.
   //----------------------------------------------------------------------------
   template<typename... Args>
-  std::future<redisReplyPtr> exec(const Args... args)
-  {
+  std::future<redisReplyPtr> exec(const Args... args) {
     return this->execute(std::vector<std::string> {args...});
+  }
+
+  //----------------------------------------------------------------------------
+  // The same as the above, but takes a callback instead of return a future.
+  // Different name, as overloading with a variadic template is a bad idea.
+  //----------------------------------------------------------------------------
+  template<typename... Args>
+  void execCB(QCallback *callback, const Args... args) {
+    return this->execute(callback, std::vector<std::string> {args...});
   }
 
   //----------------------------------------------------------------------------
@@ -249,17 +262,20 @@ private:
   static std::mutex interceptsMutex;
   static std::map<std::pair<std::string, int>, std::pair<std::string, int>>
       intercepts;
+
+  // The future handler
+  FutureHandler futureHandler;
 };
 
   //----------------------------------------------------------------------------
-  // Conveninence function to encode a redis command given as a container of
+  // Conveninence functions to encode a redis command given as a container of
   // strings to a redis buffer
   //----------------------------------------------------------------------------
   template <typename Container>
   std::future<redisReplyPtr>
   QClient::execute(const Container& cont)
   {
-    std::uint64_t size = cont.size();
+    typename Container::size_type size = cont.size();
     std::uint64_t indx = 0;
     const char* cstr[size];
     size_t sizes[size];
@@ -272,5 +288,27 @@ private:
 
     return execute(size, cstr, sizes);
   }
+
+  template <typename Container>
+  void
+  QClient::execute(QCallback *callback, const Container& cont)
+  {
+    typename Container::size_type size = cont.size();
+    std::uint64_t indx = 0;
+    const char* cstr[size];
+    size_t sizes[size];
+
+    for (auto it = cont.begin(); it != cont.end(); ++it) {
+      cstr[indx] = it->data();
+      sizes[indx] = it->size();
+      ++indx;
+    }
+
+    execute(callback, size, cstr, sizes);
+  }
 }
+
+// Instantiate std::future<redisReplyPtr> to save compile time.
+extern template class std::future<qclient::redisReplyPtr>;
+
 #endif

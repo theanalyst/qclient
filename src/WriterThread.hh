@@ -27,6 +27,7 @@
 #include <hiredis/hiredis.h>
 #include "qclient/AssistedThread.hh"
 #include "qclient/EventFD.hh"
+#include "qclient/FutureHandler.hh"
 #include "NetworkStream.hh"
 #include <deque>
 #include <future>
@@ -37,7 +38,8 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class StagedRequest {
 public:
-  StagedRequest(char *buff, size_t llen) {
+  StagedRequest(QCallback *cb, char *buff, size_t llen) {
+    callback = cb;
     buffer = buff;
     len = llen;
   }
@@ -58,18 +60,16 @@ public:
     return len;
   }
 
-  void set_value(const redisReplyPtr &reply) {
-    promise.set_value(reply);
-  }
-
-  std::future<redisReplyPtr> get_future() {
-    return promise.get_future();
+  void set_value(redisReplyPtr &&reply) {
+    if(callback) {
+      callback->handleResponse(std::move(reply));
+    }
   }
 
 private:
+  QCallback *callback;
   char *buffer;
   size_t len;
-  std::promise<redisReplyPtr> promise;
 };
 
 class WriterThread {
@@ -82,8 +82,8 @@ public:
   void handshakeCompleted();
   void deactivate();
 
-  std::future<redisReplyPtr> stage(char *buffer, size_t len);
-  void satisfy(redisReplyPtr &reply);
+  void stage(QCallback *callback, char *buffer, size_t len);
+  void satisfy(redisReplyPtr &&reply);
 
   void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
   void clearPending();

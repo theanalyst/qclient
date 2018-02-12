@@ -34,7 +34,13 @@
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
 
+// Instantiate std::future<redisReplyPtr> to save compile time
+template class std::future<qclient::redisReplyPtr>;
+
 using namespace qclient;
+
+
+
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
@@ -98,10 +104,17 @@ QClient::~QClient()
 // Primary execute command that takes a redis encoded buffer and sends it
 // over the network
 //------------------------------------------------------------------------------
-std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len)
-{
+void QClient::execute(QCallback *callback, char *buffer, const size_t len) {
   std::unique_lock<std::recursive_mutex> lock(mtx);
-  return writerThread->stage(buffer, len);
+  writerThread->stage(callback, buffer, len);
+}
+
+std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len) {
+  std::unique_lock<std::recursive_mutex> lock(mtx);
+
+  std::future<redisReplyPtr> retval = futureHandler.stage();
+  writerThread->stage(&futureHandler, buffer, len);
+  return retval;
 }
 
 //------------------------------------------------------------------------------
@@ -109,11 +122,17 @@ std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len)
 // and sizes to a redis buffer
 //------------------------------------------------------------------------------
 std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
-                                            const size_t* sizes)
-{
+                                            const size_t* sizes) {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
   return execute(buffer, len);
+}
+
+void QClient::execute(QCallback *callback, size_t nchunks, const char** chunks,
+                                            const size_t* sizes) {
+  char* buffer = NULL;
+  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
+  execute(callback, buffer, len);
 }
 
 void QClient::stageHandshake(const std::vector<std::string> &cont) {
@@ -221,7 +240,7 @@ bool QClient::feed(const char* buf, size_t len)
 
     // We're all good, satisfy request.
     successfulResponses = true;
-    writerThread->satisfy(rr);
+    writerThread->satisfy(std::move(rr));
   }
 
   return true;
