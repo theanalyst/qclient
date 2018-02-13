@@ -44,6 +44,13 @@ namespace qclient
   class NetworkStream;
   class WriterThread;
 
+
+//------------------------------------------------------------------------------
+//! Describe a redisReplyPtr, in a format similar to what redis-cli would give.
+//------------------------------------------------------------------------------
+std::string describeRedisReply(const redisReply *const redisReply, const std::string &prefix = "");
+std::string describeRedisReply(const redisReplyPtr &redisReply);
+
 //------------------------------------------------------------------------------
 //! Class handshake - inherit from here.
 //! Defines the first ever request to send to the remote host, and validates

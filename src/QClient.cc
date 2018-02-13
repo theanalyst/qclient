@@ -38,10 +38,6 @@
 template class std::future<qclient::redisReplyPtr>;
 
 using namespace qclient;
-
-
-
-
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
 //------------------------------------------------------------------------------

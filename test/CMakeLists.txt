@@ -13,6 +13,7 @@ include_directories(
 add_executable(
   qclient-tests
   backpressured-queue.cc
+  formatting.cc
   network-stream.cc
 )
 
