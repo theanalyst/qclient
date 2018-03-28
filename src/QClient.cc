@@ -317,6 +317,7 @@ void QClient::eventLoop()
   std::chrono::milliseconds backoff(1);
 
   while (true) {
+    bool activeConnection = false;
     std::unique_lock<std::recursive_mutex> lock(mtx);
     struct pollfd polls[2];
     polls[0].fd = shutdownEventFD.getFD();
@@ -333,10 +334,17 @@ void QClient::eventLoop()
       // OpenSSL, which poll() will not detect.
 
       if(status.bytesRead <= 0) {
-        int rpoll = poll(polls, 2, -1);
+        int rpoll = poll(polls, 2, 60);
         if(rpoll < 0 && errno != EINTR) {
           // something's wrong, try to reconnect
           break;
+        }
+
+        if(rpoll == 0 && !activeConnection) {
+          // No bytes have been transfered on this link, send a dummy
+          // reqeust to prevent a timeout.
+          exec("PING", "qclient-connection-initialization");
+          activeConnection = true;
         }
       }
       lock.lock();
@@ -351,6 +359,10 @@ void QClient::eventLoop()
 
       if(!status.connectionAlive) {
         break; // connection died on us, try to reconnect
+      }
+
+      if(status.bytesRead > 0) {
+        activeConnection = true;
       }
 
       if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {
