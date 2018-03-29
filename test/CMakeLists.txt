@@ -15,6 +15,7 @@ add_executable(
   backpressured-queue.cc
   formatting.cc
   network-stream.cc
+  thread-safe-queue.cc
 )
 
 target_link_libraries(
