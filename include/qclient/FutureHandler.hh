@@ -25,6 +25,7 @@
 #define QCLIENT_FUTURE_HANDLER_H
 
 #include "qclient/QCallback.hh"
+#include "qclient/ThreadSafeQueue.hh"
 
 namespace qclient {
 
@@ -37,8 +38,7 @@ public:
   virtual void handleResponse(redisReplyPtr &&reply) override;
 
 private:
-  std::mutex mtx;
-  std::deque<std::promise<redisReplyPtr>> promises;
+  ThreadSafeQueue<std::promise<redisReplyPtr>, 5000> promises;
 };
 
 }

@@ -30,15 +30,14 @@ FutureHandler::FutureHandler() {}
 FutureHandler::~FutureHandler() {}
 
 std::future<redisReplyPtr> FutureHandler::stage() {
-  std::unique_lock<std::mutex> lock(mtx);
-  promises.emplace_back();
-  lock.unlock();
+  std::promise<redisReplyPtr> prom;
+  std::future<redisReplyPtr> retval = prom.get_future();
 
-  return promises.back().get_future();
+  promises.emplace_back(std::move(prom));
+  return std::move(retval);
 }
 
 void FutureHandler::handleResponse(redisReplyPtr &&reply) {
-  std::lock_guard<std::mutex> lock(mtx);
   promises.front().set_value(reply);
   promises.pop_front();
 }

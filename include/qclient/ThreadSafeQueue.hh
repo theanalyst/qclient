@@ -100,6 +100,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Returns a reference to the top item.
+  //----------------------------------------------------------------------------
+  T& front() {
+    std::lock_guard<std::mutex> lock(popMutex);
+    return root->contents[firstBlockNextToPop];
+  }
+
+  //----------------------------------------------------------------------------
   // Pops an item from the queue, and returns the item's unique sequence number.
   //----------------------------------------------------------------------------
   int64_t pop_front() {
