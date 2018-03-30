@@ -30,6 +30,7 @@
 #include "qclient/FutureHandler.hh"
 #include "NetworkStream.hh"
 #include "CallbackExecutorThread.hh"
+#include "qclient/ThreadSafeQueue.hh"
 #include <deque>
 #include <future>
 
@@ -39,6 +40,7 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class StagedRequest {
 public:
+  StagedRequest() {}
   StagedRequest(QCallback *cb, char *buff, size_t llen) {
     callback = cb;
     buffer = buff;
@@ -49,8 +51,10 @@ public:
   StagedRequest(StagedRequest&& other) = delete;
 
   ~StagedRequest() {
-    free(buffer);
-    buffer = nullptr;
+    if(buffer) {
+      free(buffer);
+      buffer = nullptr;
+    }
   }
 
   char* getBuffer() {
@@ -72,8 +76,8 @@ public:
   }
 
 private:
-  QCallback *callback;
-  char *buffer;
+  QCallback *callback = nullptr;
+  char *buffer = nullptr;
   size_t len;
 };
 
@@ -98,16 +102,21 @@ private:
   EventFD &shutdownEventFD;
   AssistedThread thread;
 
-  std::mutex appendMtx;
   std::mutex stagingMtx;
   std::condition_variable stagingCV;
-  std::deque<StagedRequest> stagedRequests;
-  int nextToFlush = 0;
-  int nextToAcknowledge = 0;
+  size_t acknowledged = 0;
 
+  ThreadSafeQueue<StagedRequest, 3> stagedRequests;
+  decltype(stagedRequests)::Iterator nextToFlushIterator;
+  decltype(stagedRequests)::Iterator nextToAcknowledgeIterator;
+
+  std::atomic<int64_t> highestRequestID { -1 };
+
+  std::atomic<bool> inHandshake { true };
   std::unique_ptr<StagedRequest> handshake;
-  bool inHandshake = true;
+
   void clearAcknowledged(size_t leeway);
+  void blockUntilStaged(ThreadAssistant &assistant, int64_t requestID);
 };
 
 }

@@ -38,8 +38,8 @@ std::future<redisReplyPtr> FutureHandler::stage() {
 }
 
 void FutureHandler::handleResponse(redisReplyPtr &&reply) {
-  promises.front().set_value(reply);
   std::lock_guard<std::mutex> lock(mtx);
+  promises.front().set_value(reply);
   promises.pop_front();
 }
 

@@ -89,8 +89,7 @@ public:
   int64_t emplace_back(Args&&... args) {
     std::lock_guard<std::mutex> lock(pushMutex);
 
-    new (&lastBlock->contents[lastBlockNextPos]) T(args...);
-    // lastBlock->contents[lastBlockNextPos] = T(args...);
+    new (&lastBlock->contents[lastBlockNextPos]) T(std::forward<Args>(args)...);
     lastBlockNextPos++;
 
     if(lastBlockNextPos == BlockSize) {
