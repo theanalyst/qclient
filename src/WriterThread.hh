@@ -106,7 +106,7 @@ private:
   std::condition_variable stagingCV;
   size_t acknowledged = 0;
 
-  ThreadSafeQueue<StagedRequest, 3> stagedRequests;
+  ThreadSafeQueue<StagedRequest, 5000> stagedRequests;
   decltype(stagedRequests)::Iterator nextToFlushIterator;
   decltype(stagedRequests)::Iterator nextToAcknowledgeIterator;
 
