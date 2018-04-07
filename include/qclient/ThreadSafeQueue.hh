@@ -50,8 +50,14 @@ namespace qclient {
 
 template<typename T, size_t BlockSize>
 struct MemoryBlock {
-  std::array<T, BlockSize> contents;
   std::unique_ptr<MemoryBlock> next;
+
+  T* getObject(size_t position) {
+    return reinterpret_cast<T*>(&contents[sizeof(T)*position]);
+  }
+
+private:
+  std::array<unsigned char, sizeof(T)*BlockSize> contents;
 };
 
 template<typename T, size_t BlockSize>
@@ -65,6 +71,10 @@ public:
   // Reset all contents, and start sequence numbers from 0 again.
   //----------------------------------------------------------------------------
   void reset() {
+    while(nextSequenceNumber != frontSequenceNumber) {
+      pop_front();
+    }
+
     frontSequenceNumber = 0;
     nextSequenceNumber = 0;
 
@@ -89,7 +99,7 @@ public:
   int64_t emplace_back(Args&&... args) {
     std::lock_guard<std::mutex> lock(pushMutex);
 
-    new (&lastBlock->contents[lastBlockNextPos]) T(std::forward<Args>(args)...);
+    new (lastBlock->getObject(lastBlockNextPos)) T(std::forward<Args>(args)...);
     lastBlockNextPos++;
 
     if(lastBlockNextPos == BlockSize) {
@@ -104,7 +114,7 @@ public:
   //----------------------------------------------------------------------------
   T& front() {
     std::lock_guard<std::mutex> lock(popMutex);
-    return root->contents[firstBlockNextToPop];
+    return *(root->getObject(firstBlockNextToPop));
   }
 
   //----------------------------------------------------------------------------
@@ -112,6 +122,12 @@ public:
   //----------------------------------------------------------------------------
   int64_t pop_front() {
     std::lock_guard<std::mutex> lock(popMutex);
+
+    //--------------------------------------------------------------------------
+    // Since we're handling the raw memory ourselves, we need to call the
+    // object's destructor manually.
+    //--------------------------------------------------------------------------
+    root->getObject(firstBlockNextToPop)->~T();
 
     firstBlockNextToPop++;
     if(firstBlockNextToPop == BlockSize) {
@@ -129,7 +145,7 @@ public:
     : currentBlock(block), nextPos(pos), sequenceNumber(seq) {}
 
     T& item() {
-      return currentBlock->contents[nextPos];
+      return *(currentBlock->getObject(nextPos));
     }
 
     int64_t seq() const {
@@ -137,7 +153,7 @@ public:
     }
 
     const T& item() const {
-      return currentBlock->contents[nextPos];
+      return *(currentBlock->getObject(nextPos));
     }
 
     void next() {
@@ -196,8 +212,8 @@ private:
   size_t firstBlockNextToPop;
   size_t lastBlockNextPos;
 
-  int64_t nextSequenceNumber;
-  int64_t frontSequenceNumber;
+  int64_t nextSequenceNumber = 0;
+  int64_t frontSequenceNumber = 0;
 
   std::mutex pushMutex;
   std::mutex popMutex;

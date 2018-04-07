@@ -40,7 +40,6 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class StagedRequest {
 public:
-  StagedRequest() {}
   StagedRequest(QCallback *cb, char *buff, size_t llen) {
     callback = cb;
     buffer = buff;
