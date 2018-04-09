@@ -65,9 +65,11 @@ void QClient::clearIntercepts()
 // Constructor taking host and port
 //-----------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+                 RetryStrategy retries, BackpressureStrategy backpressure,
+                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
-    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
+    retryStrategy(retries), backpressureStrategy(backpressure),
+    tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -77,9 +79,11 @@ QClient::QClient(const std::string& host_, const int port_, bool redirects,
 // Constructor taking list of members for the cluster
 //------------------------------------------------------------------------------
 QClient::QClient(const Members& members_, bool redirects,
-                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+                 RetryStrategy retries, BackpressureStrategy backpressure,
+                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(members_), transparentRedirects(redirects),
-    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
+    retryStrategy(retries), backpressureStrategy(backpressure),
+    tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -152,7 +156,7 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  writerThread = new WriterThread(shutdownEventFD);
+  writerThread = new WriterThread(backpressureStrategy, shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
@@ -235,6 +239,31 @@ bool QClient::feed(const char* buf, size_t len)
   return true;
 }
 
+//----------------------------------------------------------------------------
+// Should we purge any requests currently queued inside WriterThread?
+//----------------------------------------------------------------------------
+bool QClient::shouldPurgePendingRequests() {
+  if(retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
+    //--------------------------------------------------------------------------
+    // Infinite retries, nope.
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  if(retryStrategy.getMode() == RetryStrategy::Mode::kRetryWithTimeout &&
+     lastAvailable + retryStrategy.getTimeout() >= std::chrono::steady_clock::now()) {
+    //--------------------------------------------------------------------------
+    // Timeout has not expired yet, nope.
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  //--------------------------------------------------------------------------
+  // Yes, purge.
+  //--------------------------------------------------------------------------
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Cleanup before reconnection or when exiting
 //------------------------------------------------------------------------------
@@ -255,28 +284,9 @@ void QClient::cleanup()
 
   successfulResponses = false;
 
-  //----------------------------------------------------------------------------
-  // Should we purge any requests currently queued inside WriterThread?
-  //----------------------------------------------------------------------------
-  if(retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
-    //--------------------------------------------------------------------------
-    // Infinite retries, nope.
-    //--------------------------------------------------------------------------
-    return;
+  if(shouldPurgePendingRequests()) {
+    writerThread->clearPending();
   }
-
-  if(retryStrategy.getMode() == RetryStrategy::Mode::kRetryWithTimeout &&
-     lastAvailable + retryStrategy.getTimeout() >= std::chrono::steady_clock::now()) {
-    //--------------------------------------------------------------------------
-    // Timeout has not expired yet, nope.
-    //--------------------------------------------------------------------------
-    return;
-  }
-
-  //--------------------------------------------------------------------------
-  // Yes, purge.
-  //--------------------------------------------------------------------------
-  writerThread->clearPending();
 }
 
 //------------------------------------------------------------------------------

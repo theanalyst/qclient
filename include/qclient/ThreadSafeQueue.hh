@@ -181,10 +181,14 @@ public:
     return Iterator(root.get(), firstBlockNextToPop, frontSequenceNumber);
   }
 
-  bool empty() {
+  size_t size() {
     std::lock_guard<std::mutex> lock(pushMutex);
     std::lock_guard<std::mutex> lock2(popMutex);
-    return root->next.get() == nullptr && nextSequenceNumber == frontSequenceNumber;
+    return nextSequenceNumber - frontSequenceNumber;
+  }
+
+  bool empty() {
+    return size() == 0u;
   }
 
 private:
