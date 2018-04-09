@@ -227,7 +227,7 @@ bool QClient::feed(const char* buf, size_t len)
     // Is this a transient "unavailable" error?
     // Checking for "ERR unavailable" is a QDB specific hack! We should introduce
     // a new response type, ie "UNAVAILABLE reason for unavailability"
-    if(retryStrategy.enabled && rr->type == REDIS_REPLY_ERROR &&
+    if(retryStrategy.active() && rr->type == REDIS_REPLY_ERROR &&
        strncmp(rr->str, "ERR unavailable", strlen("ERR unavailable")) == 0) {
 
       // Break connection, try again.
@@ -261,9 +261,29 @@ void QClient::cleanup()
   }
 
   successfulResponses = false;
-  if(!retryStrategy.enabled || lastAvailable + retryStrategy.timeout < std::chrono::steady_clock::now()) {
-    writerThread->clearPending();
+
+  //----------------------------------------------------------------------------
+  // Should we purge any requests currently queued inside WriterThread?
+  //----------------------------------------------------------------------------
+  if(retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
+    //--------------------------------------------------------------------------
+    // Infinite retries, nope.
+    //--------------------------------------------------------------------------
+    return;
   }
+
+  if(retryStrategy.getMode() == RetryStrategy::Mode::kRetryWithTimeout &&
+     lastAvailable + retryStrategy.getTimeout() >= std::chrono::steady_clock::now()) {
+    //--------------------------------------------------------------------------
+    // Timeout has not expired yet, nope.
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  //--------------------------------------------------------------------------
+  // Yes, purge.
+  //--------------------------------------------------------------------------
+  writerThread->clearPending();
 }
 
 //------------------------------------------------------------------------------
