@@ -48,8 +48,10 @@ using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
 
 class BackgroundFlusher {
 public:
-  BackgroundFlusher(QClient &client, Notifier &notifier, size_t sizeLimit, size_t pipelineLength,
+  BackgroundFlusher(Members members, Notifier &notifier,
     BackgroundFlusherPersistency *persistency = nullptr);
+
+  ~BackgroundFlusher();
 
   int64_t getEnqueuedAndClear();
   int64_t getAcknowledgedAndClear();
@@ -87,31 +89,29 @@ private:
   void itemWasAcknowledged();
   std::unique_ptr<BackgroundFlusherPersistency> persistency;
 
-  QClient &qclient;
-  Notifier &notifier;
-
-  size_t pipelineLength;
   std::atomic<int64_t> enqueued {0};
   std::atomic<int64_t> acknowledged {0};
 
-  void main(ThreadAssistant &assistant);
-  void processPipeline(ThreadAssistant &assistant);
-  bool checkPendingQueue(std::list<std::future<redisReplyPtr>> &inflight);
-  bool verifyReply(redisReplyPtr &reply);
-  void monitorAckReception(ThreadAssistant &assistant);
-
   std::mutex newEntriesMtx;
-  std::condition_variable newEntriesCV;
-
-  std::atomic<bool> haltPipeline {false};
-  std::mutex inFlightMtx;
-  std::condition_variable inFlightCV;
 
   std::mutex acknowledgementMtx;
   std::condition_variable acknowledgementCV;
-  std::list<std::future<redisReplyPtr>> inFlight;
+  std::atomic<bool> inShutdown {false};
 
-  AssistedThread thread;
+  class FlusherCallback : public QCallback {
+  public:
+    FlusherCallback(BackgroundFlusher *parent);
+    virtual ~FlusherCallback() {}
+    virtual void handleResponse(redisReplyPtr &&reply) override;
+
+  private:
+    BackgroundFlusher *parent;
+  };
+
+  Members members;
+  FlusherCallback callback;
+  QClient qclient;
+  Notifier &notifier;
 };
 
 }
