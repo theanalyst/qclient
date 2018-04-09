@@ -34,7 +34,8 @@ using namespace qclient;
 //------------------------------------------------------------------------------
 TEST(QHash, HashSync)
 {
-  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), testconfig.tlsconfig};
+  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(),
+    BackpressureStrategy::Default(), testconfig.tlsconfig};
   std::string hash_key = "qclient_test:hash";
   QHash qhash{cl, hash_key};
   std::vector<std::string> fields {"val1", "val2", "val3"};
@@ -150,7 +151,8 @@ TEST(QHash, HashSync)
 //------------------------------------------------------------------------------
 TEST(QHash, HashAsync)
 {
-  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), testconfig.tlsconfig};
+  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(),
+    BackpressureStrategy::Default(), testconfig.tlsconfig};
   std::string hash_key = "qclient_test:hash_async";
   QHash qhash(cl, hash_key);
   ASSERT_EQ(0, qhash.hlen());

@@ -31,6 +31,8 @@
 #include "NetworkStream.hh"
 #include "CallbackExecutorThread.hh"
 #include "qclient/ThreadSafeQueue.hh"
+#include "qclient/Options.hh"
+#include "qclient/Semaphore.hh"
 #include <deque>
 #include <future>
 
@@ -82,7 +84,7 @@ private:
 
 class WriterThread {
 public:
-  WriterThread(EventFD &shutdownFD);
+  WriterThread(BackpressureStrategy backpressure, EventFD &shutdownFD);
   ~WriterThread();
 
   void activate(NetworkStream *stream);
@@ -97,6 +99,9 @@ public:
   void clearPending();
 
 private:
+  BackpressureStrategy backpressureStrategy;
+  Semaphore backpressureSemaphore;
+
   CallbackExecutorThread cbExecutor;
   EventFD &shutdownEventFD;
   AssistedThread thread;

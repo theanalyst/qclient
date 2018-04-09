@@ -37,6 +37,7 @@
 #include "qclient/Members.hh"
 #include "qclient/Utils.hh"
 #include "qclient/FutureHandler.hh"
+#include "qclient/Options.hh"
 
 namespace qclient
 {
@@ -151,6 +152,7 @@ public:
   //----------------------------------------------------------------------------
   QClient(const std::string &host, int port, bool redirects = false,
           RetryStrategy retryStrategy = RetryStrategy::NoRetries(),
+          BackpressureStrategy backpressureStrategy = BackpressureStrategy::Default(),
           TlsConfig tlsconfig = {},
           std::unique_ptr<Handshake> handshake = {} );
 
@@ -159,6 +161,7 @@ public:
   //----------------------------------------------------------------------------
   QClient(const Members &members, bool redirects = false,
           RetryStrategy retryStrategy = RetryStrategy::NoRetries(),
+          BackpressureStrategy backpressureStrategy = BackpressureStrategy::Default(),
           TlsConfig tlsconfig = {},
           std::unique_ptr<Handshake> handshake = {} );
 
@@ -289,6 +292,7 @@ private:
 
   bool transparentRedirects;
   RetryStrategy retryStrategy;
+  BackpressureStrategy backpressureStrategy;
 
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
