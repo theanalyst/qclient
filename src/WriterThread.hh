@@ -91,12 +91,15 @@ public:
   void deactivate();
 
   void stage(QCallback *callback, char *buffer, size_t len);
+  std::future<redisReplyPtr> stage(char *buffer, size_t len);
+
   void satisfy(redisReplyPtr &&reply);
 
   void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
   void clearPending();
 
 private:
+  FutureHandler futureHandler;
   CallbackExecutorThread cbExecutor;
   EventFD &shutdownEventFD;
   AssistedThread thread;

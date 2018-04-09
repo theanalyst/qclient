@@ -101,16 +101,11 @@ QClient::~QClient()
 // over the network
 //------------------------------------------------------------------------------
 void QClient::execute(QCallback *callback, char *buffer, const size_t len) {
-  std::unique_lock<std::recursive_mutex> lock(mtx);
   writerThread->stage(callback, buffer, len);
 }
 
 std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len) {
-  std::unique_lock<std::recursive_mutex> lock(mtx);
-
-  std::future<redisReplyPtr> retval = futureHandler.stage();
-  writerThread->stage(&futureHandler, buffer, len);
-  return retval;
+  return writerThread->stage(buffer, len);
 }
 
 //------------------------------------------------------------------------------
@@ -132,8 +127,6 @@ void QClient::execute(QCallback *callback, size_t nchunks, const char** chunks,
 }
 
 void QClient::stageHandshake(const std::vector<std::string> &cont) {
-  std::unique_lock<std::recursive_mutex> lock(mtx);
-
   std::uint64_t size = cont.size();
   std::uint64_t indx = 0;
   const char* cstr[size];
@@ -317,7 +310,6 @@ void QClient::connectTCP()
 //------------------------------------------------------------------------------
 void QClient::connect()
 {
-  std::unique_lock<std::recursive_mutex> lock(mtx);
   cleanup();
 
   targetEndpoint = members.getEndpoints()[nextMember];
@@ -338,7 +330,6 @@ void QClient::eventLoop()
 
   while (true) {
     bool activeConnection = false;
-    std::unique_lock<std::recursive_mutex> lock(mtx);
     struct pollfd polls[2];
     polls[0].fd = shutdownEventFD.getFD();
     polls[0].events = POLLIN;
@@ -347,8 +338,6 @@ void QClient::eventLoop()
 
     RecvStatus status(true, 0, 0);
     while (networkStream->ok()) {
-      lock.unlock();
-
       // If the previous iteration returned any bytes at all, try to read again
       // without polling. It could be that there's more data cached inside
       // OpenSSL, which poll() will not detect.
@@ -367,7 +356,6 @@ void QClient::eventLoop()
           activeConnection = true;
         }
       }
-      lock.lock();
 
       if (shutdown) {
         break;
@@ -395,7 +383,6 @@ void QClient::eventLoop()
       break;
     }
 
-    lock.unlock();
     std::this_thread::sleep_for(backoff);
 
     // Give some more leeway, update lastAvailable after sleeping.

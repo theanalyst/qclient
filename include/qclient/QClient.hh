@@ -36,7 +36,7 @@
 #include "qclient/EventFD.hh"
 #include "qclient/Members.hh"
 #include "qclient/Utils.hh"
-#include "qclient/FutureHandler.hh"
+#include "qclient/QCallback.hh"
 
 namespace qclient
 {
@@ -310,7 +310,6 @@ private:
   bool feed(const char* buf, size_t len);
   void connectTCP();
 
-  std::recursive_mutex mtx;
   WriterThread *writerThread = nullptr;
   EventFD shutdownEventFD;
 
@@ -324,9 +323,6 @@ private:
   static std::mutex interceptsMutex;
   static std::map<std::pair<std::string, int>, std::pair<std::string, int>>
       intercepts;
-
-  // The future handler
-  FutureHandler futureHandler;
 };
 
   //----------------------------------------------------------------------------

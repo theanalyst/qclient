@@ -200,6 +200,15 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   }
 }
 
+std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len) {
+  std::lock_guard<std::mutex> lock(stagingMtx);
+
+  std::future<redisReplyPtr> retval = futureHandler.stage();
+  highestRequestID = stagedRequests.emplace_back(&futureHandler, std::move(buffer), len);
+  stagingCV.notify_one();
+  return retval;
+}
+
 void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
   std::lock_guard<std::mutex> lock(stagingMtx);
   highestRequestID = stagedRequests.emplace_back(callback, std::move(buffer), len);
