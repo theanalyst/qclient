@@ -65,11 +65,9 @@ void QClient::clearIntercepts()
 // Constructor taking host and port
 //-----------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 RetryStrategy retries, BackpressureStrategy backpressure,
-                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(host_, port_), transparentRedirects(redirects),
-    retryStrategy(retries), backpressureStrategy(backpressure),
-    tlsconfig(tlc), handshake(std::move(handshake_))
+    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -79,11 +77,9 @@ QClient::QClient(const std::string& host_, const int port_, bool redirects,
 // Constructor taking list of members for the cluster
 //------------------------------------------------------------------------------
 QClient::QClient(const Members& members_, bool redirects,
-                 RetryStrategy retries, BackpressureStrategy backpressure,
-                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
+                 RetryStrategy retries, TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
   : members(members_), transparentRedirects(redirects),
-    retryStrategy(retries), backpressureStrategy(backpressure),
-    tlsconfig(tlc), handshake(std::move(handshake_))
+    retryStrategy(retries), tlsconfig(tlc), handshake(std::move(handshake_))
 {
   startEventLoop();
 }
@@ -163,7 +159,7 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  writerThread = new WriterThread(backpressureStrategy, shutdownEventFD);
+  writerThread = new WriterThread(shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }

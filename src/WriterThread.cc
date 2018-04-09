@@ -26,12 +26,7 @@
 
 using namespace qclient;
 
-WriterThread::WriterThread(BackpressureStrategy backpressure, EventFD &shutdownFD)
-: backpressureStrategy(backpressure), backpressureSemaphore(1), shutdownEventFD(shutdownFD) {
-
-  if(backpressureStrategy.active()) {
-    backpressureSemaphore.reset(backpressureStrategy.getRequestLimit());
-  }
+WriterThread::WriterThread(EventFD &shutdownFD) : shutdownEventFD(shutdownFD) {
 }
 
 WriterThread::~WriterThread() {
@@ -73,10 +68,6 @@ void WriterThread::clearAcknowledged(size_t leeway) {
   while(acknowledged > leeway) {
     stagedRequests.pop_front();
     acknowledged--;
-
-    if(backpressureStrategy.active()) {
-      backpressureSemaphore.up();
-    }
   }
 }
 
@@ -89,7 +80,6 @@ void WriterThread::clearPending() {
     cbExecutor.stage(it.item().getCallback(), redisReplyPtr());
     it.next();
     stagedRequests.pop_front();
-    backpressureSemaphore.up();
   }
 
   stagedRequests.reset();
@@ -117,7 +107,10 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 
     if(!canWrite) {
       // We have data to write but cannot, because the kernel buffers are full.
-      // Poll until the socket is writable.
+      // Poll until the socket is writable. Prevent addition of further requests
+      // as a primitive form of back-pressure.
+
+      std::lock_guard<std::mutex> lock(stagingMtx);
 
       int rpoll = poll(polls, 2, -1);
       if(rpoll < 0 && errno != EINTR) {
@@ -208,10 +201,6 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 }
 
 void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
-  if(backpressureStrategy.active()) {
-    backpressureSemaphore.down();
-  }
-
   std::lock_guard<std::mutex> lock(stagingMtx);
   highestRequestID = stagedRequests.emplace_back(callback, std::move(buffer), len);
   stagingCV.notify_one();
