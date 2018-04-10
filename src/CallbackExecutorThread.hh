@@ -28,8 +28,11 @@
 #include <atomic>
 #include "qclient/QCallback.hh"
 #include "qclient/AssistedThread.hh"
+#include "qclient/ThreadSafeQueue.hh"
 
 namespace qclient {
+
+class QCallback;
 
 struct PendingCallback {
   PendingCallback(QCallback *cb, redisReplyPtr &&rep) : callback(cb),
@@ -48,16 +51,14 @@ public:
   void stage(QCallback *callback, redisReplyPtr &&reply);
 
 private:
-  AssistedThread thread;
+  ThreadSafeQueue<PendingCallback, 5000> pendingCallbacks;
+  std::atomic<int64_t> highestCallbackID { -1 };
 
-  std::deque<PendingCallback> callbackStore1;
-  std::deque<PendingCallback> callbackStore2;
-
-  std::deque<PendingCallback> *pendingCallbacks;
   std::mutex mtx;
   std::condition_variable cv;
 
-  std::deque<PendingCallback>& swapStoresAndReturnOld();
+  AssistedThread thread;
+  void blockUntilStaged(ThreadAssistant &assistant, int64_t callbackID);
 };
 
 }

@@ -25,11 +25,8 @@
 
 using namespace qclient;
 
-CallbackExecutorThread::CallbackExecutorThread() {
-  pendingCallbacks = &callbackStore1;
-
-  thread.reset(&CallbackExecutorThread::main, this);
-}
+CallbackExecutorThread::CallbackExecutorThread()
+: thread(&CallbackExecutorThread::main, this) {}
 
 CallbackExecutorThread::~CallbackExecutorThread() {
   thread.stop();
@@ -39,48 +36,44 @@ CallbackExecutorThread::~CallbackExecutorThread() {
   thread.join();
 }
 
-std::deque<PendingCallback>& CallbackExecutorThread::swapStoresAndReturnOld() {
-  if(pendingCallbacks == &callbackStore1) {
-    pendingCallbacks = &callbackStore2;
-    return callbackStore1;
-  }
+void CallbackExecutorThread::blockUntilStaged(ThreadAssistant &assistant, int64_t callbackID) {
+  std::unique_lock<std::mutex> lock(mtx);
 
-  pendingCallbacks = &callbackStore1;
-  return callbackStore2;
+  while(!assistant.terminationRequested() && callbackID > highestCallbackID) {
+    cv.wait(lock);
+  }
 }
 
 void CallbackExecutorThread::main(ThreadAssistant &assistant) {
-  std::unique_lock<std::mutex> lock(mtx);
+  auto frontier = pendingCallbacks.begin();
+
   while(true) {
-    if(assistant.terminationRequested() && pendingCallbacks->size() == 0) {
+    if(assistant.terminationRequested() && highestCallbackID+1 == frontier.seq()) {
+      //------------------------------------------------------------------------
+      // Even if termination is requested, we don't quit until all callbacks
+      // have been serviced! We don't want any hanging futures, for example.
+      //------------------------------------------------------------------------
       break;
     }
 
-    if(pendingCallbacks->size() == 0) {
-      // Empty queue, sleep
-      cv.wait_for(lock, std::chrono::seconds(120));
+    if(highestCallbackID < frontier.seq()) {
+      //------------------------------------------------------------------------
+      // Empty queue, sleep.
+      //------------------------------------------------------------------------
+      blockUntilStaged(assistant, frontier.seq());
       continue;
     }
 
-    // Swap the stores under lock
-    std::deque<PendingCallback> &callbacksToExec = swapStoresAndReturnOld();
+    PendingCallback &cb = frontier.item();
+    cb.callback->handleResponse(std::move(cb.reply));
 
-    // Unblock staging
-    lock.unlock();
-
-    // Execute callbacks, while stagers are able to push more
-    for(size_t i = 0; i < callbacksToExec.size(); i++) {
-      PendingCallback &cb = callbacksToExec[i];
-      cb.callback->handleResponse(std::move(cb.reply));
-    }
-
-    callbacksToExec.clear();
-    lock.lock();
+    frontier.next();
+    pendingCallbacks.pop_front();
   }
 }
 
 void CallbackExecutorThread::stage(QCallback *callback, redisReplyPtr &&response) {
   std::lock_guard<std::mutex> lock(mtx);
-  pendingCallbacks->emplace_back(callback, std::move(response));
+  highestCallbackID = pendingCallbacks.emplace_back(callback, std::move(response));
   cv.notify_one();
 }

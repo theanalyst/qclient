@@ -37,7 +37,7 @@ using namespace qclient;
 //------------------------------------------------------------------------------
 TEST(Ping, one)
 {
-  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), testconfig.tlsconfig};
+  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), BackpressureStrategy::Default(), testconfig.tlsconfig};
 
   redisReplyPtr reply = cl.exec("PING", "hello there").get();
   ASSERT_TRUE(reply != nullptr);
@@ -50,7 +50,7 @@ TEST(Ping, one)
 TEST(Ping, pipelined_10k) {
   std::vector<std::future<redisReplyPtr>> responses;
 
-  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), testconfig.tlsconfig};
+  QClient cl{testconfig.host, testconfig.port, false, RetryStrategy::NoRetries(), BackpressureStrategy::Default(), testconfig.tlsconfig};
 
   for(size_t i = 0; i < 10000; i++) {
     responses.push_back(cl.exec("PING", SSTR("hello from ping #" << i)));
