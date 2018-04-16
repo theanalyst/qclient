@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_QCLIENT_H__
-#define __QCLIENT_QCLIENT_H__
+#ifndef QCLIENT_QCLIENT_H
+#define QCLIENT_QCLIENT_H
 
 #include <mutex>
 #include <future>
@@ -41,6 +41,17 @@
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
+#endif
+
+//------------------------------------------------------------------------------
+//! Instantiate a few templates inside a single, internal compilation unit,
+//! to save compile time. The alternative is to have every single compilation
+//! unit which includes QClient.hh instantiate them, which increases compilation
+//! time.
+//------------------------------------------------------------------------------
+extern template class std::future<qclient::redisReplyPtr>;
+#if HAVE_FOLLY == 1
+extern template class folly::Future<qclient::redisReplyPtr>;
 #endif
 
 namespace qclient
@@ -416,8 +427,5 @@ private:
 #endif
 
 }
-
-// Instantiate std::future<redisReplyPtr> to save compile time.
-extern template class std::future<qclient::redisReplyPtr>;
 
 #endif

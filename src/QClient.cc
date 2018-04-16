@@ -34,8 +34,13 @@
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
 
-// Instantiate std::future<redisReplyPtr> to save compile time
+//------------------------------------------------------------------------------
+//! Instantiate a few templates inside this compilation unit, to save compile
+//! time. The alternative is to have every single compilation unit which
+//! includes QClient.hh instantiate them, which increases compilation time.
+//------------------------------------------------------------------------------
 template class std::future<qclient::redisReplyPtr>;
+template class folly::Future<qclient::redisReplyPtr>;
 
 using namespace qclient;
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
