@@ -233,6 +233,19 @@ void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
   stagingCV.notify_one();
 }
 
+folly::Future<redisReplyPtr> WriterThread::follyStage(char *buffer, size_t len) {
+  if(backpressureStrategy.active()) {
+    backpressureSemaphore.down();
+  }
+
+  std::lock_guard<std::mutex> lock(stagingMtx);
+
+  folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
+  highestRequestID = stagedRequests.emplace_back(&follyFutureHandler, std::move(buffer), len);
+  stagingCV.notify_one();
+  return retval;
+}
+
 void WriterThread::stageHandshake(char *buffer, size_t len) {
   std::lock_guard<std::mutex> lock(stagingMtx);
 

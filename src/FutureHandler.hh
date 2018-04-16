@@ -27,7 +27,24 @@
 #include "qclient/QCallback.hh"
 #include "qclient/ThreadSafeQueue.hh"
 
+#if HAVE_FOLLY == 1
+#include <folly/futures/Future.h>
+#endif
+
 namespace qclient {
+
+#if HAVE_FOLLY == 1
+class FollyFutureHandler : public QCallback {
+public:
+  FollyFutureHandler();
+  virtual ~FollyFutureHandler();
+
+  folly::Future<redisReplyPtr> stage();
+  virtual void handleResponse(redisReplyPtr &&reply) override;
+private:
+  ThreadSafeQueue<folly::Promise<redisReplyPtr>, 5000> promises;
+};
+#endif
 
 class FutureHandler : public QCallback {
 public:

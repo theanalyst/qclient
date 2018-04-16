@@ -112,6 +112,12 @@ std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len) {
   return writerThread->stage(buffer, len);
 }
 
+#if HAVE_FOLLY == 1
+folly::Future<redisReplyPtr> QClient::follyExecute(char *buffer, const size_t len) {
+  return writerThread->follyStage(buffer, len);
+}
+#endif
+
 //------------------------------------------------------------------------------
 // Convenience function to encode a redis command given as an array of char*
 // and sizes to a redis buffer
@@ -128,6 +134,13 @@ void QClient::execute(QCallback *callback, size_t nchunks, const char** chunks,
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
   execute(callback, buffer, len);
+}
+
+folly::Future<redisReplyPtr> QClient::follyExecute(size_t nchunks, const char** chunks,
+                                            const size_t* sizes) {
+  char* buffer = NULL;
+  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
+  return follyExecute(buffer, len);
 }
 
 void QClient::stageHandshake(const std::vector<std::string> &cont) {

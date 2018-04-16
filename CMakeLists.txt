@@ -24,7 +24,19 @@ endif()
 #-------------------------------------------------------------------------------
 # Compiler options
 #-------------------------------------------------------------------------------
-add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -std=c++11 -g3 -fPIC)
+add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -g3 -fPIC -Wno-implicit-fallthrough)
+
+#-------------------------------------------------------------------------------
+# Is there folly support?
+# If so, we expect to find relevant include directories and libraries in
+# FOLLY_INCLUDE_DIRS and FOLLY_LIBRARIES.
+#-------------------------------------------------------------------------------
+if(FOLLY_FOUND)
+  message("Building QClient with Folly support.")
+  add_definitions(-DHAVE_FOLLY=1)
+else()
+  message("Building QClient without Folly support.")
+endif()
 
 #-------------------------------------------------------------------------------
 # Build fmt library for string conversions
@@ -44,8 +56,10 @@ endif()
 include_directories(
   ./include
   ./src/
+  ${FOLLY_INCLUDE_DIRS}
   ${HIREDIS_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIR})
+  ${OPENSSL_INCLUDE_DIR}
+)
 
 add_library(qclient STATIC
   src/AsyncHandler.cc
@@ -66,7 +80,9 @@ target_link_libraries(
   qclient
   fmt
   ${HIREDIS_LIBRARIES}
-  ${OPENSSL_LIBRARIES})
+  ${OPENSSL_LIBRARIES}
+  ${FOLLY_LIBRARIES}
+)
 
 set_target_properties(
   qclient PROPERTIES

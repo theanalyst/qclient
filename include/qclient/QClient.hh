@@ -39,6 +39,10 @@
 #include "qclient/QCallback.hh"
 #include "qclient/Options.hh"
 
+#if HAVE_FOLLY == 1
+#include <folly/futures/Future.h>
+#endif
+
 namespace qclient
 {
   class QCallback;
@@ -187,6 +191,9 @@ public:
   //----------------------------------------------------------------------------
   std::future<redisReplyPtr> execute(char* buffer, const size_t len);
   void execute(QCallback *callback, char* buffer, const size_t len);
+#if HAVE_FOLLY == 1
+  folly::Future<redisReplyPtr> follyExecute(char* buffer, const size_t len);
+#endif
 
   //----------------------------------------------------------------------------
   //! Convenience function to encode a redis command given as an array of char*
@@ -201,6 +208,10 @@ public:
   std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
                                      const size_t* sizes);
   void execute(QCallback *callback, size_t nchunks, const char** chunks, const size_t* sizes);
+#if HAVE_FOLLY == 1
+  folly::Future<redisReplyPtr> follyExecute(size_t nchunks, const char** chunks,
+                                     const size_t* sizes);
+#endif
 
   //----------------------------------------------------------------------------
   //! Conveninence function to encode a redis command given as a container of
@@ -215,6 +226,11 @@ public:
 
   template<typename T>
   void execute(QCallback *callback, const T& container);
+
+#if HAVE_FOLLY == 1
+  template<typename T>
+  folly::Future<redisReplyPtr> follyExecute(const T& container);
+#endif
 
   //----------------------------------------------------------------------------
   // Convenience function, used mainly in tests.
@@ -236,6 +252,16 @@ public:
   void execCB(QCallback *callback, const Args... args) {
     return this->execute(callback, std::vector<std::string> {args...});
   }
+
+  //----------------------------------------------------------------------------
+  // The same as the above, but returns a folly future.
+  //----------------------------------------------------------------------------
+#if HAVE_FOLLY == 1
+  template<typename... Args>
+  folly::Future<redisReplyPtr> follyExec(const Args... args) {
+    return this->follyExecute(std::vector<std::string> {args...});
+  }
+#endif
 
   //----------------------------------------------------------------------------
   // Slight hack needed for unit tests. After an intercept has been added, any
@@ -368,6 +394,27 @@ private:
 
     execute(callback, size, cstr, sizes);
   }
+
+#if HAVE_FOLLY == 1
+  template <typename Container>
+  folly::Future<redisReplyPtr>
+  QClient::follyExecute(const Container& cont)
+  {
+    typename Container::size_type size = cont.size();
+    std::uint64_t indx = 0;
+    const char* cstr[size];
+    size_t sizes[size];
+
+    for (auto it = cont.begin(); it != cont.end(); ++it) {
+      cstr[indx] = it->data();
+      sizes[indx] = it->size();
+      ++indx;
+    }
+
+    return follyExecute(size, cstr, sizes);
+  }
+#endif
+
 }
 
 // Instantiate std::future<redisReplyPtr> to save compile time.

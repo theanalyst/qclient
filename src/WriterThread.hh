@@ -27,7 +27,7 @@
 #include <hiredis/hiredis.h>
 #include "qclient/AssistedThread.hh"
 #include "qclient/EventFD.hh"
-#include "qclient/FutureHandler.hh"
+#include "FutureHandler.hh"
 #include "NetworkStream.hh"
 #include "CallbackExecutorThread.hh"
 #include "qclient/ThreadSafeQueue.hh"
@@ -94,6 +94,9 @@ public:
 
   void stage(QCallback *callback, char *buffer, size_t len);
   std::future<redisReplyPtr> stage(char *buffer, size_t len);
+#if HAVE_FOLLY == 1
+  folly::Future<redisReplyPtr> follyStage(char *buffer, size_t len);
+#endif
 
   void satisfy(redisReplyPtr &&reply);
 
@@ -103,6 +106,10 @@ public:
 private:
   BackpressureStrategy backpressureStrategy;
   Semaphore backpressureSemaphore;
+
+#if HAVE_FOLLY == 1
+  FollyFutureHandler follyFutureHandler;
+#endif
 
   FutureHandler futureHandler;
   CallbackExecutorThread cbExecutor;

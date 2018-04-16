@@ -21,9 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/FutureHandler.hh"
+#include "FutureHandler.hh"
+
 
 namespace qclient {
+
+#if HAVE_FOLLY == 1
+FollyFutureHandler::FollyFutureHandler() {}
+
+FollyFutureHandler::~FollyFutureHandler() {}
+
+folly::Future<redisReplyPtr> FollyFutureHandler::stage() {
+  folly::Promise<redisReplyPtr> prom;
+  folly::Future<redisReplyPtr> retval = prom.getFuture();
+
+  promises.emplace_back(std::move(prom));
+  return std::move(retval);
+}
+
+void FollyFutureHandler::handleResponse(redisReplyPtr &&reply) {
+  promises.front().setValue(std::move(reply));
+  promises.pop_front();
+}
+
+#endif
 
 FutureHandler::FutureHandler() {}
 
