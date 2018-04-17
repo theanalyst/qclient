@@ -22,5 +22,6 @@ target_link_libraries(
   qclient-tests
   qclient
   ${GTEST_BOTH_LIBRARIES}
+  ${FOLLY_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
