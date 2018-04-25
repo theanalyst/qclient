@@ -40,7 +40,9 @@
 //! includes QClient.hh instantiate them, which increases compilation time.
 //------------------------------------------------------------------------------
 template class std::future<qclient::redisReplyPtr>;
+#if HAVE_FOLLY == 1
 template class folly::Future<qclient::redisReplyPtr>;
+#endif
 
 using namespace qclient;
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
@@ -141,12 +143,14 @@ void QClient::execute(QCallback *callback, size_t nchunks, const char** chunks,
   execute(callback, buffer, len);
 }
 
+#if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> QClient::follyExecute(size_t nchunks, const char** chunks,
                                             const size_t* sizes) {
   char* buffer = NULL;
   int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
   return follyExecute(buffer, len);
 }
+#endif
 
 void QClient::stageHandshake(const std::vector<std::string> &cont) {
   std::uint64_t size = cont.size();

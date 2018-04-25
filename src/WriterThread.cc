@@ -233,6 +233,7 @@ void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
   stagingCV.notify_one();
 }
 
+#if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> WriterThread::follyStage(char *buffer, size_t len) {
   if(backpressureStrategy.active()) {
     backpressureSemaphore.down();
@@ -245,6 +246,7 @@ folly::Future<redisReplyPtr> WriterThread::follyStage(char *buffer, size_t len) 
   stagingCV.notify_one();
   return retval;
 }
+#endif
 
 void WriterThread::stageHandshake(char *buffer, size_t len) {
   std::lock_guard<std::mutex> lock(stagingMtx);
