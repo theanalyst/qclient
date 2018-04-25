@@ -91,7 +91,7 @@ void NetworkStream::shutdown() {
   fdShutdown = true;
   isOk = false;
 
-  if(ret != 0) {
+  if(ret != 0 && errno != ENOTCONN) {
     std::cerr << "qclient: Error during socket shutdown for fd " << fd << " towards " << host << ":" << port << ", retval: " << ret
               << ", errno: " << errno << std::endl;
   }
