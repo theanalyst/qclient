@@ -123,7 +123,7 @@ QSet::sscan(const std::string &cursor, long long count)
   redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor, "COUNT", stringify(count)).get();
 
   if (reply == nullptr) {
-    throw std::runtime_error("[FATAL] Error hscan key: " + mKey +
+    throw std::runtime_error("[FATAL] Error sscan key: " + mKey +
                              ": Unexpected/null reply");
   }
 
