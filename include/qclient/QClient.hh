@@ -354,6 +354,7 @@ private:
   WriterThread *writerThread = nullptr;
   EventFD shutdownEventFD;
 
+  void primeConnection();
   void discoverIntercept();
   void processRedirection();
   std::unique_ptr<Handshake> handshake;

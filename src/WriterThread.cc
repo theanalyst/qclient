@@ -24,6 +24,8 @@
 #include <poll.h>
 #include "WriterThread.hh"
 
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
+
 using namespace qclient;
 
 WriterThread::WriterThread(BackpressureStrategy backpressure, EventFD &shutdownFD)
@@ -40,7 +42,6 @@ WriterThread::~WriterThread() {
 }
 
 void WriterThread::activate(NetworkStream *stream) {
-  nextToFlushIterator = stagedRequests.begin();
   inHandshake = (handshake.get() != nullptr);
   nextToAcknowledgeIterator = stagedRequests.begin();
   thread.reset(&WriterThread::eventLoop, this, stream);
@@ -210,8 +211,8 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   }
 }
 
-std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len) {
-  if(backpressureStrategy.active()) {
+std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len, bool bypassBackpressure) {
+  if(backpressureStrategy.active() && !bypassBackpressure) {
     backpressureSemaphore.down();
   }
 

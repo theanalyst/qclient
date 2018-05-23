@@ -353,6 +353,31 @@ void QClient::connect()
   connectTCP();
 }
 
+//------------------------------------------------------------------------------
+// Prime connection with a dummy request to prevent timeout
+//------------------------------------------------------------------------------
+void QClient::primeConnection() {
+  // Important: We must bypass backpressure, otherwise we risk deadlocking the
+  // main event loop.
+
+  const int nchunks = 2;
+  const char* chunks[nchunks];
+  size_t sizes[nchunks];
+
+  std::string f1 = "PING";
+  std::string f2 = "qclient-connection-initialization";
+
+  chunks[0] = f1.c_str();
+  chunks[1] = f2.c_str();
+
+  sizes[0] = f1.size();
+  sizes[1] = f2.size();
+
+  char* buffer = NULL;
+  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
+  writerThread->stage(buffer, len, true /* bypass backpressure */ );
+}
+
 void QClient::eventLoop()
 {
   const size_t BUFFER_SIZE = 1024 * 2;
@@ -384,7 +409,7 @@ void QClient::eventLoop()
         if(rpoll == 0 && !activeConnection) {
           // No bytes have been transfered on this link, send a dummy
           // reqeust to prevent a timeout.
-          exec("PING", "qclient-connection-initialization");
+          primeConnection();
           activeConnection = true;
         }
       }

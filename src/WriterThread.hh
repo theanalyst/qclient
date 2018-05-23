@@ -93,7 +93,7 @@ public:
   void deactivate();
 
   void stage(QCallback *callback, char *buffer, size_t len);
-  std::future<redisReplyPtr> stage(char *buffer, size_t len);
+  std::future<redisReplyPtr> stage(char *buffer, size_t len, bool bypassBackpressure = false);
 #if HAVE_FOLLY == 1
   folly::Future<redisReplyPtr> follyStage(char *buffer, size_t len);
 #endif
@@ -121,7 +121,6 @@ private:
   size_t acknowledged = 0;
 
   ThreadSafeQueue<StagedRequest, 5000> stagedRequests;
-  decltype(stagedRequests)::Iterator nextToFlushIterator;
   decltype(stagedRequests)::Iterator nextToAcknowledgeIterator;
 
   std::atomic<int64_t> highestRequestID { -1 };
