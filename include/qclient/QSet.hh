@@ -238,6 +238,34 @@ public:
   std::pair< std::string, std::vector<std::string> >
   sscan(const std::string &cursor, long long count = 1000);
 
+  //----------------------------------------------------------------------------
+  //! Iterator class
+  //-----------------------------------------------------------------------------
+  class Iterator {
+  public:
+    bool valid() const;
+    void next();
+
+    std::string getElement() const;
+    size_t requestsSoFar() const;
+
+  private:
+    friend class QSet;
+    Iterator(QSet &qset, size_t count, const std::string &startCursor);
+    void fillFromBackend();
+
+    QSet &qset;
+    uint32_t count;
+    std::string cursor;
+    bool reachedEnd = false;
+    std::vector<std::string> results;
+    size_t reqs = 0;
+
+    std::vector<std::string>::const_iterator it;
+  };
+
+  Iterator getIterator(size_t count = 100000, const std::string &startCursor = "0");
+
 private:
   QClient* mClient; ///< Qclient client object
   std::string mKey; ///< Key of the set object
@@ -252,9 +280,9 @@ void QSet::sadd_async(const T& member, AsyncHandler* ah)
   ah->Register(mClient, {"SADD", mKey, stringify(member)});
 }
 
-template<typename Iterator>
+template<typename Iter>
 void
-QSet::sadd_async(const Iterator& begin, const Iterator& end, AsyncHandler* ah)
+QSet::sadd_async(const Iter& begin, const Iter& end, AsyncHandler* ah)
 {
   std::vector<std::string> cmd;
   cmd.reserve(std::distance(begin, end) + 2);

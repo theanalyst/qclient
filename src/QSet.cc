@@ -172,4 +172,67 @@ QSet::sadd_async(const std::list<std::string>& set_elem, AsyncHandler* ah)
   ah->Register(mClient, cmd);
 }
 
+//------------------------------------------------------------------------------
+// SET Get iterator
+//------------------------------------------------------------------------------
+QSet::Iterator QSet::getIterator(size_t count, const std::string &startCursor) {
+  return QSet::Iterator(*this, count, startCursor);
+}
+
+//------------------------------------------------------------------------------
+// SET Iterator implementation
+//------------------------------------------------------------------------------
+QSet::Iterator::Iterator(QSet &qs, size_t cnt, const std::string &crs)
+: qset(qs), count(cnt), cursor(crs) {
+  fillFromBackend();
+}
+
+bool QSet::Iterator::valid() const {
+  return it != results.end();
+}
+
+void QSet::Iterator::fillFromBackend() {
+  while(!reachedEnd && it == results.end()) {
+    reqs++;
+
+    std::pair<std::string, std::vector<std::string> > answer =
+    qset.sscan(cursor, count);
+
+    cursor = answer.first;
+    results = std::move(answer.second);
+    it = results.begin();
+
+    if(cursor == "0") {
+      reachedEnd = true;
+    }
+  }
+}
+
+void QSet::Iterator::next() {
+  if(reachedEnd && it == results.end()) {
+    // No more elements, clear result vector
+    results.clear();
+    it = results.begin();
+    return;
+  }
+
+  if(it != results.end()) {
+    // Safe to progress iterator
+    it++;
+  }
+
+  if(it == results.end()) {
+    // Reached the end?
+    fillFromBackend();
+  }
+}
+
+std::string QSet::Iterator::getElement() const {
+  return *it;
+}
+
+size_t QSet::Iterator::requestsSoFar() const {
+  return reqs;
+}
+
 QCLIENT_NAMESPACE_END
