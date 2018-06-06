@@ -49,7 +49,7 @@ public:
   //! Limit pending requests to the specified amount. Once this limit is
   //! reached, attempts to issue more requests will block.
   //----------------------------------------------------------------------------
-  static BackpressureStrategy RateLimitPendingRequests(size_t sz = 32768u) {
+  static BackpressureStrategy RateLimitPendingRequests(size_t sz = 262144u) {
     BackpressureStrategy ret;
     ret.enabled = true;
     ret.pendingRequestLimit = sz;
