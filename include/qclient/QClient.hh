@@ -38,6 +38,7 @@
 #include "qclient/Utils.hh"
 #include "qclient/QCallback.hh"
 #include "qclient/Options.hh"
+#include "qclient/Handshake.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -66,26 +67,6 @@ namespace qclient
 //------------------------------------------------------------------------------
 std::string describeRedisReply(const redisReply *const redisReply, const std::string &prefix = "");
 std::string describeRedisReply(const redisReplyPtr &redisReply);
-
-//------------------------------------------------------------------------------
-//! Class handshake - inherit from here.
-//! Defines the first ever request to send to the remote host, and validates
-//! the response. If response is not as expected, the connection is shut down.
-//------------------------------------------------------------------------------
-class Handshake
-{
-public:
-  enum class Status {
-    INVALID = 0,
-    VALID_INCOMPLETE,
-    VALID_COMPLETE
-  };
-
-  virtual ~Handshake() {}
-  virtual std::vector<std::string> provideHandshake() = 0;
-  virtual Status validateResponse(const redisReplyPtr &reply) = 0;
-  virtual void restart() = 0;
-};
 
 //------------------------------------------------------------------------------
 //! Class RetryStrategy
