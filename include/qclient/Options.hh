@@ -26,6 +26,8 @@
 
 namespace qclient {
 
+class Handshake;
+
 //------------------------------------------------------------------------------
 //! This struct specifies how to rate-limit writing into QClient.
 //!
@@ -82,6 +84,121 @@ private:
 
   bool enabled = false;
   size_t pendingRequestLimit = 0u;
+};
+
+//------------------------------------------------------------------------------
+//! Class RetryStrategy
+//------------------------------------------------------------------------------
+class RetryStrategy {
+private:
+  //----------------------------------------------------------------------------
+  //! Private constructor, use static methods below to construct an object.
+  //----------------------------------------------------------------------------
+  RetryStrategy() {}
+
+public:
+
+  enum class Mode {
+    kNoRetries = 0,
+    kRetryWithTimeout,
+    kInfiniteRetries
+  };
+
+  //----------------------------------------------------------------------------
+  //! No retries.
+  //----------------------------------------------------------------------------
+  static RetryStrategy NoRetries() {
+    RetryStrategy val;
+    val.mode = Mode::kNoRetries;
+    return val;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Retry, up until the specified timeout.
+  //! NOTE: Timeout is per-connection, not per request.
+  //----------------------------------------------------------------------------
+  static RetryStrategy WithTimeout(std::chrono::seconds tm) {
+    RetryStrategy val;
+    val.mode = Mode::kRetryWithTimeout;
+    val.timeout = tm;
+    return val;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Infinite number of retries - hang forever if backend is not available.
+  //----------------------------------------------------------------------------
+  static RetryStrategy InfiniteRetries() {
+    RetryStrategy val;
+    val.mode = Mode::kInfiniteRetries;
+    return val;
+  }
+
+  Mode getMode() const {
+    return mode;
+  }
+
+  std::chrono::seconds getTimeout() const {
+    return timeout;
+  }
+
+  bool active() const {
+    return mode != Mode::kNoRetries;
+  }
+
+private:
+  Mode mode { Mode::kNoRetries };
+
+  //----------------------------------------------------------------------------
+  //! Timeout is per-connection, not per request. Only applies if mode
+  //! is kRetryWithTimeout.
+  //----------------------------------------------------------------------------
+  std::chrono::seconds timeout {0};
+};
+
+
+//------------------------------------------------------------------------------
+//! QClient Options class.
+//------------------------------------------------------------------------------
+class Options {
+public:
+  //----------------------------------------------------------------------------
+  //! If enabled, QClient will try to transparently handle -MOVED redirects.
+  //----------------------------------------------------------------------------
+  bool transparentRedirects = false;
+
+  //----------------------------------------------------------------------------
+  //! Specifies how to handle failing rqeuests. Default is NoRetries, meaning
+  //! if the connection drops, some requests receive redisReplyPtr == nullptr,
+  //! and it is up to the user to resubmit them.
+  //!
+  //! An alternative would be RetryStrategy::WithTimeout(60), which will
+  //! resubmit the request for up to 60 seconds, before returning
+  //! redisReplyPtr == nullptr for any particular request.
+  //----------------------------------------------------------------------------
+  RetryStrategy retryStrategy = RetryStrategy::NoRetries();
+
+  //----------------------------------------------------------------------------
+  //! Specifies whether to rate-limit writing into QClient. If there are
+  //! too many un-acknowledged pending requests, attempting to issue more will
+  //! block.
+  //!
+  //! Default is a maximum of 262144 pending requests in-flight.
+  //----------------------------------------------------------------------------
+  BackpressureStrategy backpressureStrategy = BackpressureStrategy::Default();
+
+  //----------------------------------------------------------------------------
+  //! Specifies whether to use TLS - default is off.
+  //----------------------------------------------------------------------------
+  TlsConfig tlsconfig = {};
+
+  //----------------------------------------------------------------------------
+  //! Specifies the handshake to use. A handshake is a sequence of redis
+  //! commands sent before any other on a particular connection. If the
+  //! connection drops and reconnects, the handshake will run again.
+  //!
+  //! Ideal for things like AUTH.
+  //----------------------------------------------------------------------------
+  std::unique_ptr<Handshake> handshake = {};
 };
 
 }

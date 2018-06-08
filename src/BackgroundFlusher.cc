@@ -60,12 +60,23 @@ BackgroundFlusher::~BackgroundFlusher() {
   inShutdown = true;
 }
 
-BackgroundFlusher::BackgroundFlusher(Members members, Notifier &notif,
-  BackgroundFlusherPersistency *pers)
+BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
+  Notifier &notif, BackgroundFlusherPersistency *pers)
 : persistency(pers),
   callback(this),
-  qclient(members, true, RetryStrategy::InfiniteRetries()),
+  options(std::move(opts)),
   notifier(notif) {
+
+  //----------------------------------------------------------------------------
+  // Overwrite certain QClient options.
+  //----------------------------------------------------------------------------
+  options.transparentRedirects = true;
+  options.retryStrategy = RetryStrategy::InfiniteRetries();
+
+  //----------------------------------------------------------------------------
+  // Initialize QClient object.
+  //----------------------------------------------------------------------------
+  qclient.reset(new QClient(members, std::move(options)));
 
   //----------------------------------------------------------------------------
   // Restore contents from persistency layer, if there are any.
@@ -77,7 +88,7 @@ BackgroundFlusher::BackgroundFlusher(Members members, Notifier &notif,
       std::terminate();
     }
 
-    qclient.execute(&callback, contents);
+    qclient->execute(&callback, contents);
   }
 }
 
@@ -100,7 +111,7 @@ int64_t BackgroundFlusher::getAcknowledgedAndClear() {
 void BackgroundFlusher::pushRequest(const std::vector<std::string> &operation) {
   std::lock_guard<std::mutex> lock(newEntriesMtx);
   persistency->record(persistency->getEndingIndex(), operation);
-  qclient.execute(&callback, operation);
+  qclient->execute(&callback, operation);
   enqueued++;
 }
 

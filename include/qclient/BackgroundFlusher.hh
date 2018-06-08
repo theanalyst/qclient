@@ -48,7 +48,7 @@ using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
 
 class BackgroundFlusher {
 public:
-  BackgroundFlusher(Members members, Notifier &notifier,
+  BackgroundFlusher(Members members, qclient::Options &&options, Notifier &notifier,
     BackgroundFlusherPersistency *persistency = nullptr);
 
   ~BackgroundFlusher();
@@ -110,7 +110,8 @@ private:
 
   Members members;
   FlusherCallback callback;
-  QClient qclient;
+  Options options;
+  std::unique_ptr<QClient> qclient;
   Notifier &notifier;
 };
 

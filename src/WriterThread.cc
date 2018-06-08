@@ -23,6 +23,7 @@
 
 #include <poll.h>
 #include "WriterThread.hh"
+#include "qclient/Handshake.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 

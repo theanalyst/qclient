@@ -69,75 +69,6 @@ std::string describeRedisReply(const redisReply *const redisReply, const std::st
 std::string describeRedisReply(const redisReplyPtr &redisReply);
 
 //------------------------------------------------------------------------------
-//! Class RetryStrategy
-//------------------------------------------------------------------------------
-class RetryStrategy {
-private:
-  //----------------------------------------------------------------------------
-  //! Private constructor, use static methods below to construct an object.
-  //----------------------------------------------------------------------------
-  RetryStrategy() {}
-
-public:
-
-  enum class Mode {
-    kNoRetries = 0,
-    kRetryWithTimeout,
-    kInfiniteRetries
-  };
-
-  //----------------------------------------------------------------------------
-  //! No retries.
-  //----------------------------------------------------------------------------
-  static RetryStrategy NoRetries() {
-    RetryStrategy val;
-    val.mode = Mode::kNoRetries;
-    return val;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Retry, up until the specified timeout.
-  //! NOTE: Timeout is per-connection, not per request.
-  //----------------------------------------------------------------------------
-  static RetryStrategy WithTimeout(std::chrono::seconds tm) {
-    RetryStrategy val;
-    val.mode = Mode::kRetryWithTimeout;
-    val.timeout = tm;
-    return val;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Infinite number of retries - hang forever if backend is not available.
-  //----------------------------------------------------------------------------
-  static RetryStrategy InfiniteRetries() {
-    RetryStrategy val;
-    val.mode = Mode::kInfiniteRetries;
-    return val;
-  }
-
-  Mode getMode() const {
-    return mode;
-  }
-
-  std::chrono::seconds getTimeout() const {
-    return timeout;
-  }
-
-  bool active() const {
-    return mode != Mode::kNoRetries;
-  }
-
-private:
-  Mode mode { Mode::kNoRetries };
-
-  //----------------------------------------------------------------------------
-  //! Timeout is per-connection, not per request. Only applies if mode
-  //! is kRetryWithTimeout.
-  //----------------------------------------------------------------------------
-  std::chrono::seconds timeout {0};
-};
-
-//------------------------------------------------------------------------------
 //! Class QClient
 //------------------------------------------------------------------------------
 class QClient
@@ -146,20 +77,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor taking simple host and port
   //----------------------------------------------------------------------------
-  QClient(const std::string &host, int port, bool redirects = false,
-          RetryStrategy retryStrategy = RetryStrategy::NoRetries(),
-          BackpressureStrategy backpressureStrategy = BackpressureStrategy::Default(),
-          TlsConfig tlsconfig = {},
-          std::unique_ptr<Handshake> handshake = {} );
+  QClient(const std::string &host, int port, Options &&options);
 
   //----------------------------------------------------------------------------
   //! Constructor taking a list of members for the cluster
   //----------------------------------------------------------------------------
-  QClient(const Members &members, bool redirects = false,
-          RetryStrategy retryStrategy = RetryStrategy::NoRetries(),
-          BackpressureStrategy backpressureStrategy = BackpressureStrategy::Default(),
-          TlsConfig tlsconfig = {},
-          std::unique_ptr<Handshake> handshake = {} );
+  QClient(const Members &members, Options &&options);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -306,17 +229,13 @@ private:
   // the endpoint given in a redirect
   Endpoint redirectedEndpoint;
 
+  Options options;
+
   bool redirectionActive = false;
-
-  bool transparentRedirects;
-  RetryStrategy retryStrategy;
-  BackpressureStrategy backpressureStrategy;
-
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
 
   // Network stream
-  TlsConfig tlsconfig;
   NetworkStream *networkStream = nullptr;
 
   std::atomic<int64_t> shutdown {false};
@@ -338,7 +257,6 @@ private:
   void primeConnection();
   void discoverIntercept();
   void processRedirection();
-  std::unique_ptr<Handshake> handshake;
   bool handshakePending = true;
   std::thread eventLoopThread;
 

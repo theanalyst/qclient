@@ -36,7 +36,7 @@ using namespace qclient;
 //------------------------------------------------------------------------------
 TEST(QSet, SetSync)
 {
-  QClient cl{testconfig.host, testconfig.port};
+  QClient cl{testconfig.host, testconfig.port, {} };
   std::string set_key = "qclient_test:set_sync";
   QSet qset(cl, set_key);
   std::list<std::string> members = {"200", "300", "400"};
@@ -88,7 +88,7 @@ TEST(QSet, SetSync)
 //------------------------------------------------------------------------------
 TEST(QSet, SetAsync)
 {
-  QClient cl{testconfig.host, testconfig.port};
+  QClient cl{testconfig.host, testconfig.port, {} };
   std::string set_key = "qclient_test:set_async";
   QSet qset(cl, set_key);
   qclient::AsyncHandler ah;

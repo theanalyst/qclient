@@ -71,12 +71,8 @@ void QClient::clearIntercepts()
 //------------------------------------------------------------------------------
 // Constructor taking host and port
 //-----------------------------------------------------------------------------
-QClient::QClient(const std::string& host_, const int port_, bool redirects,
-                 RetryStrategy retries, BackpressureStrategy backpressure,
-                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
-  : members(host_, port_), transparentRedirects(redirects),
-    retryStrategy(retries), backpressureStrategy(backpressure),
-    tlsconfig(tlc), handshake(std::move(handshake_))
+QClient::QClient(const std::string& host_, const int port_, Options &&opts)
+  : members(host_, port_), options(std::move(opts))
 {
   startEventLoop();
 }
@@ -85,12 +81,8 @@ QClient::QClient(const std::string& host_, const int port_, bool redirects,
 //------------------------------------------------------------------------------
 // Constructor taking list of members for the cluster
 //------------------------------------------------------------------------------
-QClient::QClient(const Members& members_, bool redirects,
-                 RetryStrategy retries, BackpressureStrategy backpressure,
-                 TlsConfig tlc, std::unique_ptr<Handshake> handshake_)
-  : members(members_), transparentRedirects(redirects),
-    retryStrategy(retries), backpressureStrategy(backpressure),
-    tlsconfig(tlc), handshake(std::move(handshake_))
+QClient::QClient(const Members& members_, Options &&opts)
+  : members(members_), options(std::move(opts))
 {
   startEventLoop();
 }
@@ -178,7 +170,7 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  writerThread = new WriterThread(backpressureStrategy, shutdownEventFD);
+  writerThread = new WriterThread(options.backpressureStrategy, shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
@@ -208,7 +200,7 @@ bool QClient::feed(const char* buf, size_t len)
 
     // Is this a response to the handshake?
     if(handshakePending) {
-      Handshake::Status status = handshake->validateResponse(rr);
+      Handshake::Status status = options.handshake->validateResponse(rr);
 
       if(status == Handshake::Status::INVALID) {
         // Error during handshaking, drop connection
@@ -224,14 +216,14 @@ bool QClient::feed(const char* buf, size_t len)
 
       if(status == Handshake::Status::VALID_INCOMPLETE) {
         // Still more requests to go
-        stageHandshake(handshake->provideHandshake());
+        stageHandshake(options.handshake->provideHandshake());
       }
 
       continue;
     }
 
     // Is this a redirect?
-    if (transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
+    if (options.transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
         strncmp(rr->str, "MOVED ", strlen("MOVED ")) == 0) {
 
       std::vector<std::string> response = split(std::string(rr->str, rr->len), " ");
@@ -246,7 +238,7 @@ bool QClient::feed(const char* buf, size_t len)
     // Is this a transient "unavailable" error?
     // Checking for "ERR unavailable" is a QDB specific hack! We should introduce
     // a new response type, ie "UNAVAILABLE reason for unavailability"
-    if(retryStrategy.active() && rr->type == REDIS_REPLY_ERROR &&
+    if(options.retryStrategy.active() && rr->type == REDIS_REPLY_ERROR &&
        strncmp(rr->str, "ERR unavailable", strlen("ERR unavailable")) == 0) {
 
       // Break connection, try again.
@@ -265,15 +257,15 @@ bool QClient::feed(const char* buf, size_t len)
 // Should we purge any requests currently queued inside WriterThread?
 //----------------------------------------------------------------------------
 bool QClient::shouldPurgePendingRequests() {
-  if(retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
+  if(options.retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
     //--------------------------------------------------------------------------
     // Infinite retries, nope.
     //--------------------------------------------------------------------------
     return false;
   }
 
-  if(retryStrategy.getMode() == RetryStrategy::Mode::kRetryWithTimeout &&
-     lastAvailable + retryStrategy.getTimeout() >= std::chrono::steady_clock::now()) {
+  if(options.retryStrategy.getMode() == RetryStrategy::Mode::kRetryWithTimeout &&
+     lastAvailable + options.retryStrategy.getTimeout() >= std::chrono::steady_clock::now()) {
     //--------------------------------------------------------------------------
     // Timeout has not expired yet, nope.
     //--------------------------------------------------------------------------
@@ -317,15 +309,15 @@ void QClient::cleanup()
 void QClient::connectTCP()
 {
   networkStream = new NetworkStream(targetEndpoint.getHost(),
-                                    targetEndpoint.getPort(), tlsconfig);
+                                    targetEndpoint.getPort(), options.tlsconfig);
 
   if(!networkStream->ok()) {
     return;
   }
 
-  if(handshake) {
-    handshake->restart();
-    stageHandshake(handshake->provideHandshake());
+  if(options.handshake) {
+    options.handshake->restart();
+    stageHandshake(options.handshake->provideHandshake());
     handshakePending = true;
   }
   else {
