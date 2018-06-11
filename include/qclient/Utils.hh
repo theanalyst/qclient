@@ -25,6 +25,7 @@
 #define __QCLIENT_UTILS_H__
 
 #include <limits.h>
+#include <sstream>
 #include "fmt/format.h"
 
 namespace qclient {
@@ -79,6 +80,15 @@ static std::string stringify(const T& elem)
   fmt::MemoryWriter out;
   out << elem;
   return out.str();
+}
+
+inline bool startswith(const std::string &str, const std::string &prefix) {
+  if(prefix.size() > str.size()) return false;
+
+  for(size_t i = 0; i < prefix.size(); i++) {
+    if(str[i] != prefix[i]) return false;
+  }
+  return true;
 }
 
 }
