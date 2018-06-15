@@ -5,7 +5,7 @@
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -23,6 +23,10 @@
 
 #ifndef QCLIENT_OPTIONS_HH
 #define QCLIENT_OPTIONS_HH
+
+#include <chrono>
+#include <memory>
+#include "TlsFilter.hh"
 
 namespace qclient {
 
@@ -199,6 +203,32 @@ public:
   //! Ideal for things like AUTH.
   //----------------------------------------------------------------------------
   std::unique_ptr<Handshake> handshake = {};
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Set HMAC handshake. If password is empty, any existing
+  //! handshake is cleared out
+  //----------------------------------------------------------------------------
+  qclient::Options& withHmacHandshake(const std::string &password);
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Enable transparent redirects
+  //----------------------------------------------------------------------------
+  qclient::Options& withTransparentRedirects();
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Disable transparent redirects
+  //----------------------------------------------------------------------------
+  qclient::Options& withoutTransparentRedirects();
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Setting backpressure strategy
+  //----------------------------------------------------------------------------
+  qclient::Options& withBackpressureStrategy(const BackpressureStrategy& str);
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Setting retry strategy
+  //----------------------------------------------------------------------------
+  qclient::Options& withRetryStrategy(const RetryStrategy& str);
 };
 
 }
