@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_MEMBERS_H__
-#define __QCLIENT_MEMBERS_H__
+#ifndef QCLIENT_MEMBERS_H
+#define QCLIENT_MEMBERS_H
 
 #include <sstream>
 

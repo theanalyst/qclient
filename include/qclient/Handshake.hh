@@ -59,24 +59,11 @@ public:
 //------------------------------------------------------------------------------
 class AuthHandshake : public Handshake {
 public:
-  AuthHandshake(const std::string &pw) : password(pw) { }
-
-  virtual ~AuthHandshake() {}
-
-  virtual std::vector<std::string> provideHandshake() override final {
-    return { "AUTH", password };
-  }
-
-  virtual Status validateResponse(const redisReplyPtr &reply) override final {
-    if(!reply) return Status::INVALID;
-    if(reply->type != REDIS_REPLY_STATUS) return Status::INVALID;
-
-    std::string response(reply->str, reply->len);
-    if(response != "OK") return Status::INVALID;
-    return Status::VALID_COMPLETE;
-  }
-
-  virtual void restart() override final {}
+  AuthHandshake(const std::string &pw);
+  virtual ~AuthHandshake();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
 
 private:
   std::string password;
@@ -87,96 +74,20 @@ private:
 //------------------------------------------------------------------------------
 class HmacAuthHandshake : public Handshake {
 public:
-  HmacAuthHandshake(const std::string &pw) : password(pw) {}
+  //----------------------------------------------------------------------------
+  //! Basic interface
+  //----------------------------------------------------------------------------
+  HmacAuthHandshake(const std::string &pw);
+  virtual ~HmacAuthHandshake();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
 
-  virtual ~HmacAuthHandshake() {}
-
-  static std::string generateSecureRandomBytes(size_t nbytes) {
-    char buffer[nbytes + 1];
-
-    // We might want to keep a pool of open "/dev/urandom" on standby, to avoid
-    // opening and closing /dev/urandom too often, but meh, this'll do for now.
-
-    FILE *in = fopen("/dev/urandom", "rb");
-
-    if(!in) {
-      std::cerr << "unable to open /dev/urandom" << std::endl;
-      std::terminate();
-    }
-
-    size_t bytes_read = fread(buffer, 1, nbytes, in);
-
-    if(bytes_read != nbytes) {
-      std::cerr << "qclient: assertion violation, bytes_read != nbytes. " << std::endl;
-      std::terminate();
-    }
-
-    qclient_assert(bytes_read == nbytes);
-    qclient_assert(fclose(in) == 0);
-
-    return std::string(buffer, nbytes);
-  }
-
-  std::string generateSignature() {
-    std::string ret;
-    ret.resize(SHA256_DIGEST_LENGTH);
-
-    unsigned int bufferLen = SHA256_DIGEST_LENGTH;
-
-    HMAC(EVP_sha256(), (const unsigned char*) password.c_str(), password.size(),
-      (const unsigned char*) stringToSign.c_str(), stringToSign.size(), (unsigned char*) ret.data(), &bufferLen);
-
-    return ret;
-  }
-
-  virtual std::vector<std::string> provideHandshake() override final {
-    if(initiated == false) {
-      initiated = true;
-      randomBytes = generateSecureRandomBytes(64);
-      return { "HMAC-AUTH-GENERATE-CHALLENGE", randomBytes };
-    }
-
-    return { "HMAC-AUTH-VALIDATE-CHALLENGE", generateSignature() };
-  }
-
-  virtual Status validateResponse(const redisReplyPtr &reply) override final {
-    if(!reply) return Status::INVALID;
-
-    if(!receivedChallenge) {
-      if(reply->type != REDIS_REPLY_STRING) {
-        std::cerr << "qclient: Received invalid response type in HmacAuthHandshake" << std::endl;
-        return Status::INVALID;
-      }
-
-      stringToSign = std::string(reply->str, reply->len);
-      receivedChallenge = true;
-      if(!startswith(stringToSign, randomBytes)) {
-        std::cerr << "qclient: HmacAuthHandshake: My random bytes were not used by the server for the construction of string-to-sign" << std::endl;
-        return Status::INVALID;
-      }
-
-      return Status::VALID_INCOMPLETE;
-    }
-
-    if(reply->type != REDIS_REPLY_STATUS) {
-      std::cerr << "qclient: Received invalid response type in HmacAuthHandshake" << std::endl;
-      return Status::INVALID;
-    }
-
-    if(std::string(reply->str, reply->len) != "OK") {
-      std::cerr << "qclient: HmacAuthHandshake received invalid response - " << std::string(reply->str, reply->len) << std::endl;
-      return Status::INVALID;
-    }
-
-    return Status::VALID_COMPLETE;
-  }
-
-  virtual void restart() override final {
-    initiated = false;
-    receivedChallenge = false;
-    randomBytes.clear();
-    stringToSign.clear();
-  }
+  //----------------------------------------------------------------------------
+  //! Helper methods
+  //----------------------------------------------------------------------------
+  static std::string generateSecureRandomBytes(size_t nbytes);
+  std::string generateSignature();
 
 private:
   bool initiated = false;

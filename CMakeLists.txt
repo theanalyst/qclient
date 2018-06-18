@@ -68,6 +68,7 @@ add_library(qclient STATIC
   src/ConnectionInitiator.cc
   src/Formatting.cc
   src/FutureHandler.cc
+  src/Handshake.cc
   src/NetworkStream.cc
   src/Options.cc
   src/QClient.cc
