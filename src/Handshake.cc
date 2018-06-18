@@ -138,6 +138,11 @@ std::vector<std::string> HmacAuthHandshake::provideHandshake() {
 Handshake::Status HmacAuthHandshake::validateResponse(const redisReplyPtr &reply) {
   if(!reply) return Status::INVALID;
 
+  if(reply->type == REDIS_REPLY_ERROR) {
+    std::cerr << "qclient: HmacAuthHandshake failed with error " << std::string(reply->str, reply->len) << std::endl;
+    return Status::INVALID;
+  }
+
   if(!receivedChallenge) {
     if(reply->type != REDIS_REPLY_STRING) {
       std::cerr << "qclient: Received invalid response type in HmacAuthHandshake" << std::endl;
@@ -152,11 +157,6 @@ Handshake::Status HmacAuthHandshake::validateResponse(const redisReplyPtr &reply
     }
 
     return Status::VALID_INCOMPLETE;
-  }
-
-  if(reply->type == REDIS_REPLY_ERROR) {
-    std::cerr << "qclient: HmacAuthHandshake failed with error " << std::string(reply->str, reply->len) << std::endl;
-    return Status::INVALID;
   }
 
   if(reply->type != REDIS_REPLY_STATUS) {
