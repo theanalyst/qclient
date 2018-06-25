@@ -33,15 +33,36 @@
 using namespace qclient;
 
 //------------------------------------------------------------------------------
-//! Fluent interface: Set HMAC handshake. If password is empty, any existing
-//! handshake is cleared out
+// Fluent interface: Chain HMAC handshake. If password is empty, any existing
+// handshake is left untouched.
 //------------------------------------------------------------------------------
-qclient::Options& Options::withHmacHandshake(const std::string &password) {
-  handshake.reset();
+qclient::Options& Options::chainHmacHandshake(const std::string &password) {
   if(!password.empty()) {
-    handshake.reset(new qclient::HmacAuthHandshake(password));
+    return chainHandshake(std::unique_ptr<Handshake>(new qclient::HmacAuthHandshake(password)));
   }
 
+  return *this;
+}
+
+//------------------------------------------------------------------------------
+// Fluent interface: Chain a handshake. Explicit transfer of ownership to
+// this object.
+//
+// If given handshake is nullptr, nothing is done.
+// If there's no existing handshake, the given handshake is set to be the
+// top-level one.
+//------------------------------------------------------------------------------
+qclient::Options& Options::chainHandshake(std::unique_ptr<Handshake> chain) {
+  if(!chain) {
+    return *this;
+  }
+
+  if(!handshake) {
+    handshake = std::move(chain);
+    return *this;
+  }
+
+  handshake.reset(new qclient::HandshakeChainer(std::move(handshake), std::move(chain)));
   return *this;
 }
 

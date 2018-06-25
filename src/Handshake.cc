@@ -30,26 +30,26 @@
 using namespace qclient;
 
 //------------------------------------------------------------------------------
-//! AuthHandshake: Constructor
+// AuthHandshake: Constructor
 //------------------------------------------------------------------------------
 AuthHandshake::AuthHandshake(const std::string &pw) : password(pw) {
 
 }
 
 //------------------------------------------------------------------------------
-//! AuthHandshake: Destructor
+// AuthHandshake: Destructor
 //------------------------------------------------------------------------------
 AuthHandshake::~AuthHandshake() {}
 
 //------------------------------------------------------------------------------
-//! AuthHandshake: ProvideHandshake
+// AuthHandshake: ProvideHandshake
 //------------------------------------------------------------------------------
 std::vector<std::string> AuthHandshake::provideHandshake() {
   return { "AUTH", password };
 }
 
 //------------------------------------------------------------------------------
-//! AuthHandshake: Response validation
+// AuthHandshake: Response validation
 //------------------------------------------------------------------------------
 Handshake::Status AuthHandshake::validateResponse(const redisReplyPtr &reply) {
   if(!reply) return Status::INVALID;
@@ -61,22 +61,22 @@ Handshake::Status AuthHandshake::validateResponse(const redisReplyPtr &reply) {
 }
 
 //------------------------------------------------------------------------------
-//! AuthHandshake: Restart
+// AuthHandshake: Restart
 //------------------------------------------------------------------------------
 void AuthHandshake::restart() {}
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Constructor
+// HmacAuthHandshake: Constructor
 //------------------------------------------------------------------------------
 HmacAuthHandshake::HmacAuthHandshake(const std::string &pw) : password(pw) {}
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Destructor
+// HmacAuthHandshake: Destructor
 //------------------------------------------------------------------------------
 HmacAuthHandshake::~HmacAuthHandshake() {}
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Generate cryptographically secure random bytes
+// HmacAuthHandshake: Generate cryptographically secure random bytes
 //------------------------------------------------------------------------------
 std::string HmacAuthHandshake::generateSecureRandomBytes(size_t nbytes) {
   char buffer[nbytes + 1];
@@ -105,7 +105,7 @@ std::string HmacAuthHandshake::generateSecureRandomBytes(size_t nbytes) {
 }
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Generate signature
+// HmacAuthHandshake: Generate signature
 //------------------------------------------------------------------------------
 std::string HmacAuthHandshake::generateSignature() {
   std::string ret;
@@ -120,7 +120,7 @@ std::string HmacAuthHandshake::generateSignature() {
 }
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Provide handshake
+// HmacAuthHandshake: Provide handshake
 //------------------------------------------------------------------------------
 std::vector<std::string> HmacAuthHandshake::provideHandshake() {
   if(initiated == false) {
@@ -133,7 +133,7 @@ std::vector<std::string> HmacAuthHandshake::provideHandshake() {
 }
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Validate response
+// HmacAuthHandshake: Validate response
 //------------------------------------------------------------------------------
 Handshake::Status HmacAuthHandshake::validateResponse(const redisReplyPtr &reply) {
   if(!reply) return Status::INVALID;
@@ -173,11 +173,59 @@ Handshake::Status HmacAuthHandshake::validateResponse(const redisReplyPtr &reply
 }
 
 //------------------------------------------------------------------------------
-//! HmacAuthHandshake: Restart
+// HmacAuthHandshake: Restart
 //------------------------------------------------------------------------------
 void HmacAuthHandshake::restart() {
   initiated = false;
   receivedChallenge = false;
   randomBytes.clear();
   stringToSign.clear();
+}
+
+//------------------------------------------------------------------------------
+// HandshakeChainer: Constructor
+//------------------------------------------------------------------------------
+HandshakeChainer::HandshakeChainer(std::unique_ptr<Handshake> h1,
+  std::unique_ptr<Handshake> h2) : first(std::move(h1)), second(std::move(h2)) {}
+
+//------------------------------------------------------------------------------
+// HandshakeChainer: Destructor
+//------------------------------------------------------------------------------
+HandshakeChainer::~HandshakeChainer() {}
+
+//------------------------------------------------------------------------------
+// HandshakeChainer: Provide handshake
+//------------------------------------------------------------------------------
+std::vector<std::string> HandshakeChainer::provideHandshake() {
+  if(!firstDone) {
+    return first->provideHandshake();
+  }
+
+  return second->provideHandshake();
+}
+
+//------------------------------------------------------------------------------
+// HandshakeChainer: Validate response
+//------------------------------------------------------------------------------
+Handshake::Status HandshakeChainer::validateResponse(const redisReplyPtr &reply) {
+  if(!firstDone) {
+    Status st = first->validateResponse(reply);
+    if(st == Status::VALID_COMPLETE) {
+      firstDone = true;
+      return Status::VALID_INCOMPLETE;
+    }
+
+    return st;
+  }
+
+  return second->validateResponse(reply);
+}
+
+//------------------------------------------------------------------------------
+// HandshakeChainer: Restart
+//------------------------------------------------------------------------------
+void HandshakeChainer::restart() {
+  firstDone = false;
+  first->restart();
+  second->restart();
 }

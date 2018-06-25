@@ -39,8 +39,7 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 //! Defines the first ever request to send to the remote host, and validates
 //! the response. If response is not as expected, the connection is shut down.
 //------------------------------------------------------------------------------
-class Handshake
-{
+class Handshake {
 public:
   enum class Status {
     INVALID = 0,
@@ -52,6 +51,27 @@ public:
   virtual std::vector<std::string> provideHandshake() = 0;
   virtual Status validateResponse(const redisReplyPtr &reply) = 0;
   virtual void restart() = 0;
+};
+
+//------------------------------------------------------------------------------
+//! HandshakeChainer - chain two handshakes together.
+//! - Start with the first one. If it succeeds, do the second. restart() resets
+//!   both, and performs the procedure from the beginning.
+//! - This class obtains ownership of both provided handshakes. The
+//!   constructor receives unique_ptr's as a means of enforcing this.
+//------------------------------------------------------------------------------
+class HandshakeChainer : public Handshake {
+public:
+  HandshakeChainer(std::unique_ptr<Handshake> first, std::unique_ptr<Handshake> second);
+  virtual ~HandshakeChainer();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
+
+private:
+  bool firstDone = false;
+  std::unique_ptr<Handshake> first;
+  std::unique_ptr<Handshake> second;
 };
 
 //------------------------------------------------------------------------------

@@ -205,10 +205,20 @@ public:
   std::unique_ptr<Handshake> handshake = {};
 
   //----------------------------------------------------------------------------
-  //! Fluent interface: Set HMAC handshake. If password is empty, any existing
-  //! handshake is cleared out
+  //! Fluent interface: Chain a handshake. Explicit transfer of ownership to
+  //! this object.
+  //!
+  //! If given handshake is nullptr, nothing is done.
+  //! If there's no existing handshake, the given handshake is set to be the
+  //! top-level one.
   //----------------------------------------------------------------------------
-  qclient::Options& withHmacHandshake(const std::string &password);
+  qclient::Options& chainHandshake(std::unique_ptr<Handshake> handshake);
+
+  //----------------------------------------------------------------------------
+  //! Fluent interface: Chain HMAC handshake. If password is empty, any existing
+  //! handshake is left untouched.
+  //----------------------------------------------------------------------------
+  qclient::Options& chainHmacHandshake(const std::string &password);
 
   //----------------------------------------------------------------------------
   //! Fluent interface: Enable transparent redirects
