@@ -179,15 +179,6 @@ public:
 #endif
 
   //----------------------------------------------------------------------------
-  // Slight hack needed for unit tests. After an intercept has been added, any
-  // connections to (host, ip) will be redirected to (host2, ip2) - usually
-  // localhost.
-  //----------------------------------------------------------------------------
-  static void addIntercept(const std::string& host, const int port,
-                           const std::string& host2, const int port2);
-  static void clearIntercepts();
-
-  //----------------------------------------------------------------------------
   //! Wrapper function for exists command
   //!
   //! @param key key to search for
@@ -255,15 +246,9 @@ private:
   EventFD shutdownEventFD;
 
   void primeConnection();
-  void discoverIntercept();
   void processRedirection();
   bool handshakePending = true;
   std::thread eventLoopThread;
-
-  // We consult this map each time a new connection is to be opened
-  static std::mutex interceptsMutex;
-  static std::map<std::pair<std::string, int>, std::pair<std::string, int>>
-      intercepts;
 };
 
   //----------------------------------------------------------------------------

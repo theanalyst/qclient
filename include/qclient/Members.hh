@@ -25,6 +25,8 @@
 #define QCLIENT_MEMBERS_H
 
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace qclient {
 

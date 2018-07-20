@@ -33,6 +33,7 @@
 #include "qclient/ConnectionInitiator.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
+#include "qclient/GlobalInterceptor.hh"
 
 //------------------------------------------------------------------------------
 //! Instantiate a few templates inside this compilation unit, to save compile
@@ -46,27 +47,6 @@ template class folly::Future<qclient::redisReplyPtr>;
 
 using namespace qclient;
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
-
-//------------------------------------------------------------------------------
-// The intercepts machinery
-//------------------------------------------------------------------------------
-std::mutex QClient::interceptsMutex;
-std::map<std::pair<std::string, int>, std::pair<std::string, int>>
-    QClient::intercepts;
-
-
-void QClient::addIntercept(const std::string& hostname, int port,
-                           const std::string& host2, int port2)
-{
-  std::lock_guard<std::mutex> lock(interceptsMutex);
-  intercepts[std::make_pair(hostname, port)] = std::make_pair(host2, port2);
-}
-
-void QClient::clearIntercepts()
-{
-  std::lock_guard<std::mutex> lock(interceptsMutex);
-  intercepts.clear();
-}
 
 //------------------------------------------------------------------------------
 // Constructor taking host and port
@@ -340,8 +320,9 @@ void QClient::connect()
   nextMember = (nextMember + 1) % members.size();
 
   processRedirection();
-  discoverIntercept();
   reader = redisReaderCreate();
+
+  targetEndpoint = GlobalInterceptor::translate(targetEndpoint);
   connectTCP();
 }
 
@@ -459,18 +440,6 @@ void QClient::processRedirection()
   }
 
   redirectedEndpoint = {};
-}
-
-void QClient::discoverIntercept()
-{
-  // If this (host, port) pair is being intercepted, redirect to a different
-  // (host, port) pair instead.
-  std::lock_guard<std::mutex> lock(interceptsMutex);
-  auto it = intercepts.find(std::make_pair(targetEndpoint.getHost(), targetEndpoint.getPort()));
-
-  if (it != intercepts.end()) {
-    targetEndpoint = Endpoint(it->second.first, it->second.second);
-  }
 }
 
 //------------------------------------------------------------------------------
