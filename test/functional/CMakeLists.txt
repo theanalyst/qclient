@@ -17,6 +17,7 @@ add_executable(
 target_link_libraries(
   qclient-functional-tests
   qclient
-  ${GTEST_BOTH_LIBRARIES}
+  pthread
+  gtest_main
   ${FOLLY_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

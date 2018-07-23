@@ -170,7 +170,7 @@ TEST(QHash, HashAsync)
   qhash.hlen_async(&ah);
   ASSERT_TRUE(ah.Wait());
   auto resp = ah.GetResponses();
-  ASSERT_EQ(num_elem, *resp.begin());
+  ASSERT_EQ(int(num_elem), *resp.begin());
 
   // Delete asynchronously all elements
   for (std::uint64_t i = 0; i <= num_elem; ++i) {

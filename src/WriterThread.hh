@@ -33,6 +33,7 @@
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/Semaphore.hh"
+#include "qclient/EncodedRequest.hh"
 #include <deque>
 #include <future>
 
@@ -42,28 +43,18 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class StagedRequest {
 public:
-  StagedRequest(QCallback *cb, char *buff, size_t llen) {
-    callback = cb;
-    buffer = buff;
-    len = llen;
-  }
+  StagedRequest(QCallback *cb, EncodedRequest &&request)
+  : callback(cb), encodedRequest(std::move(request)) { }
 
   StagedRequest(const StagedRequest& other) = delete;
   StagedRequest(StagedRequest&& other) = delete;
 
-  ~StagedRequest() {
-    if(buffer) {
-      free(buffer);
-      buffer = nullptr;
-    }
-  }
-
   char* getBuffer() {
-    return buffer;
+    return encodedRequest.getBuffer();
   }
 
   size_t getLen() const {
-    return len;
+    return encodedRequest.getLen();
   }
 
   QCallback* getCallback() {
@@ -78,8 +69,7 @@ public:
 
 private:
   QCallback *callback = nullptr;
-  char *buffer = nullptr;
-  size_t len;
+  EncodedRequest encodedRequest;
 };
 
 class WriterThread {
@@ -88,14 +78,14 @@ public:
   ~WriterThread();
 
   void activate(NetworkStream *stream);
-  void stageHandshake(char *buffer, size_t len);
+  void stageHandshake(EncodedRequest &&req);
   void handshakeCompleted();
   void deactivate();
 
-  void stage(QCallback *callback, char *buffer, size_t len);
-  std::future<redisReplyPtr> stage(char *buffer, size_t len, bool bypassBackpressure = false);
+  void stage(QCallback *callback, EncodedRequest &&req);
+  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false);
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(char *buffer, size_t len);
+  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req);
 #endif
 
   void satisfy(redisReplyPtr &&reply);

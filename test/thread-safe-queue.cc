@@ -80,12 +80,12 @@ TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
   ASSERT_EQ(1, this->queue.pop_front());
   ASSERT_TRUE(this->queue.empty());
 
-  for(size_t i = 0; i < 100; i++) {
-    ASSERT_EQ(2+i, this->queue.emplace_back(i*i, i*i+1));
+  for(int i = 0; i < 100; i++) {
+    ASSERT_EQ(2 + i, this->queue.emplace_back(i*i, i*i+1));
     ASSERT_FALSE(this->queue.empty());
   }
 
-  for(size_t i = 0; i < 100; i++) {
+  for(int i = 0; i < 100; i++) {
     coord = &it.item();
     ASSERT_EQ(coord->x, i*i);
     ASSERT_EQ(coord->y, i*i+1);

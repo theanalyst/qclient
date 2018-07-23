@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: general.cc
+//------------------------------------------------------------------------------
+// File: EncodedRequest.cc
 // Author: Georgios Bitzes - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
@@ -21,29 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
-#include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
+#include <hiredis/hiredis.h>
 
-TEST(GlobalInterceptor, BasicSanity) {
-  qclient::Endpoint e1("example.com", 1234);
-  qclient::Endpoint e2("localhost", 999);
-  qclient::Endpoint e3("localhost", 998);
+namespace qclient {
 
-  qclient::GlobalInterceptor::addIntercept(e1, e2);
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e1), e2);
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e2), e2);
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e3), e3);
-
-  qclient::GlobalInterceptor::clearIntercepts();
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e1), e1);
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e2), e2);
-  ASSERT_EQ(qclient::GlobalInterceptor::translate(e3), e3);
+void EncodedRequest::initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes) {
+  char* buff = NULL;
+  length = redisFormatCommandArgv(&buff, nchunks, chunks, sizes);
+  buffer.reset(buff);
 }
 
-TEST(EncodedRequest, BasicSanity) {
-  std::vector<std::string> req { "set", "1234", "abc" };
-  qclient::EncodedRequest encoded(req);
+EncodedRequest::EncodedRequest(size_t nchunks, const char** chunks, const size_t* sizes) {
+  initFromChunks(nchunks, chunks, sizes);
+}
 
-  ASSERT_EQ("*3\r\n$3\r\nset\r\n$4\r\n1234\r\n$3\r\nabc\r\n", std::string(encoded.getBuffer(), encoded.getLen()));
 }

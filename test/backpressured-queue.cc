@@ -138,7 +138,7 @@ TEST(BackpressuredQueue, basic_sanity) {
   queue.pop();
   ASSERT_EQ(queue.top(), 0);
   queue.pop();
-  ASSERT_EQ(queue.size(), 1);
+  ASSERT_EQ(queue.size(), 1u);
   ASSERT_EQ(queue.top(), -1);
   queue.pop();
 }

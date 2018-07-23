@@ -83,63 +83,22 @@ QClient::~QClient()
 // Primary execute command that takes a redis encoded buffer and sends it
 // over the network
 //------------------------------------------------------------------------------
-void QClient::execute(QCallback *callback, char *buffer, const size_t len) {
-  writerThread->stage(callback, buffer, len);
+void QClient::execute(QCallback *callback, EncodedRequest &&req) {
+  writerThread->stage(callback, std::move(req));
 }
 
-std::future<redisReplyPtr> QClient::execute(char *buffer, const size_t len) {
-  return writerThread->stage(buffer, len);
-}
-
-#if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> QClient::follyExecute(char *buffer, const size_t len) {
-  return writerThread->follyStage(buffer, len);
-}
-#endif
-
-//------------------------------------------------------------------------------
-// Convenience function to encode a redis command given as an array of char*
-// and sizes to a redis buffer
-//------------------------------------------------------------------------------
-std::future<redisReplyPtr> QClient::execute(size_t nchunks, const char** chunks,
-                                            const size_t* sizes) {
-  char* buffer = NULL;
-  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  return execute(buffer, len);
-}
-
-void QClient::execute(QCallback *callback, size_t nchunks, const char** chunks,
-                                            const size_t* sizes) {
-  char* buffer = NULL;
-  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  execute(callback, buffer, len);
+std::future<redisReplyPtr> QClient::execute(EncodedRequest &&req) {
+  return writerThread->stage(std::move(req));
 }
 
 #if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> QClient::follyExecute(size_t nchunks, const char** chunks,
-                                            const size_t* sizes) {
-  char* buffer = NULL;
-  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  return follyExecute(buffer, len);
+folly::Future<redisReplyPtr> QClient::follyExecute(EncodedRequest &&req) {
+  return writerThread->follyStage(std::move(req));
 }
 #endif
 
 void QClient::stageHandshake(const std::vector<std::string> &cont) {
-  std::uint64_t size = cont.size();
-  std::uint64_t indx = 0;
-  const char* cstr[size];
-  size_t sizes[size];
-
-  for (auto it = cont.begin(); it != cont.end(); ++it) {
-    cstr[indx] = it->data();
-    sizes[indx] = it->size();
-    ++indx;
-  }
-
-  char* buffer = NULL;
-
-  int len = redisFormatCommandArgv(&buffer, size, cstr, sizes);
-  writerThread->stageHandshake(buffer, len);
+  writerThread->stageHandshake(EncodedRequest(cont));
 }
 
 //------------------------------------------------------------------------------
@@ -333,22 +292,8 @@ void QClient::primeConnection() {
   // Important: We must bypass backpressure, otherwise we risk deadlocking the
   // main event loop.
 
-  const int nchunks = 2;
-  const char* chunks[nchunks];
-  size_t sizes[nchunks];
-
-  std::string f1 = "PING";
-  std::string f2 = "qclient-connection-initialization";
-
-  chunks[0] = f1.c_str();
-  chunks[1] = f2.c_str();
-
-  sizes[0] = f1.size();
-  sizes[1] = f2.size();
-
-  char* buffer = NULL;
-  int len = redisFormatCommandArgv(&buffer, nchunks, chunks, sizes);
-  writerThread->stage(buffer, len, true /* bypass backpressure */ );
+  std::vector<std::string> req { "PING", "qclient-connection-initialization" };
+  writerThread->stage(EncodedRequest(req), true /* bypass backpressure */ );
 }
 
 void QClient::eventLoop()

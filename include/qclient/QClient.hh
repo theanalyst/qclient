@@ -39,6 +39,7 @@
 #include "qclient/QCallback.hh"
 #include "qclient/Options.hh"
 #include "qclient/Handshake.hh"
+#include "qclient/EncodedRequest.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -96,36 +97,15 @@ public:
   void operator=(const QClient&) = delete;
 
   //----------------------------------------------------------------------------
-  //! Primary execute command that takes a redis encoded buffer and sends it
+  //! Primary execute command that takes an EncodedRequest and sends it
   //! over the network
   //!
-  //! @param buffer Redis encoded buffer containing a request
-  //! @param len length of the buffer
-  //!
   //! @return future holding a redis reply
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> execute(char* buffer, const size_t len);
-  void execute(QCallback *callback, char* buffer, const size_t len);
+  std::future<redisReplyPtr> execute(EncodedRequest &&req);
+  void execute(QCallback *callback, EncodedRequest &&req);
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyExecute(char* buffer, const size_t len);
-#endif
-
-  //----------------------------------------------------------------------------
-  //! Convenience function to encode a redis command given as an array of char*
-  //! and sizes to a redis buffer
-  //!
-  //! @param nchunks number of chunks in the arrays
-  //! @param chunks array of char*
-  //! @param sizes array of sizes of the individual chunks
-  //!
-  //! @return future holding a redis reply
-  //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> execute(size_t nchunks, const char** chunks,
-                                     const size_t* sizes);
-  void execute(QCallback *callback, size_t nchunks, const char** chunks, const size_t* sizes);
-#if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyExecute(size_t nchunks, const char** chunks,
-                                     const size_t* sizes);
+  folly::Future<redisReplyPtr> follyExecute(EncodedRequest &&req);
 #endif
 
   //----------------------------------------------------------------------------
@@ -137,14 +117,20 @@ public:
   //! @return future object
   //----------------------------------------------------------------------------
   template<typename T>
-  std::future<redisReplyPtr> execute(const T& container);
+  std::future<redisReplyPtr> execute(const T& container) {
+    return execute(EncodedRequest(container));
+  }
 
   template<typename T>
-  void execute(QCallback *callback, const T& container);
+  void execute(QCallback *callback, const T& container) {
+    return execute(callback, EncodedRequest(container));
+  }
 
 #if HAVE_FOLLY == 1
   template<typename T>
-  folly::Future<redisReplyPtr> follyExecute(const T& container);
+  folly::Future<redisReplyPtr> follyExecute(const T& container) {
+    return follyExecute(EncodedRequest(container));
+  }
 #endif
 
   //----------------------------------------------------------------------------
@@ -250,66 +236,6 @@ private:
   bool handshakePending = true;
   std::thread eventLoopThread;
 };
-
-  //----------------------------------------------------------------------------
-  // Conveninence functions to encode a redis command given as a container of
-  // strings to a redis buffer
-  //----------------------------------------------------------------------------
-  template <typename Container>
-  std::future<redisReplyPtr>
-  QClient::execute(const Container& cont)
-  {
-    typename Container::size_type size = cont.size();
-    std::uint64_t indx = 0;
-    const char* cstr[size];
-    size_t sizes[size];
-
-    for (auto it = cont.begin(); it != cont.end(); ++it) {
-      cstr[indx] = it->data();
-      sizes[indx] = it->size();
-      ++indx;
-    }
-
-    return execute(size, cstr, sizes);
-  }
-
-  template <typename Container>
-  void
-  QClient::execute(QCallback *callback, const Container& cont)
-  {
-    typename Container::size_type size = cont.size();
-    std::uint64_t indx = 0;
-    const char* cstr[size];
-    size_t sizes[size];
-
-    for (auto it = cont.begin(); it != cont.end(); ++it) {
-      cstr[indx] = it->data();
-      sizes[indx] = it->size();
-      ++indx;
-    }
-
-    execute(callback, size, cstr, sizes);
-  }
-
-#if HAVE_FOLLY == 1
-  template <typename Container>
-  folly::Future<redisReplyPtr>
-  QClient::follyExecute(const Container& cont)
-  {
-    typename Container::size_type size = cont.size();
-    std::uint64_t indx = 0;
-    const char* cstr[size];
-    size_t sizes[size];
-
-    for (auto it = cont.begin(); it != cont.end(); ++it) {
-      cstr[indx] = it->data();
-      sizes[indx] = it->size();
-      ++indx;
-    }
-
-    return follyExecute(size, cstr, sizes);
-  }
-#endif
 
 }
 

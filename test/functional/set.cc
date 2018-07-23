@@ -40,7 +40,7 @@ TEST(QSet, SetSync)
   std::string set_key = "qclient_test:set_sync";
   QSet qset(cl, set_key);
   std::list<std::string> members = {"200", "300", "400"};
-  ASSERT_EQ(members.size(), qset.sadd(members));
+  ASSERT_EQ(int(members.size()), qset.sadd(members));
   ASSERT_TRUE(qset.sadd("100"));
   ASSERT_FALSE(qset.sadd("400"));
   (void) members.push_back("100");

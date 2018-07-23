@@ -212,7 +212,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   }
 }
 
-std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len, bool bypassBackpressure) {
+std::future<redisReplyPtr> WriterThread::stage(EncodedRequest &&req, bool bypassBackpressure) {
   if(backpressureStrategy.active() && !bypassBackpressure) {
     backpressureSemaphore.down();
   }
@@ -220,23 +220,23 @@ std::future<redisReplyPtr> WriterThread::stage(char *buffer, size_t len, bool by
   std::lock_guard<std::mutex> lock(stagingMtx);
 
   std::future<redisReplyPtr> retval = futureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&futureHandler, std::move(buffer), len);
+  highestRequestID = stagedRequests.emplace_back(&futureHandler, std::move(req));
   stagingCV.notify_one();
   return retval;
 }
 
-void WriterThread::stage(QCallback *callback, char *buffer, size_t len) {
+void WriterThread::stage(QCallback *callback, EncodedRequest &&req) {
   if(backpressureStrategy.active()) {
     backpressureSemaphore.down();
   }
 
   std::lock_guard<std::mutex> lock(stagingMtx);
-  highestRequestID = stagedRequests.emplace_back(callback, std::move(buffer), len);
+  highestRequestID = stagedRequests.emplace_back(callback, std::move(req));
   stagingCV.notify_one();
 }
 
 #if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> WriterThread::follyStage(char *buffer, size_t len) {
+folly::Future<redisReplyPtr> WriterThread::follyStage(EncodedRequest &&req) {
   if(backpressureStrategy.active()) {
     backpressureSemaphore.down();
   }
@@ -244,13 +244,13 @@ folly::Future<redisReplyPtr> WriterThread::follyStage(char *buffer, size_t len) 
   std::lock_guard<std::mutex> lock(stagingMtx);
 
   folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&follyFutureHandler, std::move(buffer), len);
+  highestRequestID = stagedRequests.emplace_back(&follyFutureHandler, std::move(req));
   stagingCV.notify_one();
   return retval;
 }
 #endif
 
-void WriterThread::stageHandshake(char *buffer, size_t len) {
+void WriterThread::stageHandshake(EncodedRequest &&req) {
   std::lock_guard<std::mutex> lock(stagingMtx);
 
   if(!inHandshake) {
@@ -263,7 +263,7 @@ void WriterThread::stageHandshake(char *buffer, size_t len) {
     exit(1);
   }
 
-  handshake.reset(new StagedRequest(nullptr, std::move(buffer), len));
+  handshake.reset(new StagedRequest(nullptr, std::move(req)));
   stagingCV.notify_one();
 }
 
