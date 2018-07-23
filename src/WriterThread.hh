@@ -29,10 +29,10 @@
 #include "qclient/EventFD.hh"
 #include "FutureHandler.hh"
 #include "NetworkStream.hh"
+#include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
-#include "qclient/Semaphore.hh"
 #include "qclient/EncodedRequest.hh"
 #include <deque>
 #include <future>
@@ -94,8 +94,7 @@ public:
   void clearPending();
 
 private:
-  BackpressureStrategy backpressureStrategy;
-  Semaphore backpressureSemaphore;
+  BackpressureApplier backpressure;
 
 #if HAVE_FOLLY == 1
   FollyFutureHandler follyFutureHandler;

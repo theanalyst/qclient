@@ -29,12 +29,8 @@
 
 using namespace qclient;
 
-WriterThread::WriterThread(BackpressureStrategy backpressure, EventFD &shutdownFD)
-: backpressureStrategy(backpressure), backpressureSemaphore(1), shutdownEventFD(shutdownFD) {
-
-  if(backpressureStrategy.active()) {
-    backpressureSemaphore.reset(backpressureStrategy.getRequestLimit());
-  }
+WriterThread::WriterThread(BackpressureStrategy backpressureStr, EventFD &shutdownFD)
+: backpressure(backpressureStr), shutdownEventFD(shutdownFD) {
 }
 
 WriterThread::~WriterThread() {
@@ -75,10 +71,7 @@ void WriterThread::clearAcknowledged(size_t leeway) {
   while(acknowledged > leeway) {
     stagedRequests.pop_front();
     acknowledged--;
-
-    if(backpressureStrategy.active()) {
-      backpressureSemaphore.up();
-    }
+    backpressure.release();
   }
 }
 
@@ -91,10 +84,7 @@ void WriterThread::clearPending() {
     cbExecutor.stage(it.item().getCallback(), redisReplyPtr());
     it.next();
     stagedRequests.pop_front();
-
-    if(backpressureStrategy.active()) {
-      backpressureSemaphore.up();
-    }
+    backpressure.release();
   }
 
   stagedRequests.reset();
@@ -213,8 +203,8 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 }
 
 std::future<redisReplyPtr> WriterThread::stage(EncodedRequest &&req, bool bypassBackpressure) {
-  if(backpressureStrategy.active() && !bypassBackpressure) {
-    backpressureSemaphore.down();
+  if(!bypassBackpressure) {
+    backpressure.reserve();
   }
 
   std::lock_guard<std::mutex> lock(stagingMtx);
@@ -226,9 +216,7 @@ std::future<redisReplyPtr> WriterThread::stage(EncodedRequest &&req, bool bypass
 }
 
 void WriterThread::stage(QCallback *callback, EncodedRequest &&req) {
-  if(backpressureStrategy.active()) {
-    backpressureSemaphore.down();
-  }
+  backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(stagingMtx);
   highestRequestID = stagedRequests.emplace_back(callback, std::move(req));
@@ -237,9 +225,7 @@ void WriterThread::stage(QCallback *callback, EncodedRequest &&req) {
 
 #if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> WriterThread::follyStage(EncodedRequest &&req) {
-  if(backpressureStrategy.active()) {
-    backpressureSemaphore.down();
-  }
+  backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(stagingMtx);
 
