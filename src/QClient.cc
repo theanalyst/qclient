@@ -119,23 +119,23 @@ void QClient::startEventLoop()
 //------------------------------------------------------------------------------
 bool QClient::feed(const char* buf, size_t len)
 {
-  if (len > 0) {
-    redisReaderFeed(reader, buf, len);
-  }
+  responseBuilder.feed(buf, len);
 
   while (true) {
-    void* reply = NULL;
+    redisReplyPtr rr;
+    ResponseBuilder::Status status = responseBuilder.pull(rr);
 
-    if (redisReaderGetReply(reader, &reply) == REDIS_ERR) {
+    if(status == ResponseBuilder::Status::kProtocolError) {
       return false;
     }
 
-    if (reply == NULL) {
-      break;
+    if(status == ResponseBuilder::Status::kIncomplete) {
+      // We need more bytes before a full response can be built, go back
+      // to the event loop to pull more bytes.
+      return true;
     }
 
-    // We have a new response from the server.
-    redisReplyPtr rr = redisReplyPtr(redisReplyPtr((redisReply*) reply, freeReplyObject));
+    // --- We have a new response from the server!
 
     // Is this a response to the handshake?
     if(handshakePending) {
@@ -230,11 +230,7 @@ void QClient::cleanup()
 
   networkStream = nullptr;
 
-  if (reader != nullptr) {
-    redisReaderFree(reader);
-    reader = nullptr;
-  }
-
+  responseBuilder.restart();
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
@@ -279,8 +275,6 @@ void QClient::connect()
   nextMember = (nextMember + 1) % members.size();
 
   processRedirection();
-  reader = redisReaderCreate();
-
   targetEndpoint = GlobalInterceptor::translate(targetEndpoint);
   connectTCP();
 }

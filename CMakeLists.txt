@@ -81,6 +81,7 @@ add_library(qclient STATIC
   src/QClient.cc
   src/QHash.cc
   src/QSet.cc
+  src/ResponseBuilder.cc
   src/TlsFilter.cc
   src/WriterThread.cc
 )

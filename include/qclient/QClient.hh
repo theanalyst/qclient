@@ -40,6 +40,7 @@
 #include "qclient/Options.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/EncodedRequest.hh"
+#include "qclient/ResponseBuilder.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -222,7 +223,7 @@ private:
   void connect();
   void stageHandshake(const std::vector<std::string> &cont);
   bool shouldPurgePendingRequests();
-  redisReader* reader = nullptr;
+  ResponseBuilder responseBuilder;
 
   void cleanup();
   bool feed(const char* buf, size_t len);

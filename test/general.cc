@@ -24,6 +24,9 @@
 #include "gtest/gtest.h"
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
+#include "qclient/ResponseBuilder.hh"
+
+using namespace qclient;
 
 TEST(GlobalInterceptor, BasicSanity) {
   qclient::Endpoint e1("example.com", 1234);
@@ -46,4 +49,25 @@ TEST(EncodedRequest, BasicSanity) {
   qclient::EncodedRequest encoded(req);
 
   ASSERT_EQ("*3\r\n$3\r\nset\r\n$4\r\n1234\r\n$3\r\nabc\r\n", std::string(encoded.getBuffer(), encoded.getLen()));
+}
+
+TEST(ResponseBuilder, BasicSanity) {
+  ResponseBuilder builder;
+
+  builder.feed("ayy-lmao");
+
+  redisReplyPtr reply;
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kProtocolError);
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kProtocolError);
+
+  builder.restart();
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kIncomplete);
+
+  builder.feed(":10\r");
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kIncomplete);
+  builder.feed("\n");
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kOk);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_INTEGER);
+  ASSERT_EQ(reply->integer, 10);
 }
