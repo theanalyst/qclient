@@ -29,7 +29,7 @@ set(FMT_USE_CPP11 OFF CACHE BOOL "Prevent fmt from adding std=c++11")
 #-------------------------------------------------------------------------------
 # Compiler options
 #-------------------------------------------------------------------------------
-add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -g3 -fPIC -Wno-implicit-fallthrough)
+add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -fPIC -Wno-implicit-fallthrough)
 
 #-------------------------------------------------------------------------------
 # Is there folly support?
