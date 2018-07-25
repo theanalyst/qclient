@@ -28,7 +28,7 @@
 #include <atomic>
 #include "qclient/QCallback.hh"
 #include "qclient/AssistedThread.hh"
-#include "qclient/ThreadSafeQueue.hh"
+#include "qclient/WaitableQueue.hh"
 
 namespace qclient {
 
@@ -51,14 +51,8 @@ public:
   void stage(QCallback *callback, redisReplyPtr &&reply);
 
 private:
-  ThreadSafeQueue<PendingCallback, 5000> pendingCallbacks;
-  std::atomic<int64_t> highestCallbackID { -1 };
-
-  std::mutex mtx;
-  std::condition_variable cv;
-
+  WaitableQueue<PendingCallback, 5000> pendingCallbacks;
   AssistedThread thread;
-  void blockUntilStaged(ThreadAssistant &assistant, int64_t callbackID);
 };
 
 }

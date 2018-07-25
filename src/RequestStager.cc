@@ -43,8 +43,7 @@ std::future<redisReplyPtr> RequestStager::stage(EncodedRequest &&req, bool bypas
   std::lock_guard<std::mutex> lock(mtx);
 
   std::future<redisReplyPtr> retval = futureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&futureHandler, std::move(req));
-  cv.notify_one();
+  stagedRequests.emplace_back(&futureHandler, std::move(req));
   return retval;
 }
 
@@ -52,8 +51,7 @@ void RequestStager::stage(QCallback *callback, EncodedRequest &&req) {
   backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(mtx);
-  highestRequestID = stagedRequests.emplace_back(callback, std::move(req));
-  cv.notify_one();
+  stagedRequests.emplace_back(callback, std::move(req));
 }
 
 #if HAVE_FOLLY == 1
@@ -63,8 +61,7 @@ folly::Future<redisReplyPtr> RequestStager::follyStage(EncodedRequest &&req) {
   std::lock_guard<std::mutex> lock(mtx);
 
   folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&follyFutureHandler, std::move(req));
-  cv.notify_one();
+  stagedRequests.emplace_back(&follyFutureHandler, std::move(req));
   return retval;
 }
 #endif
@@ -75,7 +72,7 @@ void RequestStager::clearAllPending() {
   // The party's over, any requests that still remain un-acknowledged
   // will get a null response.
 
-  while(highestRequestID >= nextToAcknowledgeIterator.seq()) {
+  while(nextToAcknowledgeIterator.itemHasArrived()) {
     satisfy(redisReplyPtr());
   }
 
@@ -87,7 +84,6 @@ void RequestStager::restoreInvariant() {
   // nextToAcknowledgeIterator == stagedRequests.begin() + 1
 
   stagedRequests.reset();
-  highestRequestID = -1;
 
   stagedRequests.emplace_back(nullptr, EncodedRequest(std::vector<std::string>{"dummy"}));
   nextToAcknowledgeIterator = stagedRequests.begin();
@@ -99,20 +95,6 @@ void RequestStager::satisfy(redisReplyPtr &&reply) {
   nextToAcknowledgeIterator.next();
   stagedRequests.pop_front();
   backpressure.release();
-}
-
-void RequestStager::blockUntilStaged(int64_t requestID) {
-  std::unique_lock<std::mutex> lock(mtx);
-
-  while(blockingMode && requestID > highestRequestID) {
-    cv.wait_for(lock, std::chrono::seconds(1));
-  }
-}
-
-void RequestStager::setBlockingMode(bool value) {
-  std::unique_lock<std::mutex> lock(mtx);
-  blockingMode = value;
-  cv.notify_one();
 }
 
 RequestStager::QueueType::Iterator RequestStager::getIterator() {

@@ -30,25 +30,15 @@ CallbackExecutorThread::CallbackExecutorThread()
 
 CallbackExecutorThread::~CallbackExecutorThread() {
   thread.stop();
-  std::unique_lock<std::mutex> lock(mtx);
-  cv.notify_one();
-  lock.unlock();
+  pendingCallbacks.setBlockingMode(false);
   thread.join();
-}
-
-void CallbackExecutorThread::blockUntilStaged(ThreadAssistant &assistant, int64_t callbackID) {
-  std::unique_lock<std::mutex> lock(mtx);
-
-  while(!assistant.terminationRequested() && callbackID > highestCallbackID) {
-    cv.wait(lock);
-  }
 }
 
 void CallbackExecutorThread::main(ThreadAssistant &assistant) {
   auto frontier = pendingCallbacks.begin();
 
   while(true) {
-    if(assistant.terminationRequested() && highestCallbackID+1 == frontier.seq()) {
+    if(assistant.terminationRequested() && !frontier.itemHasArrived()) {
       //------------------------------------------------------------------------
       // Even if termination is requested, we don't quit until all callbacks
       // have been serviced! We don't want any hanging futures, for example.
@@ -56,11 +46,11 @@ void CallbackExecutorThread::main(ThreadAssistant &assistant) {
       break;
     }
 
-    if(highestCallbackID < frontier.seq()) {
+    if(!frontier.itemHasArrived()) {
       //------------------------------------------------------------------------
       // Empty queue, sleep.
       //------------------------------------------------------------------------
-      blockUntilStaged(assistant, frontier.seq());
+      frontier.blockUntilItemHasArrived();
       continue;
     }
 
@@ -73,7 +63,5 @@ void CallbackExecutorThread::main(ThreadAssistant &assistant) {
 }
 
 void CallbackExecutorThread::stage(QCallback *callback, redisReplyPtr &&response) {
-  std::lock_guard<std::mutex> lock(mtx);
-  highestCallbackID = pendingCallbacks.emplace_back(callback, std::move(response));
-  cv.notify_one();
+  pendingCallbacks.emplace_back(callback, std::move(response));
 }

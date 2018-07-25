@@ -108,7 +108,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
         beingProcessed = localHandshake.get();
         bytesWritten = 0;
       }
-      else if(requestStager.getHighestRequestId() >= stagingFrontier.seq()){
+      else if(stagingFrontier.itemHasArrived()) {
         // We have requests to process.
         beingProcessed = &stagingFrontier.item();
         stagingFrontier.next();
@@ -116,7 +116,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       }
       else {
         // There are no requests pending to be written, block until there are.
-        requestStager.blockUntilStaged(stagingFrontier.seq());
+        stagingFrontier.blockUntilItemHasArrived();
         continue;
       }
     }

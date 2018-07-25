@@ -25,6 +25,7 @@
 #define QCLIENT_REQUEST_STAGER_HH
 
 #include "qclient/ThreadSafeQueue.hh"
+#include "qclient/WaitableQueue.hh"
 #include "StagedRequest.hh"
 #include "FutureHandler.hh"
 #include "BackpressureApplier.hh"
@@ -65,7 +66,7 @@ namespace qclient {
 //------------------------------------------------------------------------------
 class RequestStager {
 public:
-  using QueueType = ThreadSafeQueue<StagedRequest, 5000>;
+  using QueueType = WaitableQueue<StagedRequest, 5000>;
 
   RequestStager(BackpressureStrategy backpressure);
   ~RequestStager();
@@ -80,24 +81,10 @@ public:
   void clearAllPending();
 
   //----------------------------------------------------------------------------
-  // If blocking mode is set to false, "blockUntilStaged" does not actually
-  // block.
-  //
-  // Set it to false whenever you want to unblock threads waiting inside
-  // that function, such as during shutdown.
-  //
-  // Set it to true before activating some event loop that has to wait on
-  // incoming requests.
+  // Forward to the underlying queue.
   //----------------------------------------------------------------------------
-  void setBlockingMode(bool value);
-
-  //----------------------------------------------------------------------------
-  // Block until a request newer than requestID has been staged.
-  //----------------------------------------------------------------------------
-  void blockUntilStaged(int64_t requestID);
-
-  int64_t getHighestRequestId() {
-    return highestRequestID;
+  void setBlockingMode(bool value) {
+    stagedRequests.setBlockingMode(value);
   }
 
   //----------------------------------------------------------------------------
@@ -109,8 +96,6 @@ public:
 private:
   void restoreInvariant();
   QueueType::Iterator nextToAcknowledgeIterator;
-
-  std::atomic<bool> blockingMode {true};
 
   BackpressureApplier backpressure;
   QueueType stagedRequests;
@@ -126,8 +111,6 @@ private:
   CallbackExecutorThread cbExecutor;
 
   std::mutex mtx;
-  std::condition_variable cv;
-  std::atomic<int64_t> highestRequestID { -1 };
 };
 
 }
