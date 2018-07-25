@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_WRITER_THREAD_H__
-#define __QCLIENT_WRITER_THREAD_H__
+#ifndef QCLIENT_WRITER_THREAD_H
+#define QCLIENT_WRITER_THREAD_H
 
 #include <hiredis/hiredis.h>
 #include "qclient/AssistedThread.hh"
@@ -31,6 +31,7 @@
 #include "NetworkStream.hh"
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
+#include "StagedRequest.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/EncodedRequest.hh"
@@ -40,37 +41,6 @@
 namespace qclient {
 
 using redisReplyPtr = std::shared_ptr<redisReply>;
-
-class StagedRequest {
-public:
-  StagedRequest(QCallback *cb, EncodedRequest &&request)
-  : callback(cb), encodedRequest(std::move(request)) { }
-
-  StagedRequest(const StagedRequest& other) = delete;
-  StagedRequest(StagedRequest&& other) = delete;
-
-  char* getBuffer() {
-    return encodedRequest.getBuffer();
-  }
-
-  size_t getLen() const {
-    return encodedRequest.getLen();
-  }
-
-  QCallback* getCallback() {
-    return callback;
-  }
-
-  void set_value(redisReplyPtr &&reply) {
-    if(callback) {
-      callback->handleResponse(std::move(reply));
-    }
-  }
-
-private:
-  QCallback *callback = nullptr;
-  EncodedRequest encodedRequest;
-};
 
 class WriterThread {
 public:
