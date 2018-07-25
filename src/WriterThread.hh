@@ -32,6 +32,7 @@
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
+#include "RequestStager.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/EncodedRequest.hh"
@@ -64,31 +65,16 @@ public:
   void clearPending();
 
 private:
-  BackpressureApplier backpressure;
+  RequestStager requestStager;
 
-#if HAVE_FOLLY == 1
-  FollyFutureHandler follyFutureHandler;
-#endif
-
-  FutureHandler futureHandler;
-  CallbackExecutorThread cbExecutor;
   EventFD &shutdownEventFD;
   AssistedThread thread;
-
-  std::mutex stagingMtx;
-  std::condition_variable stagingCV;
-  size_t acknowledged = 0;
-
-  ThreadSafeQueue<StagedRequest, 5000> stagedRequests;
-  decltype(stagedRequests)::Iterator nextToAcknowledgeIterator;
-
-  std::atomic<int64_t> highestRequestID { -1 };
 
   std::atomic<bool> inHandshake { true };
   std::unique_ptr<StagedRequest> handshake;
 
-  void clearAcknowledged(size_t leeway);
-  void blockUntilStaged(ThreadAssistant &assistant, int64_t requestID);
+  std::mutex handshakeMtx;
+  std::condition_variable handshakeCV;
 };
 
 }

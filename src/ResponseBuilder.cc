@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "qclient/ResponseBuilder.hh"
+#include <sstream>
+
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
 namespace qclient {
 
@@ -56,6 +59,15 @@ ResponseBuilder::Status ResponseBuilder::pull(redisReplyPtr &out) {
 
   out = redisReplyPtr(redisReplyPtr((redisReply*) reply, freeReplyObject));
   return Status::kOk;
+}
+
+redisReplyPtr ResponseBuilder::makeInt(int val) {
+  ResponseBuilder builder;
+  builder.feed(SSTR(":" << val << "\r\n"));
+
+  redisReplyPtr out;
+  builder.pull(out);
+  return out;
 }
 
 }

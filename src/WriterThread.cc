@@ -30,67 +30,32 @@
 using namespace qclient;
 
 WriterThread::WriterThread(BackpressureStrategy backpressureStr, EventFD &shutdownFD)
-: backpressure(backpressureStr), shutdownEventFD(shutdownFD) {
+: requestStager(backpressureStr), shutdownEventFD(shutdownFD) {
 }
 
 WriterThread::~WriterThread() {
   deactivate();
-  clearPending();
 }
 
 void WriterThread::activate(NetworkStream *stream) {
   inHandshake = (handshake.get() != nullptr);
-  nextToAcknowledgeIterator = stagedRequests.begin();
+  requestStager.setBlockingMode(true);
   thread.reset(&WriterThread::eventLoop, this, stream);
 }
 
 void WriterThread::deactivate() {
   thread.stop();
 
-  std::unique_lock<std::mutex> lock(stagingMtx);
-  stagingCV.notify_one();
+  std::unique_lock<std::mutex> lock(handshakeMtx);
+  handshakeCV.notify_one();
   lock.unlock();
 
+  requestStager.setBlockingMode(false);
   thread.join();
-
-  // Clear all acknowledged without leeway.
-  clearAcknowledged(0);
 
   // Clear handshake
   handshake.reset();
   inHandshake = true;
-}
-
-void WriterThread::clearAcknowledged(size_t leeway) {
-  // Clear acknowledged requests, but keeping a leeway of N top items.
-  // There's a race right after ::send - the response might come at any time,
-  // even though eventLoop is not done yet with this item. Removing it would
-  // cause bad things to happen, so we keep a leeway of a acknowledged items.
-  // (Only the top one is needed to keep, but let's be conservative)
-
-  while(acknowledged > leeway) {
-    stagedRequests.pop_front();
-    acknowledged--;
-    backpressure.release();
-  }
-}
-
-void WriterThread::clearPending() {
-  std::lock_guard<std::mutex> lock(stagingMtx);
-
-  auto it = stagedRequests.begin();
-
-  while(highestRequestID >= it.seq()) {
-    cbExecutor.stage(it.item().getCallback(), redisReplyPtr());
-    it.next();
-    stagedRequests.pop_front();
-    backpressure.release();
-  }
-
-  stagedRequests.reset();
-  highestRequestID = -1;
-  acknowledged = 0;
-  nextToAcknowledgeIterator = stagedRequests.begin();
 }
 
 void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assistant) {
@@ -102,7 +67,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   polls[1].events = POLLOUT;
 
   std::unique_ptr<StagedRequest> localHandshake;
-  decltype(stagedRequests)::Iterator stagingFrontier = stagedRequests.begin();
+  auto stagingFrontier = requestStager.getIterator();
   StagedRequest *beingProcessed = nullptr;
   size_t bytesWritten = 0;
   bool canWrite = true;
@@ -128,12 +93,14 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 
       if(inHandshake) {
         // We're inside a handshake, forbidden to process stagedRequests.
-        std::unique_lock<std::mutex> lock(stagingMtx);
+        std::unique_lock<std::mutex> lock(handshakeMtx);
 
         if(!handshake) {
           // We're supposed to be doing a handshake, but no handshake is available,
           // sleep until it's provided.
-          stagingCV.wait_for(lock, std::chrono::milliseconds(100));
+          if(!assistant.terminationRequested()) {
+            handshakeCV.wait_for(lock, std::chrono::milliseconds(10));
+          }
           continue;
         }
 
@@ -141,7 +108,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
         beingProcessed = localHandshake.get();
         bytesWritten = 0;
       }
-      else if(highestRequestID >= stagingFrontier.seq()){
+      else if(requestStager.getHighestRequestId() >= stagingFrontier.seq()){
         // We have requests to process.
         beingProcessed = &stagingFrontier.item();
         stagingFrontier.next();
@@ -149,7 +116,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       }
       else {
         // There are no requests pending to be written, block until there are.
-        blockUntilStaged(assistant, stagingFrontier.seq());
+        requestStager.blockUntilStaged(stagingFrontier.seq());
         continue;
       }
     }
@@ -203,41 +170,21 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 }
 
 std::future<redisReplyPtr> WriterThread::stage(EncodedRequest &&req, bool bypassBackpressure) {
-  if(!bypassBackpressure) {
-    backpressure.reserve();
-  }
-
-  std::lock_guard<std::mutex> lock(stagingMtx);
-
-  std::future<redisReplyPtr> retval = futureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&futureHandler, std::move(req));
-  stagingCV.notify_one();
-  return retval;
+  return requestStager.stage(std::move(req), bypassBackpressure);
 }
 
 void WriterThread::stage(QCallback *callback, EncodedRequest &&req) {
-  backpressure.reserve();
-
-  std::lock_guard<std::mutex> lock(stagingMtx);
-  highestRequestID = stagedRequests.emplace_back(callback, std::move(req));
-  stagingCV.notify_one();
+  requestStager.stage(callback, std::move(req));
 }
 
 #if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> WriterThread::follyStage(EncodedRequest &&req) {
-  backpressure.reserve();
-
-  std::lock_guard<std::mutex> lock(stagingMtx);
-
-  folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
-  highestRequestID = stagedRequests.emplace_back(&follyFutureHandler, std::move(req));
-  stagingCV.notify_one();
-  return retval;
+  return requestStager.follyStage(std::move(req));
 }
 #endif
 
 void WriterThread::stageHandshake(EncodedRequest &&req) {
-  std::lock_guard<std::mutex> lock(stagingMtx);
+  std::lock_guard<std::mutex> lock(handshakeMtx);
 
   if(!inHandshake) {
     std::cerr << "qclient: bug, attempted to call stageHandshake while inHandshake is false" << std::endl;
@@ -250,26 +197,19 @@ void WriterThread::stageHandshake(EncodedRequest &&req) {
   }
 
   handshake.reset(new StagedRequest(nullptr, std::move(req)));
-  stagingCV.notify_one();
+  handshakeCV.notify_one();
 }
 
 void WriterThread::handshakeCompleted() {
-  std::lock_guard<std::mutex> lock(stagingMtx);
+  std::lock_guard<std::mutex> lock(handshakeMtx);
   inHandshake = false;
-  stagingCV.notify_one();
+  handshakeCV.notify_one();
 }
 
 void WriterThread::satisfy(redisReplyPtr &&reply) {
-  cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
-  nextToAcknowledgeIterator.next();
-  acknowledged++;
-  clearAcknowledged(3);
+  return requestStager.satisfy(std::move(reply));
 }
 
-void WriterThread::blockUntilStaged(ThreadAssistant &assistant, int64_t requestID) {
-  std::unique_lock<std::mutex> lock(stagingMtx);
-
-  while(!assistant.terminationRequested() && requestID > highestRequestID) {
-    stagingCV.wait_for(lock, std::chrono::seconds(1));
-  }
+void WriterThread::clearPending() {
+  requestStager.clearAllPending();
 }

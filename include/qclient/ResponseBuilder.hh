@@ -47,6 +47,9 @@ public:
   Status pull(redisReplyPtr &reply);
   void restart();
 
+  // Convenience functions for use in tests. Very inefficient!
+  static redisReplyPtr makeInt(int val);
+
 private:
   struct Deleter {
     void operator()(redisReader *reader) { redisReaderFree(reader); }

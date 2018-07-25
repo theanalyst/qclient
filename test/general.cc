@@ -25,6 +25,8 @@
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
+#include "RequestStager.hh"
+#include "ReplyMacros.hh"
 
 using namespace qclient;
 
@@ -70,4 +72,20 @@ TEST(ResponseBuilder, BasicSanity) {
 
   ASSERT_EQ(reply->type, REDIS_REPLY_INTEGER);
   ASSERT_EQ(reply->integer, 10);
+}
+
+TEST(RequestStager, BasicSanity) {
+  qclient::RequestStager stager(qclient::BackpressureStrategy::Default());
+
+  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest( std::vector<std::string>{"ping", "asdf1"} ));
+  std::future<redisReplyPtr> fut2 = stager.stage(EncodedRequest( std::vector<std::string>{"ping", "asdf2"} ));
+  std::future<redisReplyPtr> fut3 = stager.stage(EncodedRequest( std::vector<std::string>{"ping", "asdf3"} ));
+
+  stager.satisfy(ResponseBuilder::makeInt(5));
+  stager.satisfy(ResponseBuilder::makeInt(7));
+  stager.satisfy(ResponseBuilder::makeInt(9));
+
+  ASSERT_REPLY(fut1, 5);
+  ASSERT_REPLY(fut2, 7);
+  ASSERT_REPLY(fut3, 9);
 }
