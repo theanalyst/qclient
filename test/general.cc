@@ -81,9 +81,9 @@ TEST(RequestStager, BasicSanity) {
   std::future<redisReplyPtr> fut2 = stager.stage(EncodedRequest( std::vector<std::string>{"ping", "asdf2"} ));
   std::future<redisReplyPtr> fut3 = stager.stage(EncodedRequest( std::vector<std::string>{"ping", "asdf3"} ));
 
-  stager.satisfy(ResponseBuilder::makeInt(5));
-  stager.satisfy(ResponseBuilder::makeInt(7));
-  stager.satisfy(ResponseBuilder::makeInt(9));
+  stager.consumeResponse(ResponseBuilder::makeInt(5));
+  stager.consumeResponse(ResponseBuilder::makeInt(7));
+  stager.consumeResponse(ResponseBuilder::makeInt(9));
 
   ASSERT_REPLY(fut1, 5);
   ASSERT_REPLY(fut2, 7);

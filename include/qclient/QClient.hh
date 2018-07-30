@@ -62,6 +62,7 @@ namespace qclient
   class QCallback;
   class NetworkStream;
   class WriterThread;
+  class ConnectionHandler;
 
 
 //------------------------------------------------------------------------------
@@ -221,7 +222,6 @@ private:
   void startEventLoop();
   void eventLoop();
   void connect();
-  void stageHandshake(const std::vector<std::string> &cont);
   bool shouldPurgePendingRequests();
   ResponseBuilder responseBuilder;
 
@@ -230,11 +230,11 @@ private:
   void connectTCP();
 
   WriterThread *writerThread = nullptr;
+  std::unique_ptr<ConnectionHandler> connectionHandler;
   EventFD shutdownEventFD;
 
   void primeConnection();
   void processRedirection();
-  bool handshakePending = true;
   std::thread eventLoopThread;
 };
 

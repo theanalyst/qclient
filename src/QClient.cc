@@ -33,6 +33,7 @@
 #include "qclient/ConnectionInitiator.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
+#include "ConnectionHandler.hh"
 #include "qclient/GlobalInterceptor.hh"
 
 //------------------------------------------------------------------------------
@@ -84,22 +85,18 @@ QClient::~QClient()
 // over the network
 //------------------------------------------------------------------------------
 void QClient::execute(QCallback *callback, EncodedRequest &&req) {
-  writerThread->stage(callback, std::move(req));
+  connectionHandler->stage(callback, std::move(req));
 }
 
 std::future<redisReplyPtr> QClient::execute(EncodedRequest &&req) {
-  return writerThread->stage(std::move(req));
+  return connectionHandler->stage(std::move(req));
 }
 
 #if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> QClient::follyExecute(EncodedRequest &&req) {
-  return writerThread->follyStage(std::move(req));
+  return connectionHandler->follyStage(std::move(req));
 }
 #endif
-
-void QClient::stageHandshake(const std::vector<std::string> &cont) {
-  writerThread->stageHandshake(EncodedRequest(cont));
-}
 
 //------------------------------------------------------------------------------
 // Event loop for the client
@@ -109,13 +106,14 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  writerThread = new WriterThread(options.backpressureStrategy, shutdownEventFD);
+  connectionHandler.reset(new ConnectionHandler(options.handshake.get(), options.backpressureStrategy));
+  writerThread = new WriterThread(*connectionHandler.get(), shutdownEventFD);
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
 
 //------------------------------------------------------------------------------
-//
+// Feed bytes from the socket into the response builder
 //------------------------------------------------------------------------------
 bool QClient::feed(const char* buf, size_t len)
 {
@@ -136,30 +134,6 @@ bool QClient::feed(const char* buf, size_t len)
     }
 
     // --- We have a new response from the server!
-
-    // Is this a response to the handshake?
-    if(handshakePending) {
-      Handshake::Status status = options.handshake->validateResponse(rr);
-
-      if(status == Handshake::Status::INVALID) {
-        // Error during handshaking, drop connection
-        return false;
-      }
-
-      successfulResponses = true;
-      if(status == Handshake::Status::VALID_COMPLETE) {
-        // We're done handshaking
-        handshakePending = false;
-        writerThread->handshakeCompleted();
-      }
-
-      if(status == Handshake::Status::VALID_INCOMPLETE) {
-        // Still more requests to go
-        stageHandshake(options.handshake->provideHandshake());
-      }
-
-      continue;
-    }
 
     // Is this a redirect?
     if (options.transparentRedirects && rr->type == REDIS_REPLY_ERROR &&
@@ -184,9 +158,14 @@ bool QClient::feed(const char* buf, size_t len)
       return false;
     }
 
+    // "Normal" response, let the connection handler take care of it.
+    if(!connectionHandler->consumeResponse(std::move(rr))) {
+      // An error has been signalled, this connection cannot go on.
+      return false;
+    }
+
     // We're all good, satisfy request.
     successfulResponses = true;
-    writerThread->satisfy(std::move(rr));
   }
 
   return true;
@@ -234,8 +213,10 @@ void QClient::cleanup()
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
-    writerThread->clearPending();
+    connectionHandler->clearAllPending();
   }
+
+  connectionHandler->reconnection();
 }
 
 //------------------------------------------------------------------------------
@@ -250,18 +231,7 @@ void QClient::connectTCP()
     return;
   }
 
-  if(options.handshake) {
-    options.handshake->restart();
-    stageHandshake(options.handshake->provideHandshake());
-    handshakePending = true;
-  }
-  else {
-    writerThread->handshakeCompleted();
-    handshakePending = false;
-  }
-
   writerThread->activate(networkStream);
-
 }
 
 //------------------------------------------------------------------------------
@@ -287,7 +257,7 @@ void QClient::primeConnection() {
   // main event loop.
 
   std::vector<std::string> req { "PING", "qclient-connection-initialization" };
-  writerThread->stage(EncodedRequest(req), true /* bypass backpressure */ );
+  connectionHandler->stage(EncodedRequest(req), true /* bypass backpressure */ );
 }
 
 void QClient::eventLoop()

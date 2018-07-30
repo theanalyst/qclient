@@ -48,7 +48,7 @@ namespace qclient {
 //
 // EXAMPLE:
 // - Writer loop does a ::send with the top request.
-// - Response comes very quickly, the reader loop calls satisfy().
+// - Response comes very quickly, the reader loop calls consumeResponse().
 // - If we were to free that item now, the writer loop might segfault as it
 //   has to access that item again after ::send.
 //
@@ -77,7 +77,7 @@ public:
   folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req);
 #endif
 
-  void satisfy(redisReplyPtr &&reply);
+  void consumeResponse(redisReplyPtr &&reply);
   void clearAllPending();
 
   //----------------------------------------------------------------------------

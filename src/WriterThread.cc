@@ -29,33 +29,22 @@
 
 using namespace qclient;
 
-WriterThread::WriterThread(BackpressureStrategy backpressureStr, EventFD &shutdownFD)
-: requestStager(backpressureStr), shutdownEventFD(shutdownFD) {
-}
+WriterThread::WriterThread(ConnectionHandler &handler, EventFD &shutdownFD)
+: connectionHandler(handler), shutdownEventFD(shutdownFD) { }
 
 WriterThread::~WriterThread() {
   deactivate();
 }
 
 void WriterThread::activate(NetworkStream *stream) {
-  inHandshake = (handshake.get() != nullptr);
-  requestStager.setBlockingMode(true);
+  connectionHandler.setBlockingMode(true);
   thread.reset(&WriterThread::eventLoop, this, stream);
 }
 
 void WriterThread::deactivate() {
   thread.stop();
-
-  std::unique_lock<std::mutex> lock(handshakeMtx);
-  handshakeCV.notify_one();
-  lock.unlock();
-
-  requestStager.setBlockingMode(false);
+  connectionHandler.setBlockingMode(false);
   thread.join();
-
-  // Clear handshake
-  handshake.reset();
-  inHandshake = true;
 }
 
 void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assistant) {
@@ -66,8 +55,6 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
   polls[1].fd = networkStream->getFd();
   polls[1].events = POLLOUT;
 
-  std::unique_ptr<StagedRequest> localHandshake;
-  auto stagingFrontier = requestStager.getIterator();
   StagedRequest *beingProcessed = nullptr;
   size_t bytesWritten = 0;
   bool canWrite = true;
@@ -88,37 +75,12 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       canWrite = true; // try writing again, regardless of poll outcome
     }
 
-    // Determine what exactly we should be writing into the socket.
+    // Determine what exactly we should be writing into the socket. getNextToWrite
+    // will block until there's something to write, or shutdown has been requested.
     if(beingProcessed == nullptr) {
-
-      if(inHandshake) {
-        // We're inside a handshake, forbidden to process stagedRequests.
-        std::unique_lock<std::mutex> lock(handshakeMtx);
-
-        if(!handshake) {
-          // We're supposed to be doing a handshake, but no handshake is available,
-          // sleep until it's provided.
-          if(!assistant.terminationRequested()) {
-            handshakeCV.wait_for(lock, std::chrono::milliseconds(10));
-          }
-          continue;
-        }
-
-        localHandshake = std::move(handshake);
-        beingProcessed = localHandshake.get();
-        bytesWritten = 0;
-      }
-      else if(stagingFrontier.itemHasArrived()) {
-        // We have requests to process.
-        beingProcessed = &stagingFrontier.item();
-        stagingFrontier.next();
-        bytesWritten = 0;
-      }
-      else {
-        // There are no requests pending to be written, block until there are.
-        stagingFrontier.blockUntilItemHasArrived();
-        continue;
-      }
+      bytesWritten = 0;
+      beingProcessed = connectionHandler.getNextToWrite();
+      if(!beingProcessed) continue;
     }
 
     // The socket is writable AND there's staged requests waiting to be written.
@@ -167,49 +129,4 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       canWrite = false;
     }
   }
-}
-
-std::future<redisReplyPtr> WriterThread::stage(EncodedRequest &&req, bool bypassBackpressure) {
-  return requestStager.stage(std::move(req), bypassBackpressure);
-}
-
-void WriterThread::stage(QCallback *callback, EncodedRequest &&req) {
-  requestStager.stage(callback, std::move(req));
-}
-
-#if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> WriterThread::follyStage(EncodedRequest &&req) {
-  return requestStager.follyStage(std::move(req));
-}
-#endif
-
-void WriterThread::stageHandshake(EncodedRequest &&req) {
-  std::lock_guard<std::mutex> lock(handshakeMtx);
-
-  if(!inHandshake) {
-    std::cerr << "qclient: bug, attempted to call stageHandshake while inHandshake is false" << std::endl;
-    exit(1);
-  }
-
-  if(handshake) {
-    std::cerr << "qclient: bug, attempted to call stageHandshake while handshake already exists" << std::endl;
-    exit(1);
-  }
-
-  handshake.reset(new StagedRequest(nullptr, std::move(req)));
-  handshakeCV.notify_one();
-}
-
-void WriterThread::handshakeCompleted() {
-  std::lock_guard<std::mutex> lock(handshakeMtx);
-  inHandshake = false;
-  handshakeCV.notify_one();
-}
-
-void WriterThread::satisfy(redisReplyPtr &&reply) {
-  return requestStager.satisfy(std::move(reply));
-}
-
-void WriterThread::clearPending() {
-  requestStager.clearAllPending();
 }

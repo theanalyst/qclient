@@ -73,7 +73,7 @@ void RequestStager::clearAllPending() {
   // will get a null response.
 
   while(nextToAcknowledgeIterator.itemHasArrived()) {
-    satisfy(redisReplyPtr());
+    consumeResponse(redisReplyPtr());
   }
 
   restoreInvariant();
@@ -90,7 +90,7 @@ void RequestStager::restoreInvariant() {
   nextToAcknowledgeIterator.next();
 }
 
-void RequestStager::satisfy(redisReplyPtr &&reply) {
+void RequestStager::consumeResponse(redisReplyPtr &&reply) {
   cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
   nextToAcknowledgeIterator.next();
   stagedRequests.pop_front();

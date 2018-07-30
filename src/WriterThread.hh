@@ -33,6 +33,7 @@
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
 #include "RequestStager.hh"
+#include "ConnectionHandler.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/EncodedRequest.hh"
@@ -45,36 +46,18 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class WriterThread {
 public:
-  WriterThread(BackpressureStrategy backpressure, EventFD &shutdownFD);
+  WriterThread(ConnectionHandler &handler, EventFD &shutdownFD);
   ~WriterThread();
 
   void activate(NetworkStream *stream);
-  void stageHandshake(EncodedRequest &&req);
-  void handshakeCompleted();
   void deactivate();
-
-  void stage(QCallback *callback, EncodedRequest &&req);
-  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false);
-#if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req);
-#endif
-
-  void satisfy(redisReplyPtr &&reply);
-
   void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
-  void clearPending();
 
 private:
-  RequestStager requestStager;
-
+  ConnectionHandler &connectionHandler;
   EventFD &shutdownEventFD;
   AssistedThread thread;
 
-  std::atomic<bool> inHandshake { true };
-  std::unique_ptr<StagedRequest> handshake;
-
-  std::mutex handshakeMtx;
-  std::condition_variable handshakeCV;
 };
 
 }

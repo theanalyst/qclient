@@ -70,6 +70,7 @@ add_library(qclient STATIC
   src/AsyncHandler.cc
   src/BackgroundFlusher.cc
   src/CallbackExecutorThread.cc
+  src/ConnectionHandler.cc
   src/ConnectionInitiator.cc
   src/EncodedRequest.cc
   src/Formatting.cc
