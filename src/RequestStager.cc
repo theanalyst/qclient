@@ -35,7 +35,7 @@ RequestStager::~RequestStager() {
   clearAllPending();
 }
 
-std::future<redisReplyPtr> RequestStager::stage(EncodedRequest &&req, bool bypassBackpressure) {
+std::future<redisReplyPtr> RequestStager::stage(EncodedRequest &&req, bool bypassBackpressure, size_t multiSize) {
   if(!bypassBackpressure) {
     backpressure.reserve();
   }
@@ -43,25 +43,25 @@ std::future<redisReplyPtr> RequestStager::stage(EncodedRequest &&req, bool bypas
   std::lock_guard<std::mutex> lock(mtx);
 
   std::future<redisReplyPtr> retval = futureHandler.stage();
-  stagedRequests.emplace_back(&futureHandler, std::move(req));
+  stagedRequests.emplace_back(&futureHandler, std::move(req), multiSize);
   return retval;
 }
 
-void RequestStager::stage(QCallback *callback, EncodedRequest &&req) {
+void RequestStager::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {
   backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(mtx);
-  stagedRequests.emplace_back(callback, std::move(req));
+  stagedRequests.emplace_back(callback, std::move(req), multiSize);
 }
 
 #if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> RequestStager::follyStage(EncodedRequest &&req) {
+folly::Future<redisReplyPtr> RequestStager::follyStage(EncodedRequest &&req, size_t multiSize) {
   backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(mtx);
 
   folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
-  stagedRequests.emplace_back(&follyFutureHandler, std::move(req));
+  stagedRequests.emplace_back(&follyFutureHandler, std::move(req), multiSize);
   return retval;
 }
 #endif
@@ -79,10 +79,15 @@ void RequestStager::clearAllPending() {
   restoreInvariant();
 }
 
+void RequestStager::reconnection() {
+  ignoredResponses = 0u;
+}
+
 void RequestStager::restoreInvariant() {
   // Restore class invariant: Insert dummy element to always have that
   // nextToAcknowledgeIterator == stagedRequests.begin() + 1
 
+  ignoredResponses = 0u;
   stagedRequests.reset();
 
   stagedRequests.emplace_back(nullptr, EncodedRequest(std::vector<std::string>{"dummy"}));
@@ -93,6 +98,18 @@ void RequestStager::restoreInvariant() {
 bool RequestStager::consumeResponse(redisReplyPtr &&reply) {
   if(!nextToAcknowledgeIterator.itemHasArrived()) {
     return false;
+  }
+
+  if(nextToAcknowledgeIterator.item().getMultiSize() != 0u) {
+    ignoredResponses++;
+
+    if(ignoredResponses <= nextToAcknowledgeIterator.item().getMultiSize()) {
+      // This is a QUEUED response, send it into a black hole
+      return true;
+    }
+
+    // This is the real response.
+    ignoredResponses = 0u;
   }
 
   cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));

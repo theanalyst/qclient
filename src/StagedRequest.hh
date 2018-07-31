@@ -31,8 +31,8 @@ namespace qclient {
 
 class StagedRequest {
 public:
-  StagedRequest(QCallback *cb, EncodedRequest &&request)
-  : callback(cb), encodedRequest(std::move(request)) { }
+  StagedRequest(QCallback *cb, EncodedRequest &&request, size_t multi = 0)
+  : callback(cb), encodedRequest(std::move(request)), multiSize(multi) { }
 
   StagedRequest(const StagedRequest& other) = delete;
   StagedRequest(StagedRequest&& other) = delete;
@@ -55,9 +55,14 @@ public:
     }
   }
 
+  size_t getMultiSize() const {
+    return multiSize;
+  }
+
 private:
   QCallback *callback = nullptr;
   EncodedRequest encodedRequest;
+  size_t multiSize;
 };
 
 }

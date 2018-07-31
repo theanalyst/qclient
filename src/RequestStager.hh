@@ -71,15 +71,16 @@ public:
   RequestStager(BackpressureStrategy backpressure);
   ~RequestStager();
 
-  void stage(QCallback *callback, EncodedRequest &&req);
-  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false);
+  void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u);
+  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false, size_t multiSize = 0u);
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req);
+  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u);
 #endif
 
   // Returns false if there's no staged request to satisfy, true otherwise.
   bool consumeResponse(redisReplyPtr &&reply);
   void clearAllPending();
+  void reconnection();
 
   //----------------------------------------------------------------------------
   // Forward to the underlying queue.
@@ -95,6 +96,7 @@ public:
   QueueType::Iterator getIterator();
 
 private:
+  size_t ignoredResponses = 0u;
   void restoreInvariant();
   QueueType::Iterator nextToAcknowledgeIterator;
 

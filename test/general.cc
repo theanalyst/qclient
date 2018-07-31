@@ -97,3 +97,38 @@ TEST(RequestStager, Overflow) {
   ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_FALSE(stager.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
 }
+
+TEST(RequestStager, IgnoredResponses) {
+  RequestStager stager(BackpressureStrategy::Default());
+
+  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "1234"), false, 1);
+
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_REPLY(fut1, 8);
+}
+
+TEST(RequestStager, IgnoredResponsesWithReconnect) {
+  RequestStager stager(BackpressureStrategy::Default());
+
+  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "789"), false, 2);
+
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  stager.reconnection();
+
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(3)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  ASSERT_REPLY(fut1, 3);
+}

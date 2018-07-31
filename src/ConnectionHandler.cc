@@ -47,6 +47,7 @@ void ConnectionHandler::reconnection() {
     inHandshake = false;
   }
 
+  requestStager.reconnection();
   stagerIterator = requestStager.getIterator();
 }
 
