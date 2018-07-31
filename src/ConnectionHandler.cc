@@ -82,8 +82,7 @@ bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
     qclient_assert("should never happen");
   }
 
-  requestStager.consumeResponse(std::move(reply));
-  return true;
+  return requestStager.consumeResponse(std::move(reply));
 }
 
 void ConnectionHandler::setBlockingMode(bool value) {

@@ -77,7 +77,8 @@ public:
   folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req);
 #endif
 
-  void consumeResponse(redisReplyPtr &&reply);
+  // Returns false if there's no staged request to satisfy, true otherwise.
+  bool consumeResponse(redisReplyPtr &&reply);
   void clearAllPending();
 
   //----------------------------------------------------------------------------

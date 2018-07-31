@@ -25,6 +25,7 @@
 #define QCLIENT_ENCODED_REQUEST_HH
 
 #include <memory>
+#include <vector>
 
 namespace qclient {
 
@@ -57,6 +58,11 @@ public:
     }
 
     initFromChunks(size, cstr, sizes);
+  }
+
+  template<typename... Args>
+  static EncodedRequest make(const Args... args) {
+    return EncodedRequest(std::vector<std::string> {args...});
   }
 
   char* getBuffer() {

@@ -90,11 +90,16 @@ void RequestStager::restoreInvariant() {
   nextToAcknowledgeIterator.next();
 }
 
-void RequestStager::consumeResponse(redisReplyPtr &&reply) {
+bool RequestStager::consumeResponse(redisReplyPtr &&reply) {
+  if(!nextToAcknowledgeIterator.itemHasArrived()) {
+    return false;
+  }
+
   cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
   nextToAcknowledgeIterator.next();
   stagedRequests.pop_front();
   backpressure.release();
+  return true;
 }
 
 RequestStager::QueueType::Iterator RequestStager::getIterator() {
