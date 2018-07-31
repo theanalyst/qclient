@@ -23,17 +23,36 @@
 
 #include "qclient/EncodedRequest.hh"
 #include <hiredis/hiredis.h>
+#include <string.h>
 
 namespace qclient {
 
 void EncodedRequest::initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes) {
-  char* buff = NULL;
+  char* buff = nullptr;
   length = redisFormatCommandArgv(&buff, nchunks, chunks, sizes);
   buffer.reset(buff);
 }
 
 EncodedRequest::EncodedRequest(size_t nchunks, const char** chunks, const size_t* sizes) {
   initFromChunks(nchunks, chunks, sizes);
+}
+
+EncodedRequest EncodedRequest::fuseIntoBlock(const std::deque<EncodedRequest> &block) {
+  size_t fusedSize = 0u;
+  for(size_t i = 0; i < block.size(); i++) {
+    fusedSize += block[i].getLen();
+  }
+
+  char* buff = (char*) malloc(fusedSize);
+
+  size_t pos = 0;
+  for(size_t i = 0; i < block.size(); i++) {
+    size_t localSize = block[i].getLen();
+    memcpy(buff+pos, block[i].getBuffer(), localSize);
+    pos += localSize;
+  }
+
+  return EncodedRequest(buff, fusedSize);
 }
 
 }

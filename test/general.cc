@@ -52,6 +52,17 @@ TEST(EncodedRequest, BasicSanity) {
   ASSERT_EQ("*3\r\n$3\r\nset\r\n$4\r\n1234\r\n$3\r\nabc\r\n", std::string(encoded.getBuffer(), encoded.getLen()));
 }
 
+TEST(EncodedRequest, FusedEncodedRequest) {
+  std::deque<EncodedRequest> reqs;
+
+  reqs.emplace_back(EncodedRequest::make("ping", "124"));
+  reqs.emplace_back(EncodedRequest::make("ping", "4321"));
+  reqs.emplace_back(EncodedRequest::make("set", "abc", "1234"));
+
+  EncodedRequest fused = EncodedRequest::fuseIntoBlock(reqs);
+  ASSERT_EQ("*2\r\n$4\r\nping\r\n$3\r\n124\r\n*2\r\n$4\r\nping\r\n$4\r\n4321\r\n*3\r\n$3\r\nset\r\n$3\r\nabc\r\n$4\r\n1234\r\n", std::string(fused.getBuffer(), fused.getLen()));
+}
+
 TEST(ResponseBuilder, BasicSanity) {
   ResponseBuilder builder;
 

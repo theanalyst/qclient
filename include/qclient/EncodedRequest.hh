@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <vector>
+#include <deque>
 
 namespace qclient {
 
@@ -69,9 +70,15 @@ public:
     return buffer.get();
   }
 
+  const char* getBuffer() const {
+    return buffer.get();
+  }
+
   size_t getLen() const {
     return length;
   }
+
+  static EncodedRequest fuseIntoBlock(const std::deque<EncodedRequest> &block);
 
 private:
   void initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes);
