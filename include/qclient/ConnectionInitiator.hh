@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_CONNECTION_INITIATOR_H__
-#define __QCLIENT_CONNECTION_INITIATOR_H__
+#ifndef QCLIENT_CONNECTION_INITIATOR_HH
+#define QCLIENT_CONNECTION_INITIATOR_HH
 
 #include <string>
 

@@ -79,6 +79,7 @@ public:
   }
 
   static EncodedRequest fuseIntoBlock(const std::deque<EncodedRequest> &block);
+  static EncodedRequest fuseIntoBlockAndSurround(std::deque<EncodedRequest> &&block);
 
 private:
   void initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes);

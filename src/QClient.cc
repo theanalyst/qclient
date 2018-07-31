@@ -98,6 +98,40 @@ folly::Future<redisReplyPtr> QClient::follyExecute(EncodedRequest &&req) {
 #endif
 
 //------------------------------------------------------------------------------
+// Execute a MULTI block.
+//------------------------------------------------------------------------------
+void QClient::execute(QCallback *callback, std::deque<EncodedRequest> &&reqs) {
+  size_t ignoredResponses = reqs.size() + 1;
+
+  connectionHandler->stage(
+    callback,
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
+    ignoredResponses
+  );
+}
+
+std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
+  size_t ignoredResponses = reqs.size() + 1;
+
+  return connectionHandler->stage(
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
+    false,
+    ignoredResponses
+  );
+}
+
+#if HAVE_FOLLY == 1
+folly::Future<redisReplyPtr> QClient::follyExecute(std::deque<EncodedRequest> &&req) {
+  size_t ignoredResponses = reqs.size() + 1;
+
+  return connectionHandler->follyStage(
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
+    ignoredResponses
+  );
+}
+#endif
+
+//------------------------------------------------------------------------------
 // Event loop for the client
 //------------------------------------------------------------------------------
 void QClient::startEventLoop()

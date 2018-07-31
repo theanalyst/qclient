@@ -43,17 +43,17 @@ public:
   // False can happen durnig a failed handshake, for example.
   bool consumeResponse(redisReplyPtr &&reply);
 
-  void stage(QCallback *callback, EncodedRequest &&req) {
-    return requestStager.stage(callback, std::move(req));
+  void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u) {
+    return requestStager.stage(callback, std::move(req), multiSize);
   }
 
-  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false) {
-    return requestStager.stage(std::move(req), bypassBackpressure);
+  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false, size_t multiSize = 0u) {
+    return requestStager.stage(std::move(req), bypassBackpressure, multiSize);
   }
 
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req) {
-    return requestStager.stage(std::move(req));
+  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u) {
+    return requestStager.stage(std::move(req), multiSize);
   }
 #endif
 

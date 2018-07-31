@@ -55,4 +55,10 @@ EncodedRequest EncodedRequest::fuseIntoBlock(const std::deque<EncodedRequest> &b
   return EncodedRequest(buff, fusedSize);
 }
 
+EncodedRequest EncodedRequest::fuseIntoBlockAndSurround(std::deque<EncodedRequest> &&block) {
+  block.emplace_front(EncodedRequest::make("MULTI"));
+  block.emplace_back(EncodedRequest::make("EXEC"));
+  return EncodedRequest::fuseIntoBlock(block);
+}
+
 }

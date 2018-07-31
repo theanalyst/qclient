@@ -111,6 +111,25 @@ public:
 #endif
 
   //----------------------------------------------------------------------------
+  //! Execute multiple commands in a MULTI / EXEC transaction. Retries will
+  //! work as expected: If the connection dies in the middle, the whole block
+  //! will be retried from start.
+  //!
+  //! It's also safe to issue multiple transactions in parallel on the same
+  //! QClient, as we serialize them and make sure they don't overlap.
+  //!
+  //! QUEUED intermediate responses are abstracted away, we only return the
+  //! result of "EXEC".
+  //!
+  //! NOTE: Don't insert MULTI / EXEC, it's done automatically for you.
+  //----------------------------------------------------------------------------
+  std::future<redisReplyPtr> execute(std::deque<EncodedRequest> &&reqs);
+  void execute(QCallback *callback, std::deque<EncodedRequest> &&req);
+#if HAVE_FOLLY == 1
+  folly::Future<redisReplyPtr> follyExecute(std::deque<EncodedRequest> &&req);
+#endif
+
+  //----------------------------------------------------------------------------
   //! Conveninence function to encode a redis command given as a container of
   //! strings to a redis buffer
   //!
