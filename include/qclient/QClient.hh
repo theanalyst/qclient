@@ -214,9 +214,7 @@ private:
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
 
-  // Network stream
-  NetworkStream *networkStream = nullptr;
-
+  std::unique_ptr<NetworkStream> networkStream;
   std::atomic<int64_t> shutdown {false};
 
   void startEventLoop();
@@ -229,7 +227,7 @@ private:
   bool feed(const char* buf, size_t len);
   void connectTCP();
 
-  WriterThread *writerThread = nullptr;
+  std::unique_ptr<WriterThread> writerThread;
   std::unique_ptr<ConnectionHandler> connectionHandler;
   EventFD shutdownEventFD;
 

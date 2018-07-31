@@ -77,7 +77,6 @@ QClient::~QClient()
   shutdownEventFD.notify();
   eventLoopThread.join();
   cleanup();
-  delete writerThread;
 }
 
 //------------------------------------------------------------------------------
@@ -107,7 +106,7 @@ void QClient::startEventLoop()
   lastAvailable = std::chrono::steady_clock::now();
 
   connectionHandler.reset(new ConnectionHandler(options.handshake.get(), options.backpressureStrategy));
-  writerThread = new WriterThread(*connectionHandler.get(), shutdownEventFD);
+  writerThread.reset(new WriterThread(*connectionHandler.get(), shutdownEventFD));
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
@@ -202,12 +201,7 @@ bool QClient::shouldPurgePendingRequests() {
 void QClient::cleanup()
 {
   writerThread->deactivate();
-
-  if(networkStream) {
-    delete networkStream;
-  }
-
-  networkStream = nullptr;
+  networkStream.reset();
 
   responseBuilder.restart();
   successfulResponses = false;
@@ -224,14 +218,14 @@ void QClient::cleanup()
 //------------------------------------------------------------------------------
 void QClient::connectTCP()
 {
-  networkStream = new NetworkStream(targetEndpoint.getHost(),
-                                    targetEndpoint.getPort(), options.tlsconfig);
+  networkStream.reset(new NetworkStream(targetEndpoint.getHost(),
+    targetEndpoint.getPort(), options.tlsconfig));
 
   if(!networkStream->ok()) {
     return;
   }
 
-  writerThread->activate(networkStream);
+  writerThread->activate(networkStream.get());
 }
 
 //------------------------------------------------------------------------------

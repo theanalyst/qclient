@@ -23,8 +23,8 @@
 
 // Only include this file if you have the rocksdb headers.
 
-#ifndef __QCLIENT_ROCKSDB_PERSISTENCY_H__
-#define __QCLIENT_ROCKSDB_PERSISTENCY_H__
+#ifndef QCLIENT_ROCKSDB_PERSISTENCY_HH
+#define QCLIENT_ROCKSDB_PERSISTENCY_HH
 
 #include <rocksdb/db.h>
 #include <rocksdb/filter_policy.h>
@@ -105,7 +105,11 @@ public:
 
     options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
     options.create_if_missing = true;
-    rocksdb::Status status = rocksdb::DB::Open(options, path, &db);
+
+    rocksdb::DB *ptr = nullptr;
+    rocksdb::Status status = rocksdb::DB::Open(options, path, &ptr);
+    db.reset(ptr);
+
     if(!status.ok()) {
       std::cerr << "Unable to open rocksdb persistent queue: " << status.ToString() << std::endl;
       exit(EXIT_FAILURE);
@@ -113,13 +117,6 @@ public:
 
     startIndex = retrieveCounter("START-INDEX");
     endIndex = retrieveCounter("END-INDEX");
-  }
-
-  virtual ~RocksDBPersistency() {
-    if(db) {
-      delete db;
-      db = nullptr;
-    }
   }
 
   virtual void record(ItemIndex index, const std::vector<std::string> &cmd) override {
@@ -212,7 +209,7 @@ private:
   std::atomic<ItemIndex> endIndex = {0};
 
   std::string dbpath;
-  rocksdb::DB* db = nullptr;
+  std::unique_ptr<rocksdb::DB> db;
 };
 
 }
