@@ -47,19 +47,28 @@ TEST(Ping, one)
   ASSERT_EQ(strcmp(reply->str, "hello there"), 0);
 }
 
-TEST(Ping, pipelined_10k) {
+TEST(Ping, Benchmark) {
   std::vector<std::future<redisReplyPtr>> responses;
 
   QClient cl{testconfig.host, testconfig.port, {} };
 
-  for(size_t i = 0; i < 10000; i++) {
-    responses.push_back(cl.exec("PING", SSTR("hello from ping #" << i)));
+  std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+  constexpr size_t kRequests = 1000000;
+  for(size_t i = 0; i < kRequests; i++) {
+    responses.push_back(cl.exec("PING",  SSTR("ping #" << i)));
   }
 
-  for(size_t i = 0; i < 10000; i++) {
+  for(size_t i = 0; i < kRequests; i++) {
     redisReplyPtr reply = responses[i].get();
     ASSERT_TRUE(reply != nullptr);
     ASSERT_EQ(reply->type, REDIS_REPLY_STRING);
-    ASSERT_EQ(std::string(reply->str, reply->len), SSTR("hello from ping #" << i));
+    ASSERT_EQ(std::string(reply->str, reply->len), SSTR("ping #" << i));
   }
+
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  int64_t microsec = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+  std::cout << "Took " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+  << " ms for " << kRequests << " pings (" << ((double) kRequests / (double) microsec)*1000 << " kHz)" << std::endl;
 }
