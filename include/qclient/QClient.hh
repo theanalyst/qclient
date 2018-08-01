@@ -246,9 +246,9 @@ private:
   bool feed(const char* buf, size_t len);
   void connectTCP();
 
-  std::unique_ptr<WriterThread> writerThread;
   std::unique_ptr<ConnectionHandler> connectionHandler;
   EventFD shutdownEventFD;
+  std::unique_ptr<WriterThread> writerThread;
 
   void primeConnection();
   void processRedirection();
