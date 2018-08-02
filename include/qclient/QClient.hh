@@ -162,8 +162,8 @@ public:
   // Extremely useful in macros, which don't support universal initialization.
   //----------------------------------------------------------------------------
   template<typename... Args>
-  std::future<redisReplyPtr> exec(const Args... args) {
-    return this->execute(std::vector<std::string> {args...});
+  std::future<redisReplyPtr> exec(const Args&... args) {
+    return this->execute(EncodedRequest::make(args...));
   }
 
   //----------------------------------------------------------------------------

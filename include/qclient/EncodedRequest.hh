@@ -30,6 +30,24 @@
 
 namespace qclient {
 
+inline const char* toCharPointer(const char *param) {
+  return param;
+}
+
+inline const char* toCharPointer(const std::string& param) {
+  return param.data();
+}
+
+template<int N>
+inline size_t toSize( char const (&)[N] ) {
+  return N - 1; // ignore terminating null pointer
+}
+
+template<typename T>
+inline size_t toSize(const T& param) {
+  return param.size();
+}
+
 //------------------------------------------------------------------------------
 // A class to represent an encoded redis request. Move-only type, it is not
 // possible to copy it, as there's no need to. This prevents accidental
@@ -62,8 +80,12 @@ public:
   }
 
   template<typename... Args>
-  static EncodedRequest make(const Args... args) {
-    return EncodedRequest(std::vector<std::string> {args...});
+  static EncodedRequest make(const Args&... args) {
+    const int size = sizeof...(Args);
+    const char* cstr[] { toCharPointer(args)...  };
+    size_t sizes[] { toSize(args)... };
+
+    return EncodedRequest(size, cstr, sizes);
   }
 
   char* getBuffer() {
