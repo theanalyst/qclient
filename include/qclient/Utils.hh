@@ -26,6 +26,7 @@
 
 #include <limits.h>
 #include <sstream>
+#include <vector>
 #include "fmt/format.h"
 
 namespace qclient {
@@ -77,9 +78,7 @@ inline bool parseServer(const std::string &str, RedisServer &srv) {
 template <typename T>
 static std::string stringify(const T& elem)
 {
-  fmt::MemoryWriter out;
-  out << elem;
-  return out.str();
+  return fmt::to_string(elem);
 }
 
 inline bool startswith(const std::string &str, const std::string &prefix) {
