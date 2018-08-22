@@ -26,51 +26,72 @@
 
 #include <sstream>
 #include "qclient/Utils.hh"
+#include "qclient/QClient.hh"
 
 namespace qclient {
 
 class QScanner {
 public:
   QScanner(QClient& cl, const std::string &pattern_, size_t count_ = 100)
-  : qcl(cl), pattern(pattern_), count(count_), started(false), currentCursor("0") { }
+  : qcl(cl), pattern(pattern_), count(count_), cursor("0"), reachedEnd(false) {
+    fillFromBackend();
+  }
 
-  bool next(std::vector<std::string> &results) {
-    results.clear();
+  bool valid() const {
+    return ! results.empty();
+  }
 
-    if(started && currentCursor == "0") {
-      return false; // full scan complete, no more elements
+  void fillFromBackend() {
+    while(!reachedEnd && results.empty()) {
+      reqs++;
+
+      redisReplyPtr reply = qcl.exec("SCAN", cursor, "MATCH", pattern,
+                                     "COUNT", std::to_string(count)).get();
+
+      if (reply == nullptr) {
+        throw std::runtime_error("[FATAL] Error scan pattern: " + pattern +
+                                 ": Unexpected/null reply");
+      }
+
+      // Parse the Redis reply - update cursor
+      cursor = std::string(reply->element[0]->str, static_cast<unsigned int>(reply->element[0]->len));
+
+      // Get arrary part of the response
+      redisReply* reply_ptr =  reply->element[1];
+
+      for (unsigned long i = 0; i < reply_ptr->elements; ++i) {
+        results.emplace_back(reply_ptr->element[i]->str, static_cast<unsigned int>(reply_ptr->element[i]->len));
+      }
+
+      if(cursor == "0") {
+        reachedEnd = true;
+      }
     }
+  }
 
-    started = true;
-
-    redisReplyPtr reply = qcl.exec("SCAN", currentCursor, "MATCH", pattern,
-                                   "COUNT", stringify(count)).get();
-
-    if (reply == nullptr) {
-      throw std::runtime_error("[FATAL] Error scan pattern: " + pattern +
-                               ": Unexpected/null reply");
+  void next() {
+    if(!results.empty()) {
+      results.pop_front();
     }
+    fillFromBackend();
+  }
 
-    // Parse the Redis reply - update cursor
-    currentCursor = std::string(reply->element[0]->str, static_cast<unsigned int>(reply->element[0]->len));
+  const std::string& getValue() const {
+    return results.front();
+  }
 
-    // Get arrary part of the response
-    redisReply* reply_ptr =  reply->element[1];
-
-    for (unsigned long i = 0; i < reply_ptr->elements; ++i) {
-      results.emplace_back(reply_ptr->element[i]->str, static_cast<unsigned int>(reply_ptr->element[i]->len));
-    }
-
-    return true;
+  size_t requestsSoFar() const {
+    return reqs;
   }
 
 private:
-  QClient &qcl;
+  qclient::QClient &qcl;
   std::string pattern;
-  size_t count;
-
-  bool started;
-  std::string currentCursor;
+  uint32_t count;
+  std::string cursor;
+  bool reachedEnd;
+  std::deque<std::string> results;
+  size_t reqs = 0;
 };
 
 }
