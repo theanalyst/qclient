@@ -47,7 +47,7 @@ void EncodedRequest::initFromChunks(size_t nchunks, const char** chunks, const s
   // Calculate the required size of our buffer.
   length = 0;
   for(size_t i = 0; i < nchunks; i++) {
-    length += sizes[i] + reinterpret_cast<fmt::format_int*>(&memoryRegion[sizeof(fmt::format_int)*i])->size();
+    length += sizes[i] + (((fmt::format_int*) memoryRegion)[i]).size();
     length += 1 + 2 + 2;
   }
 
