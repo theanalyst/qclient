@@ -122,10 +122,10 @@ std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
 
 #if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> QClient::follyExecute(std::deque<EncodedRequest> &&req) {
-  size_t ignoredResponses = reqs.size() + 1;
+  size_t ignoredResponses = req.size() + 1;
 
   return connectionHandler->follyStage(
-    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(req)),
     ignoredResponses
   );
 }

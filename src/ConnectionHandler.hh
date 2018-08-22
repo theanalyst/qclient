@@ -53,7 +53,7 @@ public:
 
 #if HAVE_FOLLY == 1
   folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u) {
-    return requestStager.stage(std::move(req), multiSize);
+    return requestStager.follyStage(std::move(req), multiSize);
   }
 #endif
 
