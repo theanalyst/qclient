@@ -75,8 +75,17 @@ TEST(DescribeRedisReply, BasicSanity1) {
   redisReaderGetReply(reader, (void**) &rep);
   ASSERT_NE(rep, nullptr);
 
-  std::cout << describeRedisReply(rep);
+  std::cout << describeRedisReply(rep) << std::endl;
   ASSERT_EQ(describeRedisReply(rep), "1) \"next:d\"\n2) 1) 1) (integer) 1337\n      2) \"bb\"\n   2) \"b\"\n   3) \"c\"\n");
+  freeReplyObject(rep);
+
+  str = "*2\r\n$6\r\nnext:d\r\n*0\r\n";
+  redisReaderFeed(reader, str.c_str(), str.size());
+  redisReaderGetReply(reader, (void**) &rep);
+  ASSERT_NE(rep, nullptr);
+
+  std::cout << describeRedisReply(rep);
+  ASSERT_EQ(describeRedisReply(rep), "1) \"next:d\"\n2) (empty list or set)\n");
   freeReplyObject(rep);
 
   redisReaderFree(reader);

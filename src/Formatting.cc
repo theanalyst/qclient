@@ -87,6 +87,10 @@ std::string describeRedisReply(const redisReply *const redisReply, const std::st
   if(redisReply->type == REDIS_REPLY_ARRAY) {
     std::stringstream ss;
 
+    if(redisReply->elements == 0u) {
+      ss << prefix << "(empty list or set)" << std::endl;
+    }
+
     for(size_t i = 0; i < redisReply->elements; i++) {
       if(i == 0) {
         ss << describeRedisReply(redisReply->element[i], SSTR(prefix << i+1 << ") ") );
