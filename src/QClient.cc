@@ -56,12 +56,6 @@ using namespace qclient;
 QClient::QClient(const std::string& host_, const int port_, Options &&opts)
   : members(host_, port_), options(std::move(opts))
 {
-  if(!opts.logger) {
-    opts.logger = std::make_shared<StandardErrorLogger>();
-  }
-
-  QCLIENT_LOG(opts.logger, LogLevel::kInfo, "ayy lmao");
-
   startEventLoop();
 }
 
@@ -143,6 +137,11 @@ folly::Future<redisReplyPtr> QClient::follyExecute(std::deque<EncodedRequest> &&
 //------------------------------------------------------------------------------
 void QClient::startEventLoop()
 {
+  // Initialize a simple logger if user has not provided one
+  if(!options.logger) {
+    options.logger = std::make_shared<StandardErrorLogger>();
+  }
+
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
@@ -376,12 +375,10 @@ void QClient::processRedirection()
 {
   if (!redirectedEndpoint.empty()) {
     QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting to " << redirectedEndpoint.toString());
-    std::cerr << "qclient: redirecting to " << redirectedEndpoint.toString() << std::endl;
     targetEndpoint = redirectedEndpoint;
     redirectionActive = true;
   } else if (redirectionActive) {
     QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting back to original hosts");
-    std::cerr << "qclient: redirecting back to original hosts " << std::endl;
     redirectionActive = false;
   }
 
