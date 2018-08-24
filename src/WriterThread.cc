@@ -24,13 +24,14 @@
 #include <poll.h>
 #include "WriterThread.hh"
 #include "qclient/Handshake.hh"
+#include "qclient/Logger.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 using namespace qclient;
 
-WriterThread::WriterThread(ConnectionHandler &handler, EventFD &shutdownFD)
-: connectionHandler(handler), shutdownEventFD(shutdownFD) { }
+WriterThread::WriterThread(Logger *log, ConnectionHandler &handler, EventFD &shutdownFD)
+: logger(log), connectionHandler(handler), shutdownEventFD(shutdownFD) { }
 
 WriterThread::~WriterThread() {
   deactivate();
@@ -68,8 +69,9 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 
       int rpoll = poll(polls, 2, -1);
       if(rpoll < 0 && errno != EINTR) {
-        std::cerr << "qclient: error during poll() in WriterThread::eventLoop: " << errno << ", "
-                  << strerror(errno) << std::endl;
+        QCLIENT_LOG(logger, LogLevel::kError,
+          "error during poll() in WriterThread::eventLoop. errno="
+          << errno << ":" << strerror(errno));
       }
 
       canWrite = true; // try writing again, regardless of poll outcome
@@ -101,8 +103,8 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
 
     if(bytes < 0) {
       // Non-recoverable error, this looks bad. Kill connection.
-      std::cerr << "qclient: error during send(), return value: " << bytes << ", errno: " << errno << ", "
-                << strerror(errno) << std::endl;
+      QCLIENT_LOG(logger, LogLevel::kError, "Bad return value from send(): "
+        << bytes << ", errno: " << errno << "," << strerror(errno));
       networkStream->shutdown();
 
       // Stop the loop. The parent class will activate us again with a
@@ -113,8 +115,8 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
     // Seems good, at least some bytes were written. Whoo!
     bytesWritten += bytes;
     if(bytesWritten > beingProcessed->getLen()) {
-      std::cerr << "qclient: Something is seriously wrong, wrote more bytes for a request "
-                    "than its length: " << bytesWritten << ", " << beingProcessed->getLen() << std::endl;
+      QCLIENT_LOG(logger, LogLevel::kFatal, "Wrote more bytes for a request than its length: "
+        << bytesWritten << ", " << beingProcessed->getLen());
       exit(1);
     }
 

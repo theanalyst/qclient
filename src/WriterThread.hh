@@ -46,7 +46,7 @@ using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class WriterThread {
 public:
-  WriterThread(ConnectionHandler &handler, EventFD &shutdownFD);
+  WriterThread(Logger *logger, ConnectionHandler &handler, EventFD &shutdownFD);
   ~WriterThread();
 
   void activate(NetworkStream *stream);
@@ -54,6 +54,7 @@ public:
   void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
 
 private:
+  Logger *logger;
   ConnectionHandler &connectionHandler;
   EventFD &shutdownEventFD;
   AssistedThread thread;

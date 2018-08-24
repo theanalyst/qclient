@@ -31,6 +31,7 @@
 namespace qclient {
 
 class Handshake;
+class Logger;
 
 //------------------------------------------------------------------------------
 //! This struct specifies how to rate-limit writing into QClient.
@@ -203,6 +204,12 @@ public:
   //! Ideal for things like AUTH.
   //----------------------------------------------------------------------------
   std::unique_ptr<Handshake> handshake = {};
+
+  //----------------------------------------------------------------------------
+  //! Specifies the logger object to use. If left empty, a simple logger
+  //! writing to stderr will be used, with LogLevel::kInfo.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<Logger> logger;
 
   //----------------------------------------------------------------------------
   //! Fluent interface: Chain a handshake. Explicit transfer of ownership to

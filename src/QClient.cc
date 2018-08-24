@@ -31,6 +31,7 @@
 #include <sstream>
 #include <iterator>
 #include "qclient/ConnectionInitiator.hh"
+#include "qclient/Logger.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
 #include "ConnectionHandler.hh"
@@ -55,6 +56,12 @@ using namespace qclient;
 QClient::QClient(const std::string& host_, const int port_, Options &&opts)
   : members(host_, port_), options(std::move(opts))
 {
+  if(!opts.logger) {
+    opts.logger = std::make_shared<StandardErrorLogger>();
+  }
+
+  QCLIENT_LOG(opts.logger, LogLevel::kInfo, "ayy lmao");
+
   startEventLoop();
 }
 
@@ -140,7 +147,7 @@ void QClient::startEventLoop()
   lastAvailable = std::chrono::steady_clock::now();
 
   connectionHandler.reset(new ConnectionHandler(options.handshake.get(), options.backpressureStrategy));
-  writerThread.reset(new WriterThread(*connectionHandler.get(), shutdownEventFD));
+  writerThread.reset(new WriterThread(options.logger.get(), *connectionHandler.get(), shutdownEventFD));
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
 }
@@ -368,10 +375,12 @@ void QClient::eventLoop()
 void QClient::processRedirection()
 {
   if (!redirectedEndpoint.empty()) {
+    QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting to " << redirectedEndpoint.toString());
     std::cerr << "qclient: redirecting to " << redirectedEndpoint.toString() << std::endl;
     targetEndpoint = redirectedEndpoint;
     redirectionActive = true;
   } else if (redirectionActive) {
+    QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting back to original hosts");
     std::cerr << "qclient: redirecting back to original hosts " << std::endl;
     redirectionActive = false;
   }
