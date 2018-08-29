@@ -152,6 +152,28 @@ void QClient::startEventLoop()
 }
 
 //------------------------------------------------------------------------------
+// Check for "unavailable" response - specific to QDB
+//------------------------------------------------------------------------------
+static bool isUnavailable(redisReply* reply) {
+  if(reply->type != REDIS_REPLY_ERROR) {
+    return false;
+  }
+
+  static const std::string kFirstType("ERR unavailable");
+  static const std::string kSecondType("UNAVAILABLE");
+
+  if(strncmp(reply->str, kFirstType.c_str(), kFirstType.size()) == 0) {
+    return true;
+  }
+
+  if(strncmp(reply->str, kSecondType.c_str(), kSecondType.size()) == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Feed bytes from the socket into the response builder
 //------------------------------------------------------------------------------
 bool QClient::feed(const char* buf, size_t len)
@@ -187,12 +209,10 @@ bool QClient::feed(const char* buf, size_t len)
       }
     }
 
-    // Is this a transient "unavailable" error?
+    // Is this a transient "unavailable" error? Specific to QDB.
     // Checking for "ERR unavailable" is a QDB specific hack! We should introduce
     // a new response type, ie "UNAVAILABLE reason for unavailability"
-    if(options.retryStrategy.active() && rr->type == REDIS_REPLY_ERROR &&
-       strncmp(rr->str, "ERR unavailable", strlen("ERR unavailable")) == 0) {
-
+    if(options.retryStrategy.active() && isUnavailable(rr.get())) {
       // Break connection, try again.
       return false;
     }
