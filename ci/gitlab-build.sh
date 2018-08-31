@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-yum install git
+yum install -y git
 
 git submodule update --init --recursive
 ./packaging/make-srpm.sh
