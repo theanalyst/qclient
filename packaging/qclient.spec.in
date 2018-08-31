@@ -13,10 +13,13 @@ Group: Applications/File
 
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-BuildRequires: hiredis
+BuildRequires: hiredis-devel
 Requires: hiredis-devel
 BuildRequires: python
 BuildRequires: cmake
+BuildRequires: gcc-c++
+BuildRequires: make
+BuildRequires: openssl-devel
 
 %description
 redis client library for C++11

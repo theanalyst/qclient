@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-yum install -y git python rpm-build
-
 git submodule update --init --recursive
 ./packaging/make-srpm.sh
 cd build
