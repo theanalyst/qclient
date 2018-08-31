@@ -1,0 +1,42 @@
+%global debug_package %{nil}
+
+#-------------------------------------------------------------------------------
+# Package definitions
+#-------------------------------------------------------------------------------
+Summary: redis client library for C++11
+Name: qclient
+Version: @VERSION_FULL@
+Release: 1%{dist}
+Prefix: /usr
+License: none
+Group: Applications/File
+
+Source: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-root
+BuildRequires: hiredis
+Requires: hiredis-devel
+BuildRequires: python
+BuildRequires: cmake
+
+%description
+redis client library for C++11
+
+%prep
+%setup -n %{name}-%{version}
+
+%build
+%cmake .
+%make_build
+
+%install
+%make_install
+
+%ldconfig_scriptlets
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-, root, root, -)
+%{_includedir}/*
+%{_libdir}/libqclient.a
