@@ -214,6 +214,7 @@ bool QClient::feed(const char* buf, size_t len)
     // a new response type, ie "UNAVAILABLE reason for unavailability"
     if(options.retryStrategy.active() && isUnavailable(rr.get())) {
       // Break connection, try again.
+      QCLIENT_LOG(options.logger, LogLevel::kWarn, "cluster is temporarily unavailable: " << std::string(rr->str, rr->len));
       return false;
     }
 
