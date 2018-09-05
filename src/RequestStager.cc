@@ -89,10 +89,7 @@ void RequestStager::restoreInvariant() {
 
   ignoredResponses = 0u;
   stagedRequests.reset();
-
-  stagedRequests.emplace_back(nullptr, EncodedRequest(std::vector<std::string>{"dummy"}));
   nextToAcknowledgeIterator = stagedRequests.begin();
-  nextToAcknowledgeIterator.next();
 }
 
 bool RequestStager::consumeResponse(redisReplyPtr &&reply) {
@@ -119,10 +116,8 @@ bool RequestStager::consumeResponse(redisReplyPtr &&reply) {
   return true;
 }
 
-RequestStager::QueueType::Iterator RequestStager::getIterator() {
-  auto iter = stagedRequests.begin();
-  iter.next();
-  return iter;
+RequestQueue::Iterator RequestStager::getIterator() {
+  return stagedRequests.begin();
 }
 
 }

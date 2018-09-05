@@ -68,7 +68,7 @@ private:
 
   std::atomic<bool> inHandshake {true};
   RequestStager requestStager;
-  decltype(requestStager)::QueueType::Iterator stagerIterator;
+  RequestQueue::Iterator stagerIterator;
 };
 
 }

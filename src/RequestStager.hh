@@ -25,11 +25,12 @@
 #define QCLIENT_REQUEST_STAGER_HH
 
 #include "qclient/ThreadSafeQueue.hh"
-#include "qclient/WaitableQueue.hh"
+#include "RequestQueue.hh"
 #include "StagedRequest.hh"
 #include "FutureHandler.hh"
 #include "BackpressureApplier.hh"
 #include "qclient/Handshake.hh"
+#include "RequestQueue.hh"
 #include "CallbackExecutorThread.hh"
 
 namespace qclient {
@@ -37,37 +38,9 @@ namespace qclient {
 //------------------------------------------------------------------------------
 // Handles all pending, still un-acknowledged requests. We need this to support
 // retries, if the connection shuts down.
-//
-// INVARIANT: At all times, this class holds one extra, hidden request at
-// the front of the queue.
-//
-// The writer event loop may still be accessing the front element, while the
-// reader loop has already received a response. We give a leeway of a single
-// extra request before deallocating stuff, even after it has been satisfied to
-// allow the writer loop to progress safely.
-//
-// EXAMPLE:
-// - Writer loop does a ::send with the top request.
-// - Response comes very quickly, the reader loop calls consumeResponse().
-// - If we were to free that item now, the writer loop might segfault as it
-//   has to access that item again after ::send.
-//
-// Could there be more responses coming? Well, no, as the writer thread hasn't
-// sent those yet.
-//
-// To prevent the above, we always keep around one extra item at the front of
-// the queue, but the interface does not reflect this: Only this class knows
-// that this is happening.
-//
-// getIterator will thus return the second item, instead of the first.
-//
-// To be able to hold this invariant even at startup and keep the code simple,
-// we insert a dummy request during construction.
 //------------------------------------------------------------------------------
 class RequestStager {
 public:
-  using QueueType = WaitableQueue<StagedRequest, 5000>;
-
   RequestStager(BackpressureStrategy backpressure);
   ~RequestStager();
 
@@ -93,15 +66,14 @@ public:
   // Get iterator at the front of the queue, bypassing the first hidden
   // element.
   //----------------------------------------------------------------------------
-  QueueType::Iterator getIterator();
+  RequestQueue::Iterator getIterator();
 
 private:
   size_t ignoredResponses = 0u;
   void restoreInvariant();
-  QueueType::Iterator nextToAcknowledgeIterator;
-
+  RequestQueue::Iterator nextToAcknowledgeIterator;
+  RequestQueue stagedRequests;
   BackpressureApplier backpressure;
-  QueueType stagedRequests;
 
   FutureHandler futureHandler;
 
