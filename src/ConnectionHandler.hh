@@ -43,18 +43,11 @@ public:
   // False can happen durnig a failed handshake, for example.
   bool consumeResponse(redisReplyPtr &&reply);
 
-  void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u) {
-    return requestStager.stage(callback, std::move(req), multiSize);
-  }
-
-  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false, size_t multiSize = 0u) {
-    return requestStager.stage(std::move(req), bypassBackpressure, multiSize);
-  }
+  void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u);
+  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false, size_t multiSize = 0u);
 
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u) {
-    return requestStager.follyStage(std::move(req), multiSize);
-  }
+  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u);
 #endif
 
   void setBlockingMode(bool value);
@@ -62,13 +55,31 @@ public:
   void clearAllPending();
 
 private:
+  void acknowledgePending(redisReplyPtr &&reply);
+
+  size_t ignoredResponses = 0u;
+  BackpressureApplier backpressure;
+
   WaitableQueue<StagedRequest, 15> handshakeRequests;
   decltype(handshakeRequests)::Iterator handshakeIterator;
   Handshake *handshake;
 
   std::atomic<bool> inHandshake {true};
-  RequestStager requestStager;
-  RequestQueue::Iterator stagerIterator;
+  RequestQueue::Iterator nextToWriteIterator;
+  RequestQueue::Iterator nextToAcknowledgeIterator;
+  RequestQueue requestQueue;
+
+  FutureHandler futureHandler;
+
+#if HAVE_FOLLY == 1
+  FollyFutureHandler follyFutureHandler;
+#endif
+
+  // NOTE: cbExecutor must be destroyed before FutureHandler, so it has to be
+  // below it in the member variables definition.
+  CallbackExecutorThread cbExecutor;
+
+  std::mutex mtx;
 };
 
 }

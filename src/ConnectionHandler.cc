@@ -25,8 +25,8 @@
 
 namespace qclient {
 
-ConnectionHandler::ConnectionHandler(Handshake *hs, BackpressureStrategy backpressure)
-: handshake(hs), requestStager(backpressure) {
+ConnectionHandler::ConnectionHandler(Handshake *hs, BackpressureStrategy bp)
+: backpressure(bp), handshake(hs) {
   reconnection();
 }
 
@@ -35,7 +35,22 @@ ConnectionHandler::~ConnectionHandler() {
 }
 
 void ConnectionHandler::reconnection() {
+  //----------------------------------------------------------------------------
+  // The connection has dropped. This means:
+  // - We're in handshake mode once again - forbidden to process user requests
+  //   until handshake has completed.
+  // - Any requests written onto the socket which have not been acknowledged
+  //   yet will have to be processed anew.
+  // - Any un-acknowledged transactions will have to start from scratch.
+  //
+  // We may or may not purge un-acknowledged requests without trying them
+  // again, but that's for clearAllPending() to decide, not us.
+  //----------------------------------------------------------------------------
+
   if(handshake) {
+    //--------------------------------------------------------------------------
+    // Re-initialize handshake.
+    //--------------------------------------------------------------------------
     inHandshake = true;
 
     handshake->restart();
@@ -47,13 +62,68 @@ void ConnectionHandler::reconnection() {
     inHandshake = false;
   }
 
-  requestStager.reconnection();
-  stagerIterator = requestStager.getIterator();
+  //----------------------------------------------------------------------------
+  // Re-initialize ignored responses for transactions, reset iterators.
+  //----------------------------------------------------------------------------
+  ignoredResponses = 0u;
+  nextToWriteIterator = requestQueue.begin();
+  nextToAcknowledgeIterator = requestQueue.begin();
 }
 
 void ConnectionHandler::clearAllPending() {
-  requestStager.clearAllPending();
-  stagerIterator = requestStager.getIterator();
+  std::lock_guard<std::mutex> lock(mtx);
+
+  //----------------------------------------------------------------------------
+  // The party's over, any requests that still remain un-acknowledged
+  // will get a null response.
+  //----------------------------------------------------------------------------
+  inHandshake = false;
+
+  redisReplyPtr nullReply;
+  while(nextToAcknowledgeIterator.itemHasArrived()) {
+    acknowledgePending(std::move(nullReply));
+  }
+
+  requestQueue.reset();
+  reconnection();
+}
+
+void ConnectionHandler::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {
+  backpressure.reserve();
+
+  std::lock_guard<std::mutex> lock(mtx);
+  requestQueue.emplace_back(callback, std::move(req), multiSize);
+}
+
+std::future<redisReplyPtr> ConnectionHandler::stage(EncodedRequest &&req, bool bypassBackpressure, size_t multiSize) {
+  if(!bypassBackpressure) {
+    backpressure.reserve();
+  }
+
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::future<redisReplyPtr> retval = futureHandler.stage();
+  requestQueue.emplace_back(&futureHandler, std::move(req), multiSize);
+  return retval;
+}
+
+#if HAVE_FOLLY == 1
+folly::Future<redisReplyPtr> ConnectionHandler::follyStage(EncodedRequest &&req, size_t multiSize) {
+  backpressure.reserve();
+
+  std::lock_guard<std::mutex> lock(mtx);
+
+  folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
+  requestQueue.emplace_back(&follyFutureHandler, std::move(req), multiSize);
+  return retval;
+}
+#endif
+
+void ConnectionHandler::acknowledgePending(redisReplyPtr &&reply) {
+  cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
+  nextToAcknowledgeIterator.next();
+  requestQueue.pop_front();
+  backpressure.release();
 }
 
 bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
@@ -83,12 +153,37 @@ bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
     qclient_assert("should never happen");
   }
 
-  return requestStager.consumeResponse(std::move(reply));
+  if(!nextToAcknowledgeIterator.itemHasArrived()) {
+    //--------------------------------------------------------------------------
+    // The server is sending more responses than we sent requests.. wtf. Break
+    // connection.
+    // TODO: Log warning
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  if(nextToAcknowledgeIterator.item().getMultiSize() != 0u) {
+    ignoredResponses++;
+
+    if(ignoredResponses <= nextToAcknowledgeIterator.item().getMultiSize()) {
+      //------------------------------------------------------------------------
+      // This is a QUEUED response, send it into a black hole
+      // TODO: verify this is indeed QUEUED, lol
+      //------------------------------------------------------------------------
+      return true;
+    }
+
+    // This is the real response.
+    ignoredResponses = 0u;
+  }
+
+  acknowledgePending(std::move(reply));
+  return true;
 }
 
 void ConnectionHandler::setBlockingMode(bool value) {
   handshakeRequests.setBlockingMode(value);
-  requestStager.setBlockingMode(value);
+  requestQueue.setBlockingMode(value);
 }
 
 StagedRequest* ConnectionHandler::getNextToWrite() {
@@ -106,16 +201,16 @@ StagedRequest* ConnectionHandler::getNextToWrite() {
     return item;
   }
 
-  if(!stagerIterator.itemHasArrived()) {
-    stagerIterator.blockUntilItemHasArrived();
+  if(!nextToWriteIterator.itemHasArrived()) {
+    nextToWriteIterator.blockUntilItemHasArrived();
   }
 
-  if(!stagerIterator.itemHasArrived()) {
+  if(!nextToWriteIterator.itemHasArrived()) {
     return nullptr;
   }
 
-  StagedRequest *item = &stagerIterator.item();
-  stagerIterator.next();
+  StagedRequest *item = &nextToWriteIterator.item();
+  nextToWriteIterator.next();
   return item;
 }
 
