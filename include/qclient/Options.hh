@@ -248,6 +248,32 @@ public:
   qclient::Options& withRetryStrategy(const RetryStrategy& str);
 };
 
+//------------------------------------------------------------------------------
+//! Options class for a Subscriber.
+//------------------------------------------------------------------------------
+class SubscriptionOptions {
+public:
+  //----------------------------------------------------------------------------
+  //! Specifies whether to use TLS - default is off.
+  //----------------------------------------------------------------------------
+  TlsConfig tlsconfig = {};
+
+  //----------------------------------------------------------------------------
+  //! Specifies the handshake to use. A handshake is a sequence of redis
+  //! commands sent before any other on a particular connection. If the
+  //! connection drops and reconnects, the handshake will run again.
+  //!
+  //! Ideal for things like AUTH.
+  //----------------------------------------------------------------------------
+  std::unique_ptr<Handshake> handshake = {};
+
+  //----------------------------------------------------------------------------
+  //! Specifies the logger object to use. If left empty, a simple logger
+  //! writing to stderr will be used, with LogLevel::kInfo.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<Logger> logger;
+};
+
 }
 
 #endif

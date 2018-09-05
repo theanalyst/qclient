@@ -117,7 +117,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
     if(bytesWritten > beingProcessed->getLen()) {
       QCLIENT_LOG(logger, LogLevel::kFatal, "Wrote more bytes for a request than its length: "
         << bytesWritten << ", " << beingProcessed->getLen());
-      exit(1);
+      std::abort();
     }
 
     // Are we done with 'beingProcessed' yet?

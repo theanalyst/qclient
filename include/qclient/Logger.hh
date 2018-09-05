@@ -26,6 +26,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <iostream>
 
 namespace qclient {
 
