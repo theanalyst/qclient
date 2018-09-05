@@ -33,13 +33,9 @@ public:
   MessageListener() {}
   virtual ~MessageListener() {}
 
-  enum class EventType {
-    kNewMessage,
-    kConnectionEstablished,
-    kConnectionLost
-  };
-
-  virtual void handleEvent(EventType type, Message&& msg) = 0;
+  virtual void handleIncomingMessage(Message&& msg) = 0;
+  virtual void notifyConnectionEstablished() = 0;
+  virtual void notifyConnectionLost() = 0;
 };
 
 }

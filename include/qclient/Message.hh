@@ -28,14 +28,39 @@
 
 namespace qclient {
 
+//------------------------------------------------------------------------------
+//! This class models a received redis pub/sub message. If pattern is empty,
+//! then this is a simple message - if not, it's a pmessage matching a
+//! requested channel pattern.
+//------------------------------------------------------------------------------
 class Message {
 public:
-  Message(const std::string &ch, const std::string &cont) : channel(ch), contents(cont) {}
+  Message(const std::string &pattern, const std::string &ch,
+  const std::string &cont)
+  : matchedPattern(pattern), channel(ch), contents(cont) {}
 
-  Message(std::string &&ch, std::string &&cont) : channel(std::move(ch)),
+  Message(std::string &&pattern, std::string &&ch, std::string &&cont)
+  : matchedPattern(std::move(pattern)), channel(std::move(ch)),
   contents(std::move(cont)) {}
 
+  bool isFromPattern() const {
+    return ! matchedPattern.empty();
+  }
+
+  const std::string& getMatchedPattern() const {
+    return matchedPattern;
+  }
+
+  const std::string& getChannel() const {
+    return channel;
+  }
+
+  const std::string& getContents() const {
+    return contents;
+  }
+
 private:
+  const std::string matchedPattern;
   const std::string channel;
   const std::string contents;
 };

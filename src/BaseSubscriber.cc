@@ -46,8 +46,38 @@ BaseSubscriber::BaseSubscriber(const Members &memb,
     std::abort();
   }
 
+}
+
+//------------------------------------------------------------------------------
+// Subscribe to the given channels, in addition to any other subscriptions
+// we may currently have.
+//------------------------------------------------------------------------------
+void BaseSubscriber::subscribe(const std::vector<std::string> &channels) {
 
 }
 
+//------------------------------------------------------------------------------
+// Subscribe to the given patterns, in addition to any other subscriptions
+// we may currently have.
+//------------------------------------------------------------------------------
+void BaseSubscriber::psubscribe(const std::vector<std::string> &patterns) {
+
+}
+
+//------------------------------------------------------------------------------
+// Unsubscribe from the given channels. If an empty vector is given, we are
+// unsubscribed from all channels. (but not patterns!)
+//------------------------------------------------------------------------------
+void BaseSubscriber::unsubscribe(const std::vector<std::string> &channels) {
+
+}
+
+//------------------------------------------------------------------------------
+// Unsubscribe from the given patterns. If an empty vector is given, we are
+// unsubscribed from all patterns. (but not channels!)
+//------------------------------------------------------------------------------
+void BaseSubscriber::punsubscribe(const std::vector<std::string> &patterns) {
+
+}
 
 }

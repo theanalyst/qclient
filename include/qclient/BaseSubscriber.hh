@@ -53,6 +53,30 @@ public:
     std::shared_ptr<MessageListener> listener,
     SubscriptionOptions &&options);
 
+  //----------------------------------------------------------------------------
+  //! Subscribe to the given channels, in addition to any other subscriptions
+  //! we may currently have.
+  //----------------------------------------------------------------------------
+  void subscribe(const std::vector<std::string> &channels);
+
+  //----------------------------------------------------------------------------
+  //! Subscribe to the given patterns, in addition to any other subscriptions
+  //! we may currently have.
+  //----------------------------------------------------------------------------
+  void psubscribe(const std::vector<std::string> &patterns);
+
+  //----------------------------------------------------------------------------
+  //! Unsubscribe from the given channels. If an empty vector is given, we are
+  //! unsubscribed from all channels. (but not patterns!)
+  //----------------------------------------------------------------------------
+  void unsubscribe(const std::vector<std::string> &channels);
+
+  //----------------------------------------------------------------------------
+  //! Unsubscribe from the given patterns. If an empty vector is given, we are
+  //! unsubscribed from all patterns. (but not channels!)
+  //----------------------------------------------------------------------------
+  void punsubscribe(const std::vector<std::string> &patterns);
+
 private:
   Members members;
   std::shared_ptr<MessageListener> listener;
