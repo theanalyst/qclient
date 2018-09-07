@@ -134,6 +134,28 @@ public:
       }
     }
 
+    //--------------------------------------------------------------------------
+    // Fetch the next item: If none exists, block. If none exists and blocking
+    // mode is disabled, return nullptr.
+    //--------------------------------------------------------------------------
+    T* getItemBlockOrNull() {
+      if(itemHasArrived()) {
+        return &item();
+      }
+
+      blockUntilItemHasArrived();
+      if(!itemHasArrived()) {
+        //----------------------------------------------------------------------
+        // We managed to escape blockUntilItem<hasArrived(), even though no
+        // item is available. Can only mean one thing: Blocking mode is off,
+        // return nullptr.
+        //----------------------------------------------------------------------
+        return nullptr;
+      }
+
+      return &item();
+    }
+
   private:
     WaitableQueue<T, BlockSize> *queue;
     typename ThreadSafeQueue<T, BlockSize>::Iterator iterator;

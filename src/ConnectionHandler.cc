@@ -188,28 +188,15 @@ void ConnectionHandler::setBlockingMode(bool value) {
 
 StagedRequest* ConnectionHandler::getNextToWrite() {
   if(inHandshake) {
-    if(!handshakeIterator.itemHasArrived()) {
-      handshakeIterator.blockUntilItemHasArrived();
-    }
+    StagedRequest *item = handshakeIterator.getItemBlockOrNull();
+    if(!item) return nullptr;
 
-    if(!handshakeIterator.itemHasArrived()) {
-      return nullptr;
-    }
-
-    StagedRequest *item = &handshakeIterator.item();
     handshakeIterator.next();
     return item;
   }
 
-  if(!nextToWriteIterator.itemHasArrived()) {
-    nextToWriteIterator.blockUntilItemHasArrived();
-  }
-
-  if(!nextToWriteIterator.itemHasArrived()) {
-    return nullptr;
-  }
-
-  StagedRequest *item = &nextToWriteIterator.item();
+  StagedRequest *item = nextToWriteIterator.getItemBlockOrNull();
+  if(!item) return nullptr;
   nextToWriteIterator.next();
   return item;
 }
