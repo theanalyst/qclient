@@ -46,16 +46,9 @@ void CallbackExecutorThread::main(ThreadAssistant &assistant) {
       break;
     }
 
-    if(!frontier.itemHasArrived()) {
-      //------------------------------------------------------------------------
-      // Empty queue, sleep.
-      //------------------------------------------------------------------------
-      frontier.blockUntilItemHasArrived();
-      continue;
-    }
-
-    PendingCallback &cb = frontier.item();
-    cb.callback->handleResponse(std::move(cb.reply));
+    PendingCallback *cb = frontier.getItemBlockOrNull();
+    if(!cb) continue;
+    cb->callback->handleResponse(std::move(cb->reply));
 
     frontier.next();
     pendingCallbacks.pop_front();
