@@ -24,9 +24,15 @@
 #ifndef QCLIENT_CONNECTION_HANDLER_HH
 #define QCLIENT_CONNECTION_HANDLER_HH
 
-#include "RequestStager.hh"
+#include "qclient/WaitableQueue.hh"
+#include "BackpressureApplier.hh"
+#include "RequestQueue.hh"
+#include "FutureHandler.hh"
+#include "CallbackExecutorThread.hh"
 
 namespace qclient {
+
+class Handshake;
 
 //------------------------------------------------------------------------------
 // Handles a particular connection, deciding what should be written into the

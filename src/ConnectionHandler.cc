@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "ConnectionHandler.hh"
+#include "qclient/Handshake.hh"
 
 namespace qclient {
 

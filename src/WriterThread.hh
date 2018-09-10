@@ -32,7 +32,6 @@
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
-#include "RequestStager.hh"
 #include "ConnectionHandler.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"

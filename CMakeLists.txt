@@ -51,7 +51,7 @@ if (NOT TARGET fmt)
   add_subdirectory(src/fmt)
 endif()
 
-if (GTEST_FOUND)
+if(TARGET gtest_main)
   add_subdirectory(test)
 endif()
 
@@ -84,7 +84,6 @@ add_library(qclient STATIC
   src/QHash.cc
   src/QSet.cc
   src/ResponseBuilder.cc
-  src/RequestStager.cc
   src/TlsFilter.cc
   src/WriterThread.cc
 )

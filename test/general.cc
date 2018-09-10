@@ -25,7 +25,7 @@
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
-#include "RequestStager.hh"
+#include "ConnectionHandler.hh"
 #include "ReplyMacros.hh"
 
 using namespace qclient;
@@ -84,62 +84,60 @@ TEST(ResponseBuilder, BasicSanity) {
   ASSERT_EQ(reply->integer, 10);
 }
 
-TEST(RequestStager, BasicSanity) {
-  RequestStager stager(BackpressureStrategy::Default());
+TEST(ConnectionHandler, BasicSanity) {
+  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
 
-  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "asdf1"));
-  std::future<redisReplyPtr> fut2 = stager.stage(EncodedRequest::make("ping", "asdf2"));
-  std::future<redisReplyPtr> fut3 = stager.stage(EncodedRequest::make("ping", "asdf3"));
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "asdf1"));
+  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("ping", "asdf2"));
+  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("ping", "asdf3"));
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(5)));
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(5)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
 
   ASSERT_REPLY(fut1, 5);
   ASSERT_REPLY(fut2, 7);
   ASSERT_REPLY(fut3, 9);
 }
 
-TEST(RequestStager, Overflow) {
-  RequestStager stager(BackpressureStrategy::Default());
+TEST(ConnectionHandler, Overflow) {
+  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
 
-  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "123"));
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
-  ASSERT_FALSE(stager.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
 }
 
-TEST(RequestStager, IgnoredResponses) {
-  RequestStager stager(BackpressureStrategy::Default());
+TEST(ConnectionHandler, IgnoredResponses) {
+  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
 
-  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "1234"), false, 1);
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), false, 1);
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_REPLY(fut1, 8);
 }
 
-TEST(RequestStager, IgnoredResponsesWithReconnect) {
-  RequestStager stager(BackpressureStrategy::Default());
+TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
+  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
 
-  std::future<redisReplyPtr> fut1 = stager.stage(EncodedRequest::make("ping", "789"), false, 2);
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), false, 2);
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
-  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-
-  stager.reconnection();
-
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(9)));
+  handler.reconnection();
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
-  ASSERT_TRUE(stager.consumeResponse(ResponseBuilder::makeInt(3)));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut1, 3);
 }
