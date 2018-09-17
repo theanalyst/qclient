@@ -21,13 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
+#include "EndpointDecider.hh"
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
 #include "ConnectionHandler.hh"
 #include "ReplyMacros.hh"
 
+#include "gtest/gtest.h"
 using namespace qclient;
 
 TEST(GlobalInterceptor, BasicSanity) {
@@ -140,4 +141,21 @@ TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut1, 3);
+}
+
+TEST(EndpointDecider, BasicSanity) {
+  StandardErrorLogger logger;
+  Members members;
+  members.push_back(Endpoint("host1.cern.ch", 1234));
+  members.push_back(Endpoint("host2.cern.ch", 2345));
+  members.push_back(Endpoint("host3.cern.ch", 3456));
+
+  EndpointDecider decider(&logger, members);
+  ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
+  ASSERT_EQ(decider.getNext(), Endpoint("host2.cern.ch", 2345));
+
+  decider.registerRedirection(Endpoint("host4.cern.ch", 9999));
+  ASSERT_EQ(decider.getNext(), Endpoint("host4.cern.ch", 9999));
+  ASSERT_EQ(decider.getNext(), Endpoint("host3.cern.ch", 3456));
+  ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
 }

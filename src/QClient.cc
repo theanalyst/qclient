@@ -34,6 +34,7 @@
 #include "qclient/Logger.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
+#include "EndpointDecider.hh"
 #include "ConnectionHandler.hh"
 #include "qclient/GlobalInterceptor.hh"
 
@@ -142,6 +143,8 @@ void QClient::startEventLoop()
     options.logger = std::make_shared<StandardErrorLogger>();
   }
 
+  endpointDecider = std::make_unique<EndpointDecider>(options.logger.get(), members);
+
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
@@ -204,7 +207,7 @@ bool QClient::feed(const char* buf, size_t len)
       RedisServer redirect;
 
       if (response.size() == 3 && parseServer(response[2], redirect)) {
-        redirectedEndpoint = Endpoint(redirect.host, redirect.port);
+        endpointDecider->registerRedirection(Endpoint(redirect.host, redirect.port));
         return false;
       }
     }
@@ -296,11 +299,7 @@ void QClient::connect()
 {
   cleanup();
 
-  targetEndpoint = members.getEndpoints()[nextMember];
-  nextMember = (nextMember + 1) % members.size();
-
-  processRedirection();
-  targetEndpoint = GlobalInterceptor::translate(targetEndpoint);
+  targetEndpoint = GlobalInterceptor::translate(endpointDecider->getNext());
   connectTCP();
 }
 
@@ -390,20 +389,6 @@ void QClient::eventLoop()
 
     this->connect();
   }
-}
-
-void QClient::processRedirection()
-{
-  if (!redirectedEndpoint.empty()) {
-    QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting to " << redirectedEndpoint.toString());
-    targetEndpoint = redirectedEndpoint;
-    redirectionActive = true;
-  } else if (redirectionActive) {
-    QCLIENT_LOG(options.logger, LogLevel::kInfo, "redirecting back to original hosts");
-    redirectionActive = false;
-  }
-
-  redirectedEndpoint = {};
 }
 
 //------------------------------------------------------------------------------

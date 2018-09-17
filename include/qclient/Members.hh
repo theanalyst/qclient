@@ -49,7 +49,7 @@ public:
 
   std::string toString() const {
     std::stringstream ss;
-    ss << host << ":" << port << std::endl;
+    ss << host << ":" << port;
     return ss.str();
   }
 
@@ -79,6 +79,10 @@ public:
   }
 
   Members(const std::vector<Endpoint> &members_) : members(members_) {}
+
+  void clear() {
+    members.clear();
+  }
 
   const std::vector<Endpoint>& getEndpoints() const {
     return members;

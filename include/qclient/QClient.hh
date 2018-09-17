@@ -63,6 +63,7 @@ namespace qclient
   class NetworkStream;
   class WriterThread;
   class ConnectionHandler;
+  class EndpointDecider;
 
 
 //------------------------------------------------------------------------------
@@ -218,18 +219,15 @@ public:
 
 private:
   // The cluster members, as given in the constructor.
-  size_t nextMember = 0;
   Members members;
+
+  std::unique_ptr<EndpointDecider> endpointDecider;
 
   // the endpoint we're actually connecting to
   Endpoint targetEndpoint;
 
-  // the endpoint given in a redirect
-  Endpoint redirectedEndpoint;
-
   Options options;
 
-  bool redirectionActive = false;
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
 
