@@ -30,7 +30,7 @@
 #include <rocksdb/filter_policy.h>
 #include <rocksdb/table.h>
 
-#include "BackpressuredQueue.hh"
+#include "qclient/BackgroundFlusher.hh"
 
 namespace qclient {
 
