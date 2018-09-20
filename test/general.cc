@@ -25,6 +25,7 @@
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
+#include "qclient/MultiBuilder.hh"
 #include "ConnectionHandler.hh"
 #include "ReplyMacros.hh"
 
@@ -158,4 +159,14 @@ TEST(EndpointDecider, BasicSanity) {
   ASSERT_EQ(decider.getNext(), Endpoint("host4.cern.ch", 9999));
   ASSERT_EQ(decider.getNext(), Endpoint("host3.cern.ch", 3456));
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
+}
+
+TEST(MultiBuilder, BasicSanity) {
+  MultiBuilder builder;
+  builder.emplace_back("GET", "123");
+  builder.emplace_back("GET", "234");
+
+  ASSERT_EQ(builder.size(), 2u);
+  ASSERT_EQ(builder.getDeque()[0], EncodedRequest::make("GET", "123"));
+  ASSERT_EQ(builder.getDeque()[1], EncodedRequest::make("GET", "234"));
 }

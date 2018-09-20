@@ -103,6 +103,15 @@ public:
   static EncodedRequest fuseIntoBlock(const std::deque<EncodedRequest> &block);
   static EncodedRequest fuseIntoBlockAndSurround(std::deque<EncodedRequest> &&block);
 
+  bool operator==(const EncodedRequest &other) const {
+    if(length != other.length) return false;
+    if(std::string(buffer.get(), length) != std::string(other.buffer.get(), other.length)) {
+      return false;
+    }
+
+    return true;
+  }
+
 private:
   void initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes);
 
