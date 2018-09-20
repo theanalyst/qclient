@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: WriterThread.hh
+// File: Reply.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,43 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_WRITER_THREAD_H
-#define QCLIENT_WRITER_THREAD_H
+#pragma once
 
+#include <memory>
 #include <hiredis/hiredis.h>
-#include "qclient/AssistedThread.hh"
-#include "qclient/EventFD.hh"
-#include "FutureHandler.hh"
-#include "NetworkStream.hh"
-#include "BackpressureApplier.hh"
-#include "CallbackExecutorThread.hh"
-#include "StagedRequest.hh"
-#include "ConnectionHandler.hh"
-#include "qclient/ThreadSafeQueue.hh"
-#include "qclient/Options.hh"
-#include "qclient/EncodedRequest.hh"
-#include <deque>
-#include <future>
 
 namespace qclient {
 
-class WriterThread {
-public:
-  WriterThread(Logger *logger, ConnectionHandler &handler, EventFD &shutdownFD);
-  ~WriterThread();
-
-  void activate(NetworkStream *stream);
-  void deactivate();
-  void eventLoop(NetworkStream *stream, ThreadAssistant &assistant);
-
-private:
-  Logger *logger;
-  ConnectionHandler &connectionHandler;
-  EventFD &shutdownEventFD;
-  AssistedThread thread;
-
-};
+using Reply = redisReply;
+using ReplyPtr = std::shared_ptr<Reply>;
+using redisReplyPtr = ReplyPtr;
 
 }
-
-#endif

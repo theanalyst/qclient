@@ -26,13 +26,12 @@
 
 #include <vector>
 #include <string>
-#include "QCallback.hh"
-#include "Assert.hh"
-#include "Utils.hh"
+#include "qclient/Reply.hh"
+#include "qclient/QCallback.hh"
+#include "qclient/Assert.hh"
+#include "qclient/Utils.hh"
 
 namespace qclient {
-
-using redisReplyPtr = std::shared_ptr<redisReply>;
 
 //------------------------------------------------------------------------------
 //! Class handshake - inherit from here.

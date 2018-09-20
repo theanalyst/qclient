@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "qclient/Reply.hh"
 #include <hiredis/hiredis.h>
 #include <sstream>
 #include <memory>
@@ -49,8 +50,6 @@ std::string escapeNonPrintable(const std::string &str) {
 }
 
 namespace qclient {
-
-using redisReplyPtr = std::shared_ptr<redisReply>;
 
 std::string describeRedisReply(const redisReply *const redisReply, const std::string &prefix) {
   if(!redisReply) {

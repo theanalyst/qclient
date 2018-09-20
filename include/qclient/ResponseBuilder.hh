@@ -24,12 +24,9 @@
 #ifndef QCLIENT_RESPONSE_BUILDER_HH
 #define QCLIENT_RESPONSE_BUILDER_HH
 
-#include <hiredis/hiredis.h>
-#include <memory>
+#include "qclient/Reply.hh"
 
 namespace qclient {
-
-using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class ResponseBuilder {
 public:

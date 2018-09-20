@@ -24,16 +24,9 @@
 #ifndef QCLIENT_QCALLBACK_H
 #define QCLIENT_QCALLBACK_H
 
-#include <mutex>
-#include <future>
-#include <queue>
-#include <map>
-#include <list>
-#include <hiredis/hiredis.h>
+#include "qclient/Reply.hh"
 
 namespace qclient {
-
-using redisReplyPtr = std::shared_ptr<redisReply>;
 
 class QCallback {
 public:

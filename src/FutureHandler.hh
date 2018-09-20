@@ -26,6 +26,7 @@
 
 #include "qclient/QCallback.hh"
 #include "qclient/ThreadSafeQueue.hh"
+#include <future>
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
