@@ -29,6 +29,7 @@
 #include "RequestQueue.hh"
 #include "FutureHandler.hh"
 #include "CallbackExecutorThread.hh"
+#include "qclient/Logger.hh"
 
 namespace qclient {
 
@@ -41,7 +42,7 @@ class Handshake;
 //------------------------------------------------------------------------------
 class ConnectionHandler {
 public:
-  ConnectionHandler(Handshake *hs, BackpressureStrategy backpressure);
+  ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy backpressure);
   ~ConnectionHandler();
   void reconnection();
 
@@ -62,7 +63,7 @@ public:
 
 private:
   void acknowledgePending(redisReplyPtr &&reply);
-
+  Logger *logger;
   size_t ignoredResponses = 0u;
   BackpressureApplier backpressure;
 

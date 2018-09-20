@@ -70,4 +70,13 @@ redisReplyPtr ResponseBuilder::makeInt(int val) {
   return out;
 }
 
+redisReplyPtr ResponseBuilder::makeErr(const std::string &msg) {
+  ResponseBuilder builder;
+  builder.feed(SSTR("-" << msg << "\r\n"));
+
+  redisReplyPtr out;
+  builder.pull(out);
+  return out;
+}
+
 }

@@ -99,7 +99,7 @@ private:
 //! evaluating the function arguments for "print" if the loglevel is lower
 //! than a particular message.
 //------------------------------------------------------------------------------
-#define QCLIENT_LOG(logger, logLevel, msg) if(int(logger->getLogLevel()) >= int(logLevel)) { logger->print(logLevel, __LINE__, __FUNCTION__, static_cast<std::ostringstream&>(std::ostringstream().flush() << msg).str()); }
+#define QCLIENT_LOG(logger, logLevel, msg) if(logger && int(logger->getLogLevel()) >= int(logLevel)) { logger->print(logLevel, __LINE__, __FUNCTION__, static_cast<std::ostringstream&>(std::ostringstream().flush() << msg).str()); }
 
 }
 

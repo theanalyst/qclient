@@ -86,8 +86,16 @@ TEST(ResponseBuilder, BasicSanity) {
   ASSERT_EQ(reply->integer, 10);
 }
 
+TEST(ResponseBuilder, MakeErr) {
+  redisReplyPtr reply = ResponseBuilder::makeErr("UNAVAILABLE test");
+  ASSERT_NE(reply, nullptr);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_ERROR);
+  ASSERT_EQ(std::string(reply->str, reply->len), "UNAVAILABLE test");
+}
+
 TEST(ConnectionHandler, BasicSanity) {
-  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "asdf1"));
   std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("ping", "asdf2"));
@@ -103,7 +111,7 @@ TEST(ConnectionHandler, BasicSanity) {
 }
 
 TEST(ConnectionHandler, Overflow) {
-  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
 
@@ -112,7 +120,7 @@ TEST(ConnectionHandler, Overflow) {
 }
 
 TEST(ConnectionHandler, IgnoredResponses) {
-  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), false, 1);
 
@@ -123,7 +131,7 @@ TEST(ConnectionHandler, IgnoredResponses) {
 }
 
 TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
-  ConnectionHandler handler(nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), false, 2);
 
@@ -142,6 +150,30 @@ TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut1, 3);
+}
+
+TEST(ConnectionHandler, Unavailable) {
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"));
+  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("get", "asdf"));
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_REPLY(fut1, 7);
+
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("-UNAVAILABLE something something")));
+  handler.reconnection();
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_REPLY(fut2, 9);
+
+  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("get", "123"));
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("-ERR unavailable")));
+
+  handler.reconnection();
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
+  ASSERT_REPLY(fut3, 3);
 }
 
 TEST(EndpointDecider, BasicSanity) {

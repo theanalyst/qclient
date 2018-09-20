@@ -26,13 +26,35 @@
 
 namespace qclient {
 
-ConnectionHandler::ConnectionHandler(Handshake *hs, BackpressureStrategy bp)
-: backpressure(bp), handshake(hs) {
+ConnectionHandler::ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy bp)
+: logger(log), backpressure(bp), handshake(hs) {
   reconnection();
 }
 
 ConnectionHandler::~ConnectionHandler() {
 
+}
+
+//------------------------------------------------------------------------------
+// Check for "unavailable" response - specific to QDB
+//------------------------------------------------------------------------------
+static bool isUnavailable(redisReply* reply) {
+  if(reply->type != REDIS_REPLY_ERROR) {
+    return false;
+  }
+
+  static const std::string kFirstType("-ERR unavailable");
+  static const std::string kSecondType("-UNAVAILABLE");
+
+  if(strncmp(reply->str, kFirstType.c_str(), kFirstType.size()) == 0) {
+    return true;
+  }
+
+  if(strncmp(reply->str, kSecondType.c_str(), kSecondType.size()) == 0) {
+    return true;
+  }
+
+  return false;
 }
 
 void ConnectionHandler::reconnection() {
@@ -128,6 +150,13 @@ void ConnectionHandler::acknowledgePending(redisReplyPtr &&reply) {
 }
 
 bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
+  // Is this a transient "unavailable" error? Specific to QDB.
+  if(isUnavailable(reply.get())) {
+    // Break connection, try again.
+    QCLIENT_LOG(logger, LogLevel::kWarn, "cluster is temporarily unavailable: " << std::string(reply->str, reply->len));
+    return false;
+  }
+
   // Is this a response to the handshake?
   if(inHandshake) {
     // Forward reply to handshake object, and check the response.

@@ -148,32 +148,10 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  connectionHandler.reset(new ConnectionHandler(options.handshake.get(), options.backpressureStrategy));
+  connectionHandler.reset(new ConnectionHandler(options.logger.get(), options.handshake.get(), options.backpressureStrategy));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionHandler.get(), shutdownEventFD));
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
-}
-
-//------------------------------------------------------------------------------
-// Check for "unavailable" response - specific to QDB
-//------------------------------------------------------------------------------
-static bool isUnavailable(redisReply* reply) {
-  if(reply->type != REDIS_REPLY_ERROR) {
-    return false;
-  }
-
-  static const std::string kFirstType("ERR unavailable");
-  static const std::string kSecondType("UNAVAILABLE");
-
-  if(strncmp(reply->str, kFirstType.c_str(), kFirstType.size()) == 0) {
-    return true;
-  }
-
-  if(strncmp(reply->str, kSecondType.c_str(), kSecondType.size()) == 0) {
-    return true;
-  }
-
-  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -210,15 +188,6 @@ bool QClient::feed(const char* buf, size_t len)
         endpointDecider->registerRedirection(Endpoint(redirect.host, redirect.port));
         return false;
       }
-    }
-
-    // Is this a transient "unavailable" error? Specific to QDB.
-    // Checking for "ERR unavailable" is a QDB specific hack! We should introduce
-    // a new response type, ie "UNAVAILABLE reason for unavailability"
-    if(options.retryStrategy.active() && isUnavailable(rr.get())) {
-      // Break connection, try again.
-      QCLIENT_LOG(options.logger, LogLevel::kWarn, "cluster is temporarily unavailable: " << std::string(rr->str, rr->len));
-      return false;
     }
 
     // "Normal" response, let the connection handler take care of it.
