@@ -161,14 +161,14 @@ TEST(ConnectionHandler, Unavailable) {
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_REPLY(fut1, 7);
 
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("-UNAVAILABLE something something")));
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE something something")));
   handler.reconnection();
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
   ASSERT_REPLY(fut2, 9);
 
   std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("get", "123"));
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("-ERR unavailable")));
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("ERR unavailable")));
 
   handler.reconnection();
 

@@ -43,8 +43,8 @@ static bool isUnavailable(redisReply* reply) {
     return false;
   }
 
-  static const std::string kFirstType("-ERR unavailable");
-  static const std::string kSecondType("-UNAVAILABLE");
+  static const std::string kFirstType("ERR unavailable");
+  static const std::string kSecondType("UNAVAILABLE");
 
   if(strncmp(reply->str, kFirstType.c_str(), kFirstType.size()) == 0) {
     return true;
