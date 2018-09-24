@@ -94,8 +94,17 @@ TEST(ResponseBuilder, MakeErr) {
   ASSERT_EQ(std::string(reply->str, reply->len), "UNAVAILABLE test");
 }
 
+TEST(ConnectionHandler, NoRetries) {
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE test test")));
+
+  ASSERT_REPLY(fut1, "UNAVAILABLE test test");
+}
+
 TEST(ConnectionHandler, BasicSanity) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "asdf1"));
   std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("ping", "asdf2"));
@@ -111,7 +120,7 @@ TEST(ConnectionHandler, BasicSanity) {
 }
 
 TEST(ConnectionHandler, Overflow) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
 
@@ -120,7 +129,7 @@ TEST(ConnectionHandler, Overflow) {
 }
 
 TEST(ConnectionHandler, IgnoredResponses) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), false, 1);
 
@@ -131,7 +140,7 @@ TEST(ConnectionHandler, IgnoredResponses) {
 }
 
 TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), false, 2);
 
@@ -153,7 +162,7 @@ TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
 }
 
 TEST(ConnectionHandler, Unavailable) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default());
+  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"));
   std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("get", "asdf"));

@@ -26,8 +26,8 @@
 
 namespace qclient {
 
-ConnectionHandler::ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy bp)
-: logger(log), backpressure(bp), handshake(hs) {
+ConnectionHandler::ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs)
+: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs) {
   reconnection();
 }
 
@@ -151,7 +151,7 @@ void ConnectionHandler::acknowledgePending(redisReplyPtr &&reply) {
 
 bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
   // Is this a transient "unavailable" error? Specific to QDB.
-  if(isUnavailable(reply.get())) {
+  if(retryStrategy.active() && isUnavailable(reply.get())) {
     // Break connection, try again.
     QCLIENT_LOG(logger, LogLevel::kWarn, "cluster is temporarily unavailable: " << std::string(reply->str, reply->len));
     return false;

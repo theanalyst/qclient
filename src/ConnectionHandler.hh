@@ -42,7 +42,7 @@ class Handshake;
 //------------------------------------------------------------------------------
 class ConnectionHandler {
 public:
-  ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy backpressure);
+  ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy backpressure, RetryStrategy rs);
   ~ConnectionHandler();
   void reconnection();
 
@@ -62,14 +62,16 @@ public:
   void clearAllPending();
 
 private:
-  void acknowledgePending(redisReplyPtr &&reply);
   Logger *logger;
-  size_t ignoredResponses = 0u;
+  Handshake *handshake;
   BackpressureApplier backpressure;
+  RetryStrategy retryStrategy;
+
+  void acknowledgePending(redisReplyPtr &&reply);
+  size_t ignoredResponses = 0u;
 
   WaitableQueue<StagedRequest, 15> handshakeRequests;
   decltype(handshakeRequests)::Iterator handshakeIterator;
-  Handshake *handshake;
 
   std::atomic<bool> inHandshake {true};
   RequestQueue::Iterator nextToWriteIterator;

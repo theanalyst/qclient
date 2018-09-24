@@ -148,7 +148,7 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  connectionHandler.reset(new ConnectionHandler(options.logger.get(), options.handshake.get(), options.backpressureStrategy));
+  connectionHandler.reset(new ConnectionHandler(options.logger.get(), options.handshake.get(), options.backpressureStrategy, options.retryStrategy));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionHandler.get(), shutdownEventFD));
   connect();
   eventLoopThread = std::thread(&QClient::eventLoop, this);
