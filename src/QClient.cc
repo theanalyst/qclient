@@ -117,7 +117,6 @@ std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
 
   return connectionHandler->stage(
     EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
-    false,
     ignoredResponses
   );
 }
@@ -141,6 +140,12 @@ void QClient::startEventLoop()
   // Initialize a simple logger if user has not provided one
   if(!options.logger) {
     options.logger = std::make_shared<StandardErrorLogger>();
+  }
+
+  // If no handshake is present, and user is asking to prime
+  // connection: Set handshake to a simple Pinger.
+  if(!options.handshake && options.ensureConnectionIsPrimed) {
+    options.handshake.reset(new PingHandshake());
   }
 
   endpointDecider = std::make_unique<EndpointDecider>(options.logger.get(), members);
@@ -272,17 +277,6 @@ void QClient::connect()
   connectTCP();
 }
 
-//------------------------------------------------------------------------------
-// Prime connection with a dummy request to prevent timeout
-//------------------------------------------------------------------------------
-void QClient::primeConnection() {
-  // Important: We must bypass backpressure, otherwise we risk deadlocking the
-  // main event loop.
-
-  std::vector<std::string> req { "PING", "qclient-connection-initialization" };
-  connectionHandler->stage(EncodedRequest(req), true /* bypass backpressure */ );
-}
-
 void QClient::eventLoop()
 {
   const size_t BUFFER_SIZE = 1024 * 2;
@@ -291,7 +285,6 @@ void QClient::eventLoop()
   std::chrono::milliseconds backoff(1);
 
   while (true) {
-    bool activeConnection = false;
     struct pollfd polls[2];
     polls[0].fd = shutdownEventFD.getFD();
     polls[0].events = POLLIN;
@@ -310,13 +303,6 @@ void QClient::eventLoop()
           // something's wrong, try to reconnect
           break;
         }
-
-        if(rpoll == 0 && !activeConnection) {
-          // No bytes have been transfered on this link, send a dummy
-          // reqeust to prevent a timeout.
-          primeConnection();
-          activeConnection = true;
-        }
       }
 
       if (shutdown) {
@@ -329,10 +315,6 @@ void QClient::eventLoop()
 
       if(!status.connectionAlive) {
         break; // connection died on us, try to reconnect
-      }
-
-      if(status.bytesRead > 0) {
-        activeConnection = true;
       }
 
       if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {

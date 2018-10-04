@@ -51,7 +51,7 @@ public:
   bool consumeResponse(redisReplyPtr &&reply);
 
   void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u);
-  std::future<redisReplyPtr> stage(EncodedRequest &&req, bool bypassBackpressure = false, size_t multiSize = 0u);
+  std::future<redisReplyPtr> stage(EncodedRequest &&req, size_t multiSize = 0u);
 
 #if HAVE_FOLLY == 1
   folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u);

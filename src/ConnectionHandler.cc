@@ -118,11 +118,7 @@ void ConnectionHandler::stage(QCallback *callback, EncodedRequest &&req, size_t 
   requestQueue.emplace_back(callback, std::move(req), multiSize);
 }
 
-std::future<redisReplyPtr> ConnectionHandler::stage(EncodedRequest &&req, bool bypassBackpressure, size_t multiSize) {
-  if(!bypassBackpressure) {
-    backpressure.reserve();
-  }
-
+std::future<redisReplyPtr> ConnectionHandler::stage(EncodedRequest &&req, size_t multiSize) {
   std::lock_guard<std::mutex> lock(mtx);
 
   std::future<redisReplyPtr> retval = futureHandler.stage();

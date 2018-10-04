@@ -229,3 +229,43 @@ void HandshakeChainer::restart() {
   first->restart();
   second->restart();
 }
+
+//------------------------------------------------------------------------------
+// PingHandshake: Constructor
+//------------------------------------------------------------------------------
+PingHandshake::PingHandshake(const std::string &text) : pingToSend(text) {
+  if(pingToSend.empty()) {
+    pingToSend = "qclient-connection-initialization";
+  }
+}
+
+//------------------------------------------------------------------------------
+// PingHandshake: Destructor
+//------------------------------------------------------------------------------
+PingHandshake::~PingHandshake() {}
+
+//------------------------------------------------------------------------------
+// PingHandshake: Provide handshake
+//------------------------------------------------------------------------------
+std::vector<std::string> PingHandshake::provideHandshake() {
+  return { "PING", pingToSend };
+}
+
+//------------------------------------------------------------------------------
+// PingHandshake: Validate response
+//------------------------------------------------------------------------------
+Handshake::Status PingHandshake::validateResponse(const redisReplyPtr &reply) {
+  if(!reply) return Status::INVALID;
+  if(reply->type != REDIS_REPLY_STRING) return Status::INVALID;
+
+  std::string response(reply->str, reply->len);
+  if(response != pingToSend) return Status::INVALID;
+  return Status::VALID_COMPLETE;
+}
+
+//------------------------------------------------------------------------------
+// PingHandshake: Restart
+//------------------------------------------------------------------------------
+void PingHandshake::restart() {
+}
+

@@ -131,7 +131,7 @@ TEST(ConnectionHandler, Overflow) {
 TEST(ConnectionHandler, IgnoredResponses) {
   ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), false, 1);
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), 1);
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
@@ -142,7 +142,7 @@ TEST(ConnectionHandler, IgnoredResponses) {
 TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
   ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), false, 2);
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), 2);
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);

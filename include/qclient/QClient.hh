@@ -248,7 +248,6 @@ private:
   EventFD shutdownEventFD;
   std::unique_ptr<WriterThread> writerThread;
 
-  void primeConnection();
   void processRedirection();
   std::thread eventLoopThread;
 };

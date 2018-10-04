@@ -27,6 +27,7 @@
 #include <chrono>
 #include <memory>
 #include "TlsFilter.hh"
+#include "Handshake.hh"
 
 namespace qclient {
 
@@ -204,6 +205,12 @@ public:
   //! Ideal for things like AUTH.
   //----------------------------------------------------------------------------
   std::unique_ptr<Handshake> handshake = {};
+
+  //----------------------------------------------------------------------------
+  //! If enabled, QClient will make sure to prime a connection immediately
+  //! after connecting.
+  //----------------------------------------------------------------------------
+  bool ensureConnectionIsPrimed = true;
 
   //----------------------------------------------------------------------------
   //! Specifies the logger object to use. If left empty, a simple logger

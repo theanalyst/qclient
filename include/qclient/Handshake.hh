@@ -116,6 +116,23 @@ private:
   std::string stringToSign;
 };
 
+//------------------------------------------------------------------------------
+//! PingHandshake - send a PING, and expect the corresponding response.
+//------------------------------------------------------------------------------
+class PingHandshake : public Handshake {
+public:
+  //----------------------------------------------------------------------------
+  //! Basic interface
+  //----------------------------------------------------------------------------
+  PingHandshake(const std::string &text = "");
+  virtual ~PingHandshake();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
+private:
+  std::string pingToSend;
+};
+
 }
 
 #endif
