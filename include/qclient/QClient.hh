@@ -237,6 +237,7 @@ private:
   void startEventLoop();
   void eventLoop();
   void connect();
+  bool handleConnectionEpoch();
   bool shouldPurgePendingRequests();
   ResponseBuilder responseBuilder;
 

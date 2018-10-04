@@ -277,49 +277,19 @@ void QClient::connect()
   connectTCP();
 }
 
+//------------------------------------------------------------------------------
+// Main event loop thread, handles processing of incoming requests and
+// reconnects in case of network instabilities.
+//------------------------------------------------------------------------------
 void QClient::eventLoop()
 {
-  const size_t BUFFER_SIZE = 1024 * 2;
-  char buffer[BUFFER_SIZE];
   signal(SIGPIPE, SIG_IGN);
   std::chrono::milliseconds backoff(1);
 
   while (true) {
-    struct pollfd polls[2];
-    polls[0].fd = shutdownEventFD.getFD();
-    polls[0].events = POLLIN;
-    polls[1].fd = networkStream->getFd();
-    polls[1].events = POLLIN;
-
-    RecvStatus status(true, 0, 0);
-    while (networkStream->ok()) {
-      // If the previous iteration returned any bytes at all, try to read again
-      // without polling. It could be that there's more data cached inside
-      // OpenSSL, which poll() will not detect.
-
-      if(status.bytesRead <= 0) {
-        int rpoll = poll(polls, 2, 60);
-        if(rpoll < 0 && errno != EINTR) {
-          // something's wrong, try to reconnect
-          break;
-        }
-      }
-
-      if (shutdown) {
-        break;
-      }
-
-      // legit connection, reset backoff
+    bool receivedBytes = handleConnectionEpoch();
+    if(receivedBytes) {
       backoff = std::chrono::milliseconds(1);
-      status = networkStream->recv(buffer, BUFFER_SIZE, 0);
-
-      if(!status.connectionAlive) {
-        break; // connection died on us, try to reconnect
-      }
-
-      if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {
-        break; // protocol violation
-      }
     }
 
     if (shutdown) {
@@ -340,6 +310,61 @@ void QClient::eventLoop()
 
     this->connect();
   }
+}
+
+//------------------------------------------------------------------------------
+// Handles a single "connection epoch". If the current socket breaks, we return
+// and let the parent handle the error.
+//
+// Returns whether, during this connection epoch, any bytes at all were received
+// from the server.
+//------------------------------------------------------------------------------
+bool QClient::handleConnectionEpoch() {
+  const size_t BUFFER_SIZE = 1024 * 2;
+  char buffer[BUFFER_SIZE];
+
+  bool receivedBytes = false;
+
+  struct pollfd polls[2];
+  polls[0].fd = shutdownEventFD.getFD();
+  polls[0].events = POLLIN;
+  polls[1].fd = networkStream->getFd();
+  polls[1].events = POLLIN;
+
+  RecvStatus status(true, 0, 0);
+  while (networkStream->ok()) {
+    // If the previous iteration returned any bytes at all, try to read again
+    // without polling. It could be that there's more data cached inside
+    // OpenSSL, which poll() will not detect.
+
+    if(status.bytesRead <= 0) {
+      int rpoll = poll(polls, 2, 60);
+      if(rpoll < 0 && errno != EINTR) {
+        // something's wrong, try to reconnect
+        break;
+      }
+    }
+
+    if (shutdown) {
+      break;
+    }
+
+    // looks like a legit connection
+    status = networkStream->recv(buffer, BUFFER_SIZE, 0);
+
+    if(!status.connectionAlive) {
+      break; // connection died on us
+    }
+
+    if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {
+      break; // protocol violation
+    }
+    else {
+      receivedBytes = true;
+    }
+  }
+
+  return receivedBytes;
 }
 
 //------------------------------------------------------------------------------
