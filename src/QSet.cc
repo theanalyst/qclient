@@ -120,7 +120,7 @@ std::set<std::string> QSet::smembers()
 std::pair< std::string, std::vector<std::string> >
 QSet::sscan(const std::string &cursor, long long count)
 {
-  redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor, "COUNT", stringify(count)).get();
+  redisReplyPtr reply = mClient->exec("SSCAN", mKey, cursor, "COUNT", fmt::to_string(count)).get();
 
   if (reply == nullptr) {
     throw std::runtime_error("[FATAL] Error sscan key: " + mKey +

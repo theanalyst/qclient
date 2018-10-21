@@ -68,19 +68,6 @@ inline bool parseServer(const std::string &str, RedisServer &srv) {
   return true;
 }
 
-//------------------------------------------------------------------------------
-//! Fast convert element to string representation
-//!
-//! @param elem element to be converted
-//!
-//! @return string representation
-//------------------------------------------------------------------------------
-template <typename T>
-static std::string stringify(const T& elem)
-{
-  return fmt::to_string(elem);
-}
-
 inline bool startswith(const std::string &str, const std::string &prefix) {
   if(prefix.size() > str.size()) return false;
 
