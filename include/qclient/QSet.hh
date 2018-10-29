@@ -277,7 +277,7 @@ private:
 template <typename T>
 void QSet::sadd_async(const T& member, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"SADD", mKey, stringify(member)});
+  ah->Register(mClient, {"SADD", mKey, fmt::to_string(member)});
 }
 
 template<typename Iter>
@@ -295,11 +295,11 @@ QSet::sadd_async(const Iter& begin, const Iter& end, AsyncHandler* ah)
 template <typename T>
 bool QSet::sadd(const T& member)
 {
-  redisReplyPtr reply = mClient->exec("SADD", mKey, stringify(member)).get();
+  redisReplyPtr reply = mClient->exec("SADD", mKey, fmt::to_string(member)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " field: "
-                             + stringify(member) + ": Unexpected/null reply");
+                             + fmt::to_string(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -309,17 +309,17 @@ template <typename T>
 void
 QSet::srem_async(const T& member, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"SREM", mKey, stringify(member)});
+  ah->Register(mClient, {"SREM", mKey, fmt::to_string(member)});
 }
 
 template <typename T>
 bool QSet::srem(const T& member)
 {
-  redisReplyPtr reply = mClient->exec("SREM", mKey, stringify(member)).get();
+  redisReplyPtr reply = mClient->exec("SREM", mKey, fmt::to_string(member)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
-                             + stringify(member) + ": Unexpected/null reply");
+                             + fmt::to_string(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
@@ -328,11 +328,11 @@ bool QSet::srem(const T& member)
 template <typename T>
 bool QSet::sismember(const T& member)
 {
-  redisReplyPtr reply = mClient->exec("SISMEMBER", mKey, stringify(member)).get();
+  redisReplyPtr reply = mClient->exec("SISMEMBER", mKey, fmt::to_string(member)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "
-                             + stringify(member) + ": Unexpected/null reply");
+                             + fmt::to_string(member) + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);

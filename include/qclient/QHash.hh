@@ -319,7 +319,7 @@ template <typename T>
 void
 QHash::hset_async(const std::string& field, const T& value, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"HSET", mKey, field, stringify(value)});
+  ah->Register(mClient, {"HSET", mKey, field, fmt::to_string(value)});
 }
 
 //------------------------------------------------------------------------------
@@ -329,7 +329,7 @@ template <typename T>
 bool
 QHash::hset(const std::string& field, const T& value)
 {
-  redisReplyPtr reply = mClient->exec("HSET", mKey, field, stringify(value)).get();
+  redisReplyPtr reply = mClient->exec("HSET", mKey, field, fmt::to_string(value)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
@@ -345,7 +345,7 @@ QHash::hset(const std::string& field, const T& value)
 template <typename T>
 bool QHash::hsetnx(const std::string& field, const T& value)
 {
-  redisReplyPtr reply = mClient->exec("HSETNX", mKey, field, stringify(value)).get();
+  redisReplyPtr reply = mClient->exec("HSETNX", mKey, field, fmt::to_string(value)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "
@@ -363,7 +363,7 @@ void
 QHash::hincrby_async(const std::string& field, const T& increment,
                      AsyncHandler* ah)
 {
-  ah->Register(mClient, {"HINCRBY", mKey, field, stringify(increment)});
+  ah->Register(mClient, {"HINCRBY", mKey, field, fmt::to_string(increment)});
 }
 
 //------------------------------------------------------------------------------
@@ -373,7 +373,7 @@ template <typename T>
 long long int QHash::hincrby(const std::string& field, const T& increment)
 {
   redisReplyPtr reply = mClient->exec("HINCRBY", mKey, field,
-                                      stringify(increment)).get();
+                                      fmt::to_string(increment)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hincrby key: " + mKey + " field: "
@@ -390,7 +390,7 @@ template <typename T>
 double QHash::hincrbyfloat(const std::string& field, const T& increment)
 {
   redisReplyPtr reply = mClient->exec("HINCRBYFLOAT", mKey, field,
-                                      stringify(increment)).get();
+                                      fmt::to_string(increment)).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_STRING)) {
     throw std::runtime_error("[FATAL] Error hincrbyfloat key: " + mKey + " field: "
