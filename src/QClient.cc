@@ -55,7 +55,7 @@ using namespace qclient;
 // Constructor taking host and port
 //-----------------------------------------------------------------------------
 QClient::QClient(const std::string& host_, const int port_, Options &&opts)
-  : members(host_, port_), options(std::move(opts))
+  : members(host_, port_), options(std::move(opts)), faultInjector(*this)
 {
   startEventLoop();
 }
@@ -65,7 +65,7 @@ QClient::QClient(const std::string& host_, const int port_, Options &&opts)
 // Constructor taking list of members for the cluster
 //------------------------------------------------------------------------------
 QClient::QClient(const Members& members_, Options &&opts)
-  : members(members_), options(std::move(opts))
+  : members(members_), options(std::move(opts)), faultInjector(*this)
 {
   startEventLoop();
 }
@@ -255,6 +255,11 @@ void QClient::cleanup()
 //------------------------------------------------------------------------------
 void QClient::connectTCP()
 {
+  if(faultInjector.hasPartition(untranslatedTargetEndpoint)) {
+    networkStream.reset();
+    return;
+  }
+
   networkStream.reset(new NetworkStream(targetEndpoint.getHost(),
     targetEndpoint.getPort(), options.tlsconfig));
 
@@ -272,7 +277,9 @@ void QClient::connect()
 {
   cleanup();
 
-  targetEndpoint = GlobalInterceptor::translate(endpointDecider->getNext());
+  untranslatedTargetEndpoint = endpointDecider->getNext();
+  targetEndpoint = GlobalInterceptor::translate(untranslatedTargetEndpoint);
+
   connectTCP();
 }
 
@@ -286,6 +293,7 @@ void QClient::eventLoop(ThreadAssistant &assistant)
   std::chrono::milliseconds backoff(1);
 
   while (true) {
+    shutdownEventFD.clear();
     bool receivedBytes = handleConnectionEpoch(assistant);
     if(receivedBytes) {
       backoff = std::chrono::milliseconds(1);
@@ -312,6 +320,20 @@ void QClient::eventLoop(ThreadAssistant &assistant)
 }
 
 //------------------------------------------------------------------------------
+// Return fault injector object for this QClient
+//------------------------------------------------------------------------------
+FaultInjector& QClient::getFaultInjector() {
+  return faultInjector;
+}
+
+//------------------------------------------------------------------------------
+// Notification from FaultInjector that fault injections were updated
+//------------------------------------------------------------------------------
+void QClient::notifyFaultInjectionsUpdated() {
+  shutdownEventFD.notify();
+}
+
+//------------------------------------------------------------------------------
 // Handles a single "connection epoch". If the current socket breaks, we return
 // and let the parent handle the error.
 //
@@ -321,8 +343,11 @@ void QClient::eventLoop(ThreadAssistant &assistant)
 bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
   const size_t BUFFER_SIZE = 1024 * 2;
   char buffer[BUFFER_SIZE];
-
   bool receivedBytes = false;
+
+  if(!networkStream || !networkStream->ok()) {
+    return false;
+  }
 
   struct pollfd polls[2];
   polls[0].fd = shutdownEventFD.getFD();
@@ -344,7 +369,8 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
       }
     }
 
-    if (assistant.terminationRequested()) {
+    if( (polls[0].revents != 0 && faultInjector.hasPartition(untranslatedTargetEndpoint))
+        || assistant.terminationRequested()) {
       break;
     }
 
@@ -380,15 +406,6 @@ QClient::exists(const std::string& key)
   }
 
   return reply->integer;
-}
-
-//------------------------------------------------------------------------------
-// Wrapper function for del async command
-//------------------------------------------------------------------------------
-std::future<redisReplyPtr>
-QClient::del_async(const std::string& key)
-{
-  return exec("DEL", key);
 }
 
 //------------------------------------------------------------------------------

@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <cstdlib>
+#include <fcntl.h>
 
 namespace qclient {
 
@@ -40,6 +41,15 @@ public:
     if(status != 0) {
       std::cerr << "EventFD: CRITICAL: Could not obtain file descriptors for EventFD class, errno = " << errno << std::endl;
       std::abort();
+    }
+
+    for(size_t i = 0; i < 2; i++) {
+      int flags = fcntl(fildes[i], F_GETFL, 0);
+      int status = fcntl(fildes[i], F_SETFL, flags | O_NONBLOCK);
+      if(status != 0) {
+        std::cerr << "EventFD: CRITICAL: Could not set file descriptor as non-blocking" << std::endl;
+        std::abort();
+      }
     }
   }
 
@@ -64,6 +74,17 @@ public:
 
   inline int getFD() const {
     return fildes[0];
+  }
+
+  void clear() {
+    while(true) {
+      char buffer[128];
+      int rc = ::read(fildes[0], buffer, 64);
+
+      if(rc <= 0) {
+        break;
+      }
+    }
   }
 
 private:

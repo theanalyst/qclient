@@ -42,6 +42,7 @@
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/AssistedThread.hh"
+#include "qclient/FaultInjector.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -188,6 +189,11 @@ public:
 #endif
 
   //----------------------------------------------------------------------------
+  //! Return fault injector object for this QClient
+  //----------------------------------------------------------------------------
+  FaultInjector& getFaultInjector();
+
+  //----------------------------------------------------------------------------
   //! Wrapper function for exists command
   //!
   //! @param key key to search for
@@ -207,17 +213,6 @@ public:
   long long int
   del(const std::string& key);
 
-  //----------------------------------------------------------------------------
-  //! Wrapper function for del async command
-  //!
-  //! @param key key to be deleted
-  //!
-  //! @return future object containing the response and the command
-  //----------------------------------------------------------------------------
-  std::future<redisReplyPtr>
-  del_async(const std::string& key);
-
-
 private:
   // The cluster members, as given in the constructor.
   Members members;
@@ -225,6 +220,7 @@ private:
   std::unique_ptr<EndpointDecider> endpointDecider;
 
   // the endpoint we're actually connecting to
+  Endpoint untranslatedTargetEndpoint;
   Endpoint targetEndpoint;
 
   Options options;
@@ -250,6 +246,15 @@ private:
 
   void processRedirection();
   AssistedThread eventLoopThread;
+  FaultInjector faultInjector;
+
+  friend class FaultInjector;
+
+  //----------------------------------------------------------------------------
+  // Notify this QClient object that a fault injection has been added
+  //----------------------------------------------------------------------------
+  void notifyFaultInjectionsUpdated();
+
 };
 
 }

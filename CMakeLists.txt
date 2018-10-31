@@ -74,6 +74,7 @@ add_library(qclient STATIC
   src/ConnectionHandler.cc
   src/ConnectionInitiator.cc
   src/EncodedRequest.cc
+  src/FaultInjector.cc
   src/Formatting.cc
   src/FutureHandler.cc
   src/GlobalInterceptor.cc
