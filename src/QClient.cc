@@ -75,7 +75,6 @@ QClient::QClient(const Members& members_, Options &&opts)
 //------------------------------------------------------------------------------
 QClient::~QClient()
 {
-  shutdown = true;
   shutdownEventFD.notify();
   eventLoopThread.join();
   cleanup();
@@ -156,7 +155,7 @@ void QClient::startEventLoop()
   connectionHandler.reset(new ConnectionHandler(options.logger.get(), options.handshake.get(), options.backpressureStrategy, options.retryStrategy));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionHandler.get(), shutdownEventFD));
   connect();
-  eventLoopThread = std::thread(&QClient::eventLoop, this);
+  eventLoopThread.reset(&QClient::eventLoop, this);
 }
 
 //------------------------------------------------------------------------------
@@ -281,23 +280,23 @@ void QClient::connect()
 // Main event loop thread, handles processing of incoming requests and
 // reconnects in case of network instabilities.
 //------------------------------------------------------------------------------
-void QClient::eventLoop()
+void QClient::eventLoop(ThreadAssistant &assistant)
 {
   signal(SIGPIPE, SIG_IGN);
   std::chrono::milliseconds backoff(1);
 
   while (true) {
-    bool receivedBytes = handleConnectionEpoch();
+    bool receivedBytes = handleConnectionEpoch(assistant);
     if(receivedBytes) {
       backoff = std::chrono::milliseconds(1);
     }
 
-    if (shutdown) {
+    assistant.wait_for(backoff);
+
+    if (assistant.terminationRequested()) {
       feed(NULL, 0);
       break;
     }
-
-    std::this_thread::sleep_for(backoff);
 
     // Give some more leeway, update lastAvailable after sleeping.
     if(successfulResponses) {
@@ -319,7 +318,7 @@ void QClient::eventLoop()
 // Returns whether, during this connection epoch, any bytes at all were received
 // from the server.
 //------------------------------------------------------------------------------
-bool QClient::handleConnectionEpoch() {
+bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
   const size_t BUFFER_SIZE = 1024 * 2;
   char buffer[BUFFER_SIZE];
 
@@ -345,7 +344,7 @@ bool QClient::handleConnectionEpoch() {
       }
     }
 
-    if (shutdown) {
+    if (assistant.terminationRequested()) {
       break;
     }
 

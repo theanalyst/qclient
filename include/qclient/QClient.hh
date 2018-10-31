@@ -41,6 +41,7 @@
 #include "qclient/Handshake.hh"
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
+#include "qclient/AssistedThread.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -230,14 +231,12 @@ private:
 
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
-
   std::unique_ptr<NetworkStream> networkStream;
-  std::atomic<int64_t> shutdown {false};
 
   void startEventLoop();
-  void eventLoop();
+  void eventLoop(ThreadAssistant &assistant);
   void connect();
-  bool handleConnectionEpoch();
+  bool handleConnectionEpoch(ThreadAssistant &assistant);
   bool shouldPurgePendingRequests();
   ResponseBuilder responseBuilder;
 
@@ -250,7 +249,7 @@ private:
   std::unique_ptr<WriterThread> writerThread;
 
   void processRedirection();
-  std::thread eventLoopThread;
+  AssistedThread eventLoopThread;
 };
 
 }
