@@ -47,6 +47,7 @@ public:
   // Convenience functions for use in tests. Very inefficient!
   static redisReplyPtr makeInt(int val);
   static redisReplyPtr makeErr(const std::string &msg);
+  static redisReplyPtr makeStr(const std::string &msg);
 
 private:
   struct Deleter {

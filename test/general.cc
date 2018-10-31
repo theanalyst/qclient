@@ -94,6 +94,14 @@ TEST(ResponseBuilder, MakeErr) {
   ASSERT_EQ(std::string(reply->str, reply->len), "UNAVAILABLE test");
 }
 
+TEST(ResponseBuilder, MakeStr) {
+  redisReplyPtr reply = ResponseBuilder::makeStr("test test 123");
+  ASSERT_NE(reply, nullptr);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_STRING);
+  ASSERT_EQ(std::string(reply->str, reply->len), "test test 123");
+}
+
 TEST(ConnectionHandler, NoRetries) {
   ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
 
