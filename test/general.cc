@@ -26,6 +26,8 @@
 #include "qclient/EncodedRequest.hh"
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/MultiBuilder.hh"
+#include "qclient/Handshake.hh"
+#include "qclient/pubsub/MessageQueue.hh"
 #include "ConnectionHandler.hh"
 #include "ReplyMacros.hh"
 
@@ -223,6 +225,84 @@ TEST(ConnectionHandler, Unavailable) {
 
   ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut3, 3);
+}
+
+TEST(ConnectionHandler, BadHandshakeResponse) {
+  PingHandshake handshake("test test");
+  ConnectionHandler handler(nullptr, &handshake,
+    BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeStr("adsf")));
+  handler.reconnection();
+
+  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeStr("chickens")));
+  handler.reconnection();
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("test test")));
+  handler.reconnection();
+}
+
+TEST(ConnectionHandler, PubSubModeWithHandshakeNoRetries) {
+  PingHandshake handshake("hi there");
+  ConnectionHandler handler(nullptr, &handshake,
+    BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+
+  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("asdf", "1234"));
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("hi there")));
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("chickens")));
+  ASSERT_REPLY(fut1, "chickens");
+
+  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+
+  MessageQueue mq;
+  handler.enterSubscriptionMode(&mq);
+
+  // should remain pending forever
+  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut4 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut5 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("test")));
+  ASSERT_REPLY(fut2, "test");
+
+  std::vector<std::string> incoming = {"message", "random-channel", "payload-1"};
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
+  ASSERT_EQ(mq.size(), 1u);
+
+  incoming = {"pmessage", "pattern-*", "random-channel-2", "payload-2"};
+  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
+  ASSERT_EQ(mq.size(), 2u);
+
+  Message* item = nullptr;
+  auto it = mq.begin();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(item->getChannel(), "random-channel");
+  ASSERT_EQ(item->getPayload(), "payload-1");
+
+  it.next();
+  mq.pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+  ASSERT_EQ(mq.size(), 1u);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(item->getPattern(), "pattern-*");
+  ASSERT_EQ(item->getChannel(), "random-channel-2");
+  ASSERT_EQ(item->getPayload(), "payload-2");
+
+  it.next();
+  mq.pop_front();
+  ASSERT_EQ(mq.size(), 0u);
+
+  ASSERT_EQ(fut3.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_EQ(fut4.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_EQ(fut5.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 }
 
 TEST(EndpointDecider, BasicSanity) {

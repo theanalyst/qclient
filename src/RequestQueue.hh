@@ -114,6 +114,21 @@ public:
     queue.setBlockingMode(value);
   }
 
+  //----------------------------------------------------------------------------
+  // If we were to add a new element, what sequence number would it be assigned
+  // to?
+  //----------------------------------------------------------------------------
+  int64_t getNextSequenceNumber() const {
+    return queue.getNextSequenceNumber();
+  }
+
+  //----------------------------------------------------------------------------
+  // What is the size of the queue? Dummy item not included.
+  //----------------------------------------------------------------------------
+  size_t size() const {
+    return queue.size() - 1;
+  }
+
 private:
   void insertDummyRequest() {
     queue.emplace_back(nullptr, EncodedRequest(std::vector<std::string>{"dummy"}));

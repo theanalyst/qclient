@@ -195,6 +195,11 @@ public:
     return size() == 0u;
   }
 
+  int64_t getNextSequenceNumber() const {
+    std::lock_guard<std::mutex> lock(pushMutex);
+    return nextSequenceNumber;
+  }
+
 private:
   //----------------------------------------------------------------------------
   // Remove the root node, and make its child the root.

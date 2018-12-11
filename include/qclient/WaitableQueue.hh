@@ -110,6 +110,13 @@ public:
       return iterator.item();
     }
 
+    //--------------------------------------------------------------------------
+    // Return current position sequence number
+    //--------------------------------------------------------------------------
+    int64_t seq() const {
+      return iterator.seq();
+    }
+
     void next() {
       iterator.next();
     }
@@ -173,6 +180,14 @@ public:
   //----------------------------------------------------------------------------
   Iterator begin() {
     return Iterator(this);
+  }
+
+  //----------------------------------------------------------------------------
+  // If we were to add a new element, what sequence number would it be assigned
+  // to?
+  //----------------------------------------------------------------------------
+  int64_t getNextSequenceNumber() const {
+    return queue.getNextSequenceNumber();
   }
 
 private:

@@ -30,6 +30,7 @@
 #include "FutureHandler.hh"
 #include "CallbackExecutorThread.hh"
 #include "qclient/Logger.hh"
+#include "qclient/MessageListener.hh"
 
 namespace qclient {
 
@@ -60,12 +61,18 @@ public:
   void setBlockingMode(bool value);
   StagedRequest* getNextToWrite();
   void clearAllPending();
+  void enterSubscriptionMode(MessageListener *listener);
+  void trimQueueDuringPubsub();
 
 private:
   Logger *logger;
   Handshake *handshake;
   BackpressureApplier backpressure;
   RetryStrategy retryStrategy;
+  MessageListener *listener = nullptr;
+
+  bool enteredPubsub = false;
+  std::atomic<int64_t> pubsubThreshold {-1};
 
   void acknowledgePending(redisReplyPtr &&reply);
   size_t ignoredResponses = 0u;

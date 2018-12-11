@@ -54,7 +54,9 @@ TYPED_TEST_CASE(Thread_Safe_Queue, Implementations);
 
 TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
   ASSERT_TRUE(this->queue.empty());
+  ASSERT_EQ(this->queue.getNextSequenceNumber(), 0);
   ASSERT_EQ(0, this->queue.emplace_back(1, 2));
+  ASSERT_EQ(this->queue.getNextSequenceNumber(), 1);
   ASSERT_FALSE(this->queue.empty());
   auto it = this->queue.begin();
   ASSERT_EQ(it.seq(), 0);
@@ -70,6 +72,7 @@ TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
   ASSERT_TRUE(this->queue.empty());
 
   ASSERT_EQ(1, this->queue.emplace_back(2, 3));
+  ASSERT_EQ(this->queue.getNextSequenceNumber(), 2);
   ASSERT_FALSE(this->queue.empty());
 
   coord = &it.item();
@@ -82,6 +85,7 @@ TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
 
   for(int i = 0; i < 100; i++) {
     ASSERT_EQ(2 + i, this->queue.emplace_back(i*i, i*i+1));
+    ASSERT_EQ(this->queue.getNextSequenceNumber(), i+3);
     ASSERT_FALSE(this->queue.empty());
   }
 
