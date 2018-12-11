@@ -26,6 +26,8 @@
 
 #include "Members.hh"
 #include "Options.hh"
+#include <set>
+#include <mutex>
 
 namespace qclient {
 
@@ -81,6 +83,10 @@ private:
   Members members;
   std::shared_ptr<MessageListener> listener;
   SubscriptionOptions options;
+
+  std::mutex mtx;
+  std::set<std::string> channels;
+  std::set<std::string> patterns;
 };
 
 }

@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: MessageQueue.hh
+//------------------------------------------------------------------------------
+// File: ReconnectionListener.hh
 // Author: Georgios Bitzes - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,43 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_PUBSUB_MESSAGE_QUEUE_HH
-#define QCLIENT_PUBSUB_MESSAGE_QUEUE_HH
-
-#include "qclient/WaitableQueue.hh"
-#include "qclient/MessageListener.hh"
+#ifndef QCLIENT_RECONNECTION_LISTENER_HH
+#define QCLIENT_RECONNECTION_LISTENER_HH
 
 namespace qclient {
 
-class MessageQueue : public MessageListener {
+class ReconnectionListener {
 public:
-  using Iterator = WaitableQueue<Message, 100>::Iterator;
-
-  virtual void handleIncomingMessage(Message&& msg) override {
-    queue.emplace_back(std::move(msg));
-  }
-
-  void setBlockingMode(bool value) {
-    queue.setBlockingMode(value);
-  }
-
-  void pop_front() {
-    queue.pop_front();
-  }
-
-  Iterator begin() {
-    return queue.begin();
-  }
-
-  size_t size() const {
-    return queue.size();
-  }
-
-private:
-  qclient::WaitableQueue<Message, 100> queue;
-
+  virtual ~ReconnectionListener() {}
+  virtual void notifyConnectionLost(int64_t epoch, int errc, const std::string &msg) = 0;
+  virtual void notifyConnectionEstablished(int64_t epoch) = 0;
 };
-
 
 }
 

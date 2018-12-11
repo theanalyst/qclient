@@ -235,10 +235,13 @@ private:
   bool handleConnectionEpoch(ThreadAssistant &assistant);
   bool shouldPurgePendingRequests();
   ResponseBuilder responseBuilder;
+  int64_t currentConnectionEpoch = 0u;
 
   void cleanup();
   bool feed(const char* buf, size_t len);
   void connectTCP();
+  void notifyConnectionLost(int errc, const std::string &err);
+  void notifyConnectionEstablished();
 
   std::unique_ptr<ConnectionHandler> connectionHandler;
   EventFD shutdownEventFD;

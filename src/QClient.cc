@@ -31,6 +31,7 @@
 #include <sstream>
 #include <iterator>
 #include "qclient/ConnectionInitiator.hh"
+#include "qclient/ReconnectionListener.hh"
 #include "qclient/Logger.hh"
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
@@ -267,6 +268,7 @@ void QClient::connectTCP()
     return;
   }
 
+  notifyConnectionEstablished();
   writerThread->activate(networkStream.get());
 }
 
@@ -275,8 +277,8 @@ void QClient::connectTCP()
 //------------------------------------------------------------------------------
 void QClient::connect()
 {
+  currentConnectionEpoch++;
   cleanup();
-
   untranslatedTargetEndpoint = endpointDecider->getNext();
   targetEndpoint = GlobalInterceptor::translate(untranslatedTargetEndpoint);
 
@@ -334,6 +336,24 @@ void QClient::notifyFaultInjectionsUpdated() {
 }
 
 //------------------------------------------------------------------------------
+// Notify that a connection has been established
+//------------------------------------------------------------------------------
+void QClient::notifyConnectionEstablished() {
+  if(options.reconnectionListener) {
+    options.reconnectionListener->notifyConnectionEstablished(currentConnectionEpoch);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Notify that a connection has been lost
+//------------------------------------------------------------------------------
+void QClient::notifyConnectionLost(int errc, const std::string &err) {
+  if(options.reconnectionListener) {
+    options.reconnectionListener->notifyConnectionLost(currentConnectionEpoch, errc, err);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Handles a single "connection epoch". If the current socket breaks, we return
 // and let the parent handle the error.
 //
@@ -371,6 +391,7 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
 
     if( (polls[0].revents != 0 && faultInjector.hasPartition(untranslatedTargetEndpoint))
         || assistant.terminationRequested()) {
+      notifyConnectionLost(0, "shutdown requested");
       break;
     }
 
@@ -382,11 +403,16 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
     }
 
     if(status.bytesRead > 0 && !feed(buffer, status.bytesRead)) {
+      notifyConnectionLost(EINVAL, "protocol violation");
       break; // protocol violation
     }
     else {
       receivedBytes = true;
     }
+  }
+
+  if(!networkStream->ok()) {
+    notifyConnectionLost(networkStream->getErrno(), networkStream->getError());
   }
 
   return receivedBytes;

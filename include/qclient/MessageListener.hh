@@ -30,12 +30,8 @@ namespace qclient {
 
 class MessageListener {
 public:
-  MessageListener() {}
   virtual ~MessageListener() {}
-
   virtual void handleIncomingMessage(Message&& msg) = 0;
-  virtual void notifyConnectionEstablished() = 0;
-  virtual void notifyConnectionLost() = 0;
 };
 
 }
