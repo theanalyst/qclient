@@ -25,6 +25,7 @@
 #define QCLIENT_RESPONSE_BUILDER_HH
 
 #include "qclient/Reply.hh"
+#include <vector>
 
 namespace qclient {
 
@@ -48,6 +49,8 @@ public:
   static redisReplyPtr makeInt(int val);
   static redisReplyPtr makeErr(const std::string &msg);
   static redisReplyPtr makeStr(const std::string &msg);
+  static redisReplyPtr makeStringArray(const std::vector<std::string> &msg);
+  static redisReplyPtr makeArr(const std::string &str1, const std::string &str2, int num);
 
 private:
   struct Deleter {

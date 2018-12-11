@@ -65,27 +65,53 @@ redisReplyPtr ResponseBuilder::makeInt(int val) {
   ResponseBuilder builder;
   builder.feed(SSTR(":" << val << "\r\n"));
 
-  redisReplyPtr out;
-  builder.pull(out);
-  return out;
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
 }
 
 redisReplyPtr ResponseBuilder::makeErr(const std::string &msg) {
   ResponseBuilder builder;
   builder.feed(SSTR("-" << msg << "\r\n"));
 
-  redisReplyPtr out;
-  builder.pull(out);
-  return out;
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
 }
 
 redisReplyPtr ResponseBuilder::makeStr(const std::string &msg) {
   ResponseBuilder builder;
   builder.feed(SSTR("$" << msg.size() << "\r\n" << msg << "\r\n"));
 
-  redisReplyPtr out;
-  builder.pull(out);
-  return out;
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
+}
+
+redisReplyPtr ResponseBuilder::makeStringArray(const std::vector<std::string> &msg) {
+  ResponseBuilder builder;
+  builder.feed(SSTR("*" << msg.size() << "\r\n"));
+
+  for(size_t i = 0; i < msg.size(); i++) {
+    builder.feed(SSTR("$" << msg[i].size() << "\r\n" << msg[i] << "\r\n"));
+  }
+
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
+}
+
+redisReplyPtr ResponseBuilder::makeArr(const std::string &str1, const std::string &str2, int num) {
+  ResponseBuilder builder;
+  builder.feed("*3\r\n");
+
+  builder.feed(SSTR("$" << str1.size() << "\r\n" << str1 << "\r\n"));
+  builder.feed(SSTR("$" << str2.size() << "\r\n" << str2 << "\r\n"));
+  builder.feed(SSTR(":" << num << "\r\n"));
+
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
 }
 
 }

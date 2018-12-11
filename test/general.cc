@@ -102,6 +102,38 @@ TEST(ResponseBuilder, MakeStr) {
   ASSERT_EQ(std::string(reply->str, reply->len), "test test 123");
 }
 
+TEST(ResponseBuilder, MakeStringArray) {
+  redisReplyPtr reply = ResponseBuilder::makeStringArray( {"test", "abc", "asdf"} );
+  ASSERT_NE(reply, nullptr);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_ARRAY);
+  ASSERT_EQ(reply->elements, 3u);
+
+  ASSERT_EQ(reply->element[0]->type, REDIS_REPLY_STRING);
+  ASSERT_EQ(reply->element[1]->type, REDIS_REPLY_STRING);
+  ASSERT_EQ(reply->element[2]->type, REDIS_REPLY_STRING);
+
+  ASSERT_EQ(std::string(reply->element[0]->str, reply->element[0]->len), "test");
+  ASSERT_EQ(std::string(reply->element[1]->str, reply->element[1]->len), "abc");
+  ASSERT_EQ(std::string(reply->element[2]->str, reply->element[2]->len), "asdf");
+}
+
+TEST(ResponseBuilder, MakeArrayStrStrInt) {
+  redisReplyPtr reply = ResponseBuilder::makeArr("element1", "element2", 7);
+  ASSERT_NE(reply, nullptr);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_ARRAY);
+  ASSERT_EQ(reply->elements, 3u);
+
+  ASSERT_EQ(reply->element[0]->type, REDIS_REPLY_STRING);
+  ASSERT_EQ(reply->element[1]->type, REDIS_REPLY_STRING);
+  ASSERT_EQ(reply->element[2]->type, REDIS_REPLY_INTEGER);
+
+  ASSERT_EQ(std::string(reply->element[0]->str, reply->element[0]->len), "element1");
+  ASSERT_EQ(std::string(reply->element[1]->str, reply->element[1]->len), "element2");
+  ASSERT_EQ(reply->element[2]->integer, 7);
+}
+
 TEST(ConnectionHandler, NoRetries) {
   ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
 
