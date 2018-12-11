@@ -24,6 +24,7 @@
 #include "MessageParser.hh"
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/Message.hh"
+#include "qclient/pubsub/MessageQueue.hh"
 #include "gtest/gtest.h"
 
 using namespace qclient;
@@ -83,5 +84,26 @@ TEST(MessageParser, kPatternUnsubscribe) {
   ASSERT_EQ(msg.getMessageType(), MessageType::kPatternUnsubscribe);
   ASSERT_EQ(msg.getPattern(), "p*");
   ASSERT_EQ(msg.getActiveSubscriptions(), 9999);
+}
+
+TEST(MessageQueue, BasicSanity) {
+  MessageQueue queue;
+
+  Message msg;
+  std::vector<std::string> vec = { "message", "mychannel", "test" };
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeStringArray(vec), msg));
+
+  queue.handleIncomingMessage(std::move(msg));
+  ASSERT_EQ(queue.size(), 1u);
+
+  auto it = queue.begin();
+  ASSERT_TRUE(it.itemHasArrived());
+  ASSERT_EQ(it.item().getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(it.item().getChannel(), "mychannel");
+
+  it.next();
+  queue.pop_front();
+
+  ASSERT_EQ(queue.size(), 0u);
 }
 
