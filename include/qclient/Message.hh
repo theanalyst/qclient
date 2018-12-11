@@ -28,41 +28,79 @@
 
 namespace qclient {
 
+class MessageParser;
+
+enum class MessageType {
+  kSubscribe,
+  kPatternSubscribe,
+  kUnsubscribe,
+  kPatternUnsubscribe,
+  kMessage,
+  kPatternMessage
+};
+
 //------------------------------------------------------------------------------
-//! This class models a received redis pub/sub message. If pattern is empty,
-//! then this is a simple message - if not, it's a pmessage matching a
-//! requested channel pattern.
+//! This class models a received redis pub/sub message. Depending on the
+//! type of message, the following fields are filled out:
+//!
+//! - kSubscribe, kUnsubscribe
+//!       messageType, activeSubscriptions, channel
+//! - kPatternSubscribe, kPatternUnsubscribe
+//!       messageType, activeSubscriptions, pattern
+//! - kMessage,
+//!       messageType, channel, contents
+//! - kPatternMessage
+//!       messageType, channel, contents, pattern
 //------------------------------------------------------------------------------
 class Message {
 public:
-  Message(const std::string &pattern, const std::string &ch,
-  const std::string &cont)
-  : matchedPattern(pattern), channel(ch), contents(cont) {}
+  //----------------------------------------------------------------------------
+  //! Empty constructor.
+  //----------------------------------------------------------------------------
+  Message() {}
 
-  Message(std::string &&pattern, std::string &&ch, std::string &&cont)
-  : matchedPattern(std::move(pattern)), channel(std::move(ch)),
-  contents(std::move(cont)) {}
-
-  bool isFromPattern() const {
-    return ! matchedPattern.empty();
+  MessageType getMessageType() const {
+    return messageType;
   }
 
-  const std::string& getMatchedPattern() const {
-    return matchedPattern;
+  bool hasPattern() const {
+    return ! pattern.empty();
+  }
+
+  const std::string& getPattern() const {
+    return pattern;
   }
 
   const std::string& getChannel() const {
     return channel;
   }
 
-  const std::string& getContents() const {
-    return contents;
+  const std::string& getPayload() const {
+    return payload;
+  }
+
+  int getActiveSubscriptions() const {
+    return activeSubscriptions;
+  }
+
+  void clear() {
+    messageType = MessageType::kSubscribe;
+    activeSubscriptions = 0;
+
+    pattern.clear();
+    channel.clear();
+    payload.clear();
   }
 
 private:
-  const std::string matchedPattern;
-  const std::string channel;
-  const std::string contents;
+  friend class MessageParser;
+
+  MessageType messageType = MessageType::kSubscribe;
+  int activeSubscriptions = 0u;
+
+  std::string pattern;
+  std::string channel;
+  std::string payload;
 };
 
 }

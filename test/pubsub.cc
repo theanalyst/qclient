@@ -1,0 +1,87 @@
+// ----------------------------------------------------------------------
+// File: pubsub.cc
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * qclient - A simple redis C++ client with support for redirects       *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include "MessageParser.hh"
+#include "qclient/ResponseBuilder.hh"
+#include "qclient/Message.hh"
+#include "gtest/gtest.h"
+
+using namespace qclient;
+
+TEST(MessageParser, ParseFailure) {
+  Message msg;
+  ASSERT_FALSE(MessageParser::parse(ResponseBuilder::makeStr("adfaf"), msg));
+  ASSERT_FALSE(MessageParser::parse(ResponseBuilder::makeInt(3), msg));
+}
+
+TEST(MessageParser, kMessage) {
+  Message msg;
+  std::vector<std::string> vec = { "message", "mychannel", "test" };
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeStringArray(vec), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(msg.getChannel(), "mychannel");
+  ASSERT_EQ(msg.getPayload(), "test");
+}
+
+TEST(MessageParser, kPatternMessage) {
+  Message msg;
+  std::vector<std::string> vec = { "pmessage", "pattern*", "channel-name", "aaa" };
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeStringArray(vec), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(msg.getPattern(), "pattern*");
+  ASSERT_EQ(msg.getChannel(), "channel-name");
+  ASSERT_EQ(msg.getPayload(), "aaa");
+}
+
+TEST(MessageParser, kSubscribe) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("subscribe", "chan", 4), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kSubscribe);
+  ASSERT_EQ(msg.getChannel(), "chan");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 4);
+}
+
+TEST(MessageParser, kPatternSubscribe) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("psubscribe", "chan2", 3), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kPatternSubscribe);
+  ASSERT_EQ(msg.getPattern(), "chan2");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 3);
+}
+
+TEST(MessageParser, kUnsubscribe) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("unsubscribe", "mychan", 99), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kUnsubscribe);
+  ASSERT_EQ(msg.getChannel(), "mychan");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 99);
+}
+
+TEST(MessageParser, kPatternUnsubscribe) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("punsubscribe", "p*", 9999), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kPatternUnsubscribe);
+  ASSERT_EQ(msg.getPattern(), "p*");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 9999);
+}
+

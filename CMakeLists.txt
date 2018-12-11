@@ -79,6 +79,7 @@ add_library(qclient STATIC
   src/FutureHandler.cc
   src/GlobalInterceptor.cc
   src/Handshake.cc
+  src/MessageParser.cc
   src/NetworkStream.cc
   src/Options.cc
   src/QClient.cc

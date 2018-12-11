@@ -15,6 +15,7 @@ add_executable(
   formatting.cc
   general.cc
   network-stream.cc
+  pubsub.cc
   thread-safe-queue.cc
 )
 
