@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: CallbackExecutorThread.cc
+// File: Debug.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,42 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "CallbackExecutorThread.hh"
+#ifndef QCLIENT_DEBUG_HH
+#define QCLIENT_DEBUG_HH
 
-using namespace qclient;
+#include <iostream>
+#include <string>
 
-CallbackExecutorThread::CallbackExecutorThread()
-: thread(&CallbackExecutorThread::main, this) {}
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
-CallbackExecutorThread::~CallbackExecutorThread() {
-  thread.stop();
-  pendingCallbacks.setBlockingMode(false);
-  thread.join();
-}
-
-void CallbackExecutorThread::main(ThreadAssistant &assistant) {
-  auto frontier = pendingCallbacks.begin();
-
-  while(true) {
-    if(assistant.terminationRequested() && !frontier.itemHasArrived()) {
-      //------------------------------------------------------------------------
-      // Even if termination is requested, we don't quit until all callbacks
-      // have been serviced! We don't want any hanging futures, for example.
-      //------------------------------------------------------------------------
-      break;
-    }
-
-    PendingCallback *cb = frontier.getItemBlockOrNull();
-    if(!cb) continue;
-    if(cb->callback) {
-      cb->callback->handleResponse(std::move(cb->reply));
-    }
-
-    frontier.next();
-    pendingCallbacks.pop_front();
-  }
-}
-
-void CallbackExecutorThread::stage(QCallback *callback, redisReplyPtr &&response) {
-  pendingCallbacks.emplace_back(callback, std::move(response));
-}
+#endif

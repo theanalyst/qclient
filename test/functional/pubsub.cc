@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: test-config.hh
-// Author: Georgios Bitzes - CERN
+// File: pubsub.cc
+// Author: Georgios Bitzes <georgios.bitzes@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,27 +21,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_TEST_CONFIG_H__
-#define __QCLIENT_TEST_CONFIG_H__
+#include "test-config.hh"
+#include "qclient/BaseSubscriber.hh"
+#include "qclient/pubsub/MessageQueue.hh"
+#include <gtest/gtest.h>
 
-#include <string>
-#include <iostream>
-#include <vector>
-#include "qclient/QClient.hh"
+using namespace qclient;
 
-extern char **environ;
+TEST(BaseSubscriber, BasicSanity) {
+  std::shared_ptr<MessageQueue> listener { new MessageQueue() };
 
-struct TestConfig {
-  // parse environment variables to give the possibility to override defaults
-  TestConfig();
-  void parseSingle(const std::string &key, const std::string &value);
+  Members members(testconfig.host, testconfig.port);
+  BaseSubscriber subscriber(members, listener, {} );
+  subscriber.subscribe( {"pickles"} );
 
-  std::string host = "localhost";
-  int port = 6379;
+  std::this_thread::sleep_for(std::chrono::seconds(1)); // TODO: fix
+  ASSERT_EQ(listener->size(), 1u);
 
-  qclient::TlsConfig tlsconfig;
-};
+  Message* item = nullptr;
+  auto it = listener->begin();
 
-extern TestConfig testconfig;
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
 
-#endif
+  ASSERT_EQ(item->getMessageType(), MessageType::kSubscribe);
+  ASSERT_EQ(item->getChannel(), "pickles");
+  ASSERT_EQ(item->getActiveSubscriptions(), 1);
+
+  it.next();
+  listener->pop_front();
+
+  // TODO: uncomment the code below
+  // ASSERT_EQ(listener->size(), 0u);
+  // subscriber.subscribe( {"test-2"} );
+  // std::this_thread::sleep_for(std::chrono::seconds(1));
+  // ASSERT_EQ(listener->size(), 1u);
+
+  // item = it.getItemBlockOrNull();
+  // ASSERT_NE(item, nullptr);
+
+  // ASSERT_EQ(item->getMessageType(), MessageType::kPatternSubscribe);
+  // ASSERT_EQ(item->getPattern(), "test-*");
+  // ASSERT_EQ(item->getActiveSubscriptions(), 2);
+
+  // it.next();
+  // listener->pop_front();
+}

@@ -43,10 +43,12 @@ private:
   BaseSubscriber *subscriber = nullptr;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Make QClient options
-//----------------------------------------------------------------------------
-static Options makeOptions(SubscriptionOptions &&opts) {
+//------------------------------------------------------------------------------
+static Options makeOptions(SubscriptionOptions &&opts,
+  std::shared_ptr<MessageListener> listener) {
+
   qclient::Options options;
   options.tlsconfig = opts.tlsconfig;
   options.handshake = std::move(opts.handshake);
@@ -54,15 +56,16 @@ static Options makeOptions(SubscriptionOptions &&opts) {
   options.ensureConnectionIsPrimed = true;
   options.retryStrategy = RetryStrategy::NoRetries();
   options.backpressureStrategy = BackpressureStrategy::Default();
+  options.messageListener = listener;
   return options;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Constructor taking a list of members for the cluster
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 BaseSubscriber::BaseSubscriber(const Members &memb,
   std::shared_ptr<MessageListener> list, SubscriptionOptions &&opt)
-: members(memb), listener(list),  qcl(members, makeOptions(std::move(opt))) {
+: members(memb), listener(list), qcl(members, makeOptions(std::move(opt), list)) {
 
   // Invalid listener?
   if(!listener) {
@@ -72,48 +75,115 @@ BaseSubscriber::BaseSubscriber(const Members &memb,
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+BaseSubscriber::~BaseSubscriber() { }
+
+//------------------------------------------------------------------------------
 // Notify of a reconnection in the underlying qclient - re-subscribe
 //------------------------------------------------------------------------------
 void BaseSubscriber::notifyConnectionEstablished(int64_t epoch) {
   std::unique_lock<std::mutex> lock(mtx);
 
+  std::vector<std::string> payloadChannels = {"subscribe"};
+  for(auto it = channels.begin(); it != channels.end(); it++) {
+    payloadChannels.emplace_back(*it);
+  }
 
+  std::vector<std::string> payloadPatterns = {"psubscribe"};
+  for(auto it = patterns.begin(); it != patterns.end(); it++) {
+    payloadPatterns.emplace_back(*it);
+  }
+
+
+  if(payloadChannels.size() != 1) {
+    qcl.execute(nullptr, payloadChannels);
+  }
+
+  if(payloadPatterns.size() != 1) {
+    qcl.execute(nullptr, payloadPatterns);
+  }
 }
 
 //------------------------------------------------------------------------------
 // Subscribe to the given channels, in addition to any other subscriptions
 // we may currently have.
 //------------------------------------------------------------------------------
-void BaseSubscriber::subscribe(const std::vector<std::string> &channels) {
+void BaseSubscriber::subscribe(const std::vector<std::string> &newChannels) {
   std::unique_lock<std::mutex> lock(mtx);
 
+  std::vector<std::string> payload = {"subscribe"};
+
+  for(auto it = newChannels.begin(); it != newChannels.end(); it++) {
+    if(channels.find(*it) == channels.end()) {
+      payload.emplace_back(*it);
+      channels.emplace(*it);
+    }
+  }
+
+  if(payload.size() != 1) {
+    qcl.execute(nullptr, payload);
+  }
 }
 
 //------------------------------------------------------------------------------
 // Subscribe to the given patterns, in addition to any other subscriptions
 // we may currently have.
 //------------------------------------------------------------------------------
-void BaseSubscriber::psubscribe(const std::vector<std::string> &patterns) {
+void BaseSubscriber::psubscribe(const std::vector<std::string> &newPatterns) {
   std::unique_lock<std::mutex> lock(mtx);
 
+  std::vector<std::string> payload = {"psubscribe"};
+  for(auto it = newPatterns.begin(); it != newPatterns.end(); it++) {
+    if(patterns.find(*it) == patterns.end()) {
+      payload.emplace_back(*it);
+      patterns.emplace(*it);
+    }
+  }
+
+  if(patterns.size() != 1) {
+    qcl.execute(nullptr, payload);
+  }
 }
 
 //------------------------------------------------------------------------------
 // Unsubscribe from the given channels. If an empty vector is given, we are
 // unsubscribed from all channels. (but not patterns!)
 //------------------------------------------------------------------------------
-void BaseSubscriber::unsubscribe(const std::vector<std::string> &channels) {
+void BaseSubscriber::unsubscribe(const std::vector<std::string> &remChannels) {
   std::unique_lock<std::mutex> lock(mtx);
 
+  std::vector<std::string> payload = {"unsubscribe"};
+  for(auto it = remChannels.begin(); it != remChannels.end(); it++) {
+    payload.emplace_back(*it);
+    channels.erase(*it);
+  }
+
+  if(remChannels.size() == 0) {
+    channels.clear();
+  }
+
+  qcl.execute(nullptr, payload);
 }
 
 //------------------------------------------------------------------------------
 // Unsubscribe from the given patterns. If an empty vector is given, we are
 // unsubscribed from all patterns. (but not channels!)
 //------------------------------------------------------------------------------
-void BaseSubscriber::punsubscribe(const std::vector<std::string> &patterns) {
+void BaseSubscriber::punsubscribe(const std::vector<std::string> &remPatterns) {
   std::unique_lock<std::mutex> lock(mtx);
 
+  std::vector<std::string> payload = {"punsubscribe"};
+  for(auto it = remPatterns.begin(); it != remPatterns.end(); it++) {
+    payload.emplace_back(*it);
+    patterns.erase(*it);
+  }
+
+  if(remPatterns.size() == 0) {
+    patterns.clear();
+  }
+
+  qcl.execute(nullptr, payload);
 }
 
 }

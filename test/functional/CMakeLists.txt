@@ -9,8 +9,9 @@ include_directories(
 add_executable(
   qclient-functional-tests
   hash.cc
-  set.cc
   ping.cc
+  pubsub.cc
+  set.cc
   test-config.cc
 )
 

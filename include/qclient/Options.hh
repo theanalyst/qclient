@@ -34,6 +34,7 @@ namespace qclient {
 class Handshake;
 class Logger;
 class ReconnectionListener;
+class MessageListener;
 
 //------------------------------------------------------------------------------
 //! This struct specifies how to rate-limit writing into QClient.
@@ -224,6 +225,12 @@ public:
   //! notifications whenever a connection is established, or lost.
   //----------------------------------------------------------------------------
   std::shared_ptr<ReconnectionListener> reconnectionListener;
+
+  //----------------------------------------------------------------------------
+  //! Specifies the message listener to use - activates pub-sub mode on this
+  //! qclient object.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<MessageListener> messageListener;
 
   //----------------------------------------------------------------------------
   //! Fluent interface: Chain a handshake. Explicit transfer of ownership to
