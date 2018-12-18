@@ -30,11 +30,11 @@
 #include "FutureHandler.hh"
 #include "CallbackExecutorThread.hh"
 #include "qclient/Logger.hh"
-#include "qclient/MessageListener.hh"
 
 namespace qclient {
 
 class Handshake;
+class MessageListener;
 
 //------------------------------------------------------------------------------
 // Handles a particular connection, deciding what should be written into the
@@ -43,7 +43,8 @@ class Handshake;
 //------------------------------------------------------------------------------
 class ConnectionCore {
 public:
-  ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy backpressure, RetryStrategy rs);
+  ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy backpressure,
+    RetryStrategy rs, MessageListener *listener = nullptr);
   ~ConnectionCore();
   void reconnection();
 
@@ -61,8 +62,6 @@ public:
   void setBlockingMode(bool value);
   StagedRequest* getNextToWrite();
   void clearAllPending();
-  void enterSubscriptionMode(MessageListener *listener);
-  void trimQueueDuringPubsub();
 
 private:
   Logger *logger;
@@ -70,9 +69,6 @@ private:
   BackpressureApplier backpressure;
   RetryStrategy retryStrategy;
   MessageListener *listener = nullptr;
-
-  bool enteredPubsub = false;
-  std::atomic<int64_t> pubsubThreshold {-1};
 
   void acknowledgePending(redisReplyPtr &&reply);
   size_t ignoredResponses = 0u;

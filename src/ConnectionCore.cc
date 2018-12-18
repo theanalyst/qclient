@@ -24,13 +24,15 @@
 #include "ConnectionCore.hh"
 #include "MessageParser.hh"
 #include "qclient/Handshake.hh"
+#include "qclient/MessageListener.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
 namespace qclient {
 
-ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs)
-: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs) {
+ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs,
+  MessageListener *ms)
+: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs), listener(ms) {
   reconnection();
 }
 
@@ -94,37 +96,6 @@ void ConnectionCore::reconnection() {
   ignoredResponses = 0u;
   nextToWriteIterator = requestQueue.begin();
   nextToAcknowledgeIterator = requestQueue.begin();
-
-  //----------------------------------------------------------------------------
-  // Reset connection mode to request / response, no listener.
-  //----------------------------------------------------------------------------
-  listener = nullptr;
-  pubsubThreshold = std::numeric_limits<int64_t>::max();
-  enteredPubsub = false;
-}
-
-//------------------------------------------------------------------------------
-// Declare that the connection is now in subscription mode - all received
-// messages will go through the message listener.
-//
-// The registered listener resets during reconnection, you need to call this
-// method again after each reconnection.
-//
-// Method can be called ONLY when no retry strategy is configured. Makes no
-// sense to have retries enabled on a connection meant for pubsub.
-//
-// If there are any pending unacknowledged requests while this method is called,
-// they will be satisfied as normal, but no more "normal" requests can be
-// staged after that, unless there's a reconnection.
-//
-// After entering subscription mode, only use ::stage with a null callback!
-// No normal callbacks will be serviced, everything will go through the
-// MessageListener.
-//------------------------------------------------------------------------------
-void ConnectionCore::enterSubscriptionMode(MessageListener *list) {
-  std::lock_guard<std::mutex> lock(mtx);
-  listener = list;
-  pubsubThreshold = requestQueue.getNextSequenceNumber();
 }
 
 void ConnectionCore::clearAllPending() {
@@ -213,17 +184,9 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
     qclient_assert("should never happen");
   }
 
-  if(listener && !enteredPubsub && nextToAcknowledgeIterator.seq() >= pubsubThreshold) {
+  if(listener) {
     //--------------------------------------------------------------------------
-    // Entering pubsub mode.. from now on, no more responses to "normal"
-    // requests will be delivered.
-    //--------------------------------------------------------------------------
-    enteredPubsub = true;
-  }
-
-  if(enteredPubsub) {
-    //--------------------------------------------------------------------------
-    // We're fully in pub-sub mode, deliver replies to message listener.
+    // We're in pub-sub mode, deliver replies to message listener.
     //--------------------------------------------------------------------------
     Message msg;
     if(!MessageParser::parse(std::move(reply), msg)) {
@@ -280,9 +243,8 @@ StagedRequest* ConnectionCore::getNextToWrite() {
   }
 
   StagedRequest *item = nextToWriteIterator.getItemBlockOrNull();
-  if(!item) return nullptr;
 
-  if (nextToWriteIterator.seq() >= pubsubThreshold) {
+  if (listener) {
     //--------------------------------------------------------------------------
     // The connection is in pub-sub mode, which means normal requests are no
     // longer being acknowledged. The request queue can potentially grow to
@@ -296,6 +258,7 @@ StagedRequest* ConnectionCore::getNextToWrite() {
     }
   }
 
+  if(!item) return nullptr;
   nextToWriteIterator.next();
   return item;
 }

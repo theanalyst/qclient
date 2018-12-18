@@ -244,27 +244,18 @@ TEST(ConnectionCore, BadHandshakeResponse) {
 
 TEST(ConnectionCore, PubSubModeWithHandshakeNoRetries) {
   PingHandshake handshake("hi there");
+
+  MessageQueue mq;
   ConnectionCore core(nullptr, &handshake,
-    BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+    BackpressureStrategy::Default(), RetryStrategy::NoRetries(), &mq);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("asdf", "1234"));
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("hi there")));
-
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("chickens")));
-  ASSERT_REPLY(fut1, "chickens");
-
-  std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("qqqq", "adsf"));
-
-  MessageQueue mq;
-  core.enterSubscriptionMode(&mq);
 
   // should remain pending forever
   std::future<redisReplyPtr> fut3 = core.stage(EncodedRequest::make("qqqq", "adsf"));
   std::future<redisReplyPtr> fut4 = core.stage(EncodedRequest::make("qqqq", "adsf"));
   std::future<redisReplyPtr> fut5 = core.stage(EncodedRequest::make("qqqq", "adsf"));
-
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("test")));
-  ASSERT_REPLY(fut2, "test");
 
   std::vector<std::string> incoming = {"message", "random-channel", "payload-1"};
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
