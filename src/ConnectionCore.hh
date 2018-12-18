@@ -71,6 +71,7 @@ private:
   MessageListener *listener = nullptr;
 
   void acknowledgePending(redisReplyPtr &&reply);
+  void discardPending();
   size_t ignoredResponses = 0u;
 
   WaitableQueue<StagedRequest, 15> handshakeRequests;

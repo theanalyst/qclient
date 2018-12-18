@@ -116,7 +116,7 @@ private:
   void initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes);
 
   struct Deleter {
-    void operator()(char* b) { free(b); }
+    void operator()(char* b) { if(b) { free(b); } }
   };
 
   std::unique_ptr<char, Deleter> buffer;

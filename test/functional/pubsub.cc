@@ -24,6 +24,7 @@
 #include "test-config.hh"
 #include "qclient/BaseSubscriber.hh"
 #include "qclient/pubsub/MessageQueue.hh"
+#include "qclient/Debug.hh"
 #include <gtest/gtest.h>
 
 using namespace qclient;
@@ -33,16 +34,17 @@ TEST(BaseSubscriber, BasicSanity) {
 
   Members members(testconfig.host, testconfig.port);
   BaseSubscriber subscriber(members, listener, {} );
+
+  ASSERT_EQ(listener->size(), 0u);
   subscriber.subscribe( {"pickles"} );
 
-  std::this_thread::sleep_for(std::chrono::seconds(1)); // TODO: fix
-  ASSERT_EQ(listener->size(), 1u);
-
+  listener->setBlockingMode(true);
   Message* item = nullptr;
-  auto it = listener->begin();
 
+  auto it = listener->begin();
   item = it.getItemBlockOrNull();
   ASSERT_NE(item, nullptr);
+  ASSERT_EQ(listener->size(), 1u);
 
   ASSERT_EQ(item->getMessageType(), MessageType::kSubscribe);
   ASSERT_EQ(item->getChannel(), "pickles");
@@ -52,18 +54,17 @@ TEST(BaseSubscriber, BasicSanity) {
   listener->pop_front();
 
   // TODO: uncomment the code below
-  // ASSERT_EQ(listener->size(), 0u);
-  // subscriber.subscribe( {"test-2"} );
-  // std::this_thread::sleep_for(std::chrono::seconds(1));
-  // ASSERT_EQ(listener->size(), 1u);
+  ASSERT_EQ(listener->size(), 0u);
+  subscriber.subscribe( {"test-2"} );
 
-  // item = it.getItemBlockOrNull();
-  // ASSERT_NE(item, nullptr);
+  item = it.getItemBlockOrNull();
+  ASSERT_EQ(listener->size(), 1u);
+  ASSERT_NE(item, nullptr);
 
-  // ASSERT_EQ(item->getMessageType(), MessageType::kPatternSubscribe);
-  // ASSERT_EQ(item->getPattern(), "test-*");
-  // ASSERT_EQ(item->getActiveSubscriptions(), 2);
+  ASSERT_EQ(item->getMessageType(), MessageType::kSubscribe);
+  ASSERT_EQ(item->getChannel(), "test-2");
+  ASSERT_EQ(item->getActiveSubscriptions(), 2);
 
-  // it.next();
-  // listener->pop_front();
+  it.next();
+  listener->pop_front();
 }

@@ -145,6 +145,10 @@ folly::Future<redisReplyPtr> ConnectionCore::follyStage(EncodedRequest &&req, si
 
 void ConnectionCore::acknowledgePending(redisReplyPtr &&reply) {
   cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
+  discardPending();
+}
+
+void ConnectionCore::discardPending() {
   nextToAcknowledgeIterator.next();
   requestQueue.pop_front();
   backpressure.release();
@@ -250,11 +254,8 @@ StagedRequest* ConnectionCore::getNextToWrite() {
     // longer being acknowledged. The request queue can potentially grow to
     // infinity - let's trim no-longer-needed items.
     //--------------------------------------------------------------------------
-    auto purgeIterator = requestQueue.begin();
-    while(nextToWriteIterator.seq() > purgeIterator.seq()) {
-      purgeIterator.next();
-      requestQueue.pop_front();
-      backpressure.release();
+    while(nextToWriteIterator.seq() > nextToAcknowledgeIterator.seq()) {
+      discardPending();
     }
   }
 
