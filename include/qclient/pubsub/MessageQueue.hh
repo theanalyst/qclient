@@ -55,7 +55,6 @@ public:
 
 private:
   qclient::WaitableQueue<Message, 100> queue;
-
 };
 
 

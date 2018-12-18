@@ -24,6 +24,7 @@
 #ifndef QCLIENT_BASE_SUBSCRIBER_HH
 #define QCLIENT_BASE_SUBSCRIBER_HH
 
+#include "qclient/QClient.hh"
 #include "Members.hh"
 #include "Options.hh"
 #include <set>
@@ -87,6 +88,13 @@ private:
   std::mutex mtx;
   std::set<std::string> channels;
   std::set<std::string> patterns;
+  qclient::QClient qcl;
+
+  //----------------------------------------------------------------------------
+  //! Notify of a reconnection in the underlying qclient
+  //----------------------------------------------------------------------------
+  friend class BaseSubscriberListener;
+  void notifyConnectionEstablished(int64_t epoch);
 };
 
 }

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ConnectionHandler.hh
+// File: ConnectionCore.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -41,10 +41,10 @@ class Handshake;
 // socket, and consumes bytes out of it. However, this class is decoupled from
 // the actual networking code.
 //------------------------------------------------------------------------------
-class ConnectionHandler {
+class ConnectionCore {
 public:
-  ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy backpressure, RetryStrategy rs);
-  ~ConnectionHandler();
+  ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy backpressure, RetryStrategy rs);
+  ~ConnectionCore();
   void reconnection();
 
   // Returns whether connection is still alive after consuming this response.

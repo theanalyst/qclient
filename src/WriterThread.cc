@@ -21,30 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <poll.h>
 #include "WriterThread.hh"
+#include "ConnectionCore.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/Logger.hh"
+#include <poll.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 using namespace qclient;
 
-WriterThread::WriterThread(Logger *log, ConnectionHandler &handler, EventFD &shutdownFD)
-: logger(log), connectionHandler(handler), shutdownEventFD(shutdownFD) { }
+WriterThread::WriterThread(Logger *log, ConnectionCore &core, EventFD &shutdownFD)
+: logger(log), connectionCore(core), shutdownEventFD(shutdownFD) { }
 
 WriterThread::~WriterThread() {
   deactivate();
 }
 
 void WriterThread::activate(NetworkStream *stream) {
-  connectionHandler.setBlockingMode(true);
+  connectionCore.setBlockingMode(true);
   thread.reset(&WriterThread::eventLoop, this, stream);
 }
 
 void WriterThread::deactivate() {
   thread.stop();
-  connectionHandler.setBlockingMode(false);
+  connectionCore.setBlockingMode(false);
   thread.join();
 }
 
@@ -81,7 +82,7 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
     // will block until there's something to write, or shutdown has been requested.
     if(beingProcessed == nullptr) {
       bytesWritten = 0;
-      beingProcessed = connectionHandler.getNextToWrite();
+      beingProcessed = connectionCore.getNextToWrite();
       if(!beingProcessed) continue;
     }
 

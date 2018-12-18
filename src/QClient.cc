@@ -36,7 +36,7 @@
 #include "NetworkStream.hh"
 #include "WriterThread.hh"
 #include "EndpointDecider.hh"
-#include "ConnectionHandler.hh"
+#include "ConnectionCore.hh"
 #include "qclient/GlobalInterceptor.hh"
 
 //------------------------------------------------------------------------------
@@ -86,16 +86,16 @@ QClient::~QClient()
 // over the network
 //------------------------------------------------------------------------------
 void QClient::execute(QCallback *callback, EncodedRequest &&req) {
-  connectionHandler->stage(callback, std::move(req));
+  connectionCore->stage(callback, std::move(req));
 }
 
 std::future<redisReplyPtr> QClient::execute(EncodedRequest &&req) {
-  return connectionHandler->stage(std::move(req));
+  return connectionCore->stage(std::move(req));
 }
 
 #if HAVE_FOLLY == 1
 folly::Future<redisReplyPtr> QClient::follyExecute(EncodedRequest &&req) {
-  return connectionHandler->follyStage(std::move(req));
+  return connectionCore->follyStage(std::move(req));
 }
 #endif
 
@@ -105,7 +105,7 @@ folly::Future<redisReplyPtr> QClient::follyExecute(EncodedRequest &&req) {
 void QClient::execute(QCallback *callback, std::deque<EncodedRequest> &&reqs) {
   size_t ignoredResponses = reqs.size() + 1;
 
-  connectionHandler->stage(
+  connectionCore->stage(
     callback,
     EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
     ignoredResponses
@@ -115,7 +115,7 @@ void QClient::execute(QCallback *callback, std::deque<EncodedRequest> &&reqs) {
 std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
   size_t ignoredResponses = reqs.size() + 1;
 
-  return connectionHandler->stage(
+  return connectionCore->stage(
     EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
     ignoredResponses
   );
@@ -125,7 +125,7 @@ std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
 folly::Future<redisReplyPtr> QClient::follyExecute(std::deque<EncodedRequest> &&req) {
   size_t ignoredResponses = req.size() + 1;
 
-  return connectionHandler->follyStage(
+  return connectionCore->follyStage(
     EncodedRequest::fuseIntoBlockAndSurround(std::move(req)),
     ignoredResponses
   );
@@ -153,8 +153,8 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  connectionHandler.reset(new ConnectionHandler(options.logger.get(), options.handshake.get(), options.backpressureStrategy, options.retryStrategy));
-  writerThread.reset(new WriterThread(options.logger.get(), *connectionHandler.get(), shutdownEventFD));
+  connectionCore.reset(new ConnectionCore(options.logger.get(), options.handshake.get(), options.backpressureStrategy, options.retryStrategy));
+  writerThread.reset(new WriterThread(options.logger.get(), *connectionCore.get(), shutdownEventFD));
   connect();
   eventLoopThread.reset(&QClient::eventLoop, this);
 }
@@ -196,7 +196,7 @@ bool QClient::feed(const char* buf, size_t len)
     }
 
     // "Normal" response, let the connection handler take care of it.
-    if(!connectionHandler->consumeResponse(std::move(rr))) {
+    if(!connectionCore->consumeResponse(std::move(rr))) {
       // An error has been signalled, this connection cannot go on.
       return false;
     }
@@ -245,10 +245,10 @@ void QClient::cleanup()
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
-    connectionHandler->clearAllPending();
+    connectionCore->clearAllPending();
   }
 
-  connectionHandler->reconnection();
+  connectionCore->reconnection();
 }
 
 //------------------------------------------------------------------------------

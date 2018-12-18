@@ -28,7 +28,7 @@
 #include "qclient/MultiBuilder.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/pubsub/MessageQueue.hh"
-#include "ConnectionHandler.hh"
+#include "ConnectionCore.hh"
 #include "ReplyMacros.hh"
 
 #include "gtest/gtest.h"
@@ -136,142 +136,142 @@ TEST(ResponseBuilder, MakeArrayStrStrInt) {
   ASSERT_EQ(reply->element[2]->integer, 7);
 }
 
-TEST(ConnectionHandler, NoRetries) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+TEST(ConnectionCore, NoRetries) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE test test")));
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "123"));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE test test")));
 
   ASSERT_REPLY(fut1, "UNAVAILABLE test test");
 }
 
-TEST(ConnectionHandler, BasicSanity) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+TEST(ConnectionCore, BasicSanity) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "asdf1"));
-  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("ping", "asdf2"));
-  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("ping", "asdf3"));
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "asdf1"));
+  std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("ping", "asdf2"));
+  std::future<redisReplyPtr> fut3 = core.stage(EncodedRequest::make("ping", "asdf3"));
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(5)));
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(5)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(9)));
 
   ASSERT_REPLY(fut1, 5);
   ASSERT_REPLY(fut2, 7);
   ASSERT_REPLY(fut3, 9);
 }
 
-TEST(ConnectionHandler, Overflow) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+TEST(ConnectionCore, Overflow) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "123"));
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "123"));
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
 }
 
-TEST(ConnectionHandler, IgnoredResponses) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+TEST(ConnectionCore, IgnoredResponses) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "1234"), 1);
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "1234"), 1);
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_REPLY(fut1, 8);
 }
 
-TEST(ConnectionHandler, IgnoredResponsesWithReconnect) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+TEST(ConnectionCore, IgnoredResponsesWithReconnect) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"), 2);
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "789"), 2);
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
-  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-
-  handler.reconnection();
-
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
+  core.reconnection();
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut1, 3);
 }
 
-TEST(ConnectionHandler, Unavailable) {
-  ConnectionHandler handler(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+TEST(ConnectionCore, Unavailable) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("ping", "789"));
-  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("get", "asdf"));
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "789"));
+  std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("get", "asdf"));
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
   ASSERT_REPLY(fut1, 7);
 
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE something something")));
-  handler.reconnection();
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE something something")));
+  core.reconnection();
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(9)));
   ASSERT_REPLY(fut2, 9);
 
-  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("get", "123"));
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeErr("ERR unavailable")));
+  std::future<redisReplyPtr> fut3 = core.stage(EncodedRequest::make("get", "123"));
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeErr("ERR unavailable")));
 
-  handler.reconnection();
+  core.reconnection();
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeInt(3)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(3)));
   ASSERT_REPLY(fut3, 3);
 }
 
-TEST(ConnectionHandler, BadHandshakeResponse) {
+TEST(ConnectionCore, BadHandshakeResponse) {
   PingHandshake handshake("test test");
-  ConnectionHandler handler(nullptr, &handshake,
+  ConnectionCore core(nullptr, &handshake,
     BackpressureStrategy::Default(), RetryStrategy::NoRetries());
 
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeStr("adsf")));
-  handler.reconnection();
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeStr("adsf")));
+  core.reconnection();
 
-  ASSERT_FALSE(handler.consumeResponse(ResponseBuilder::makeStr("chickens")));
-  handler.reconnection();
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeStr("chickens")));
+  core.reconnection();
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("test test")));
-  handler.reconnection();
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("test test")));
+  core.reconnection();
 }
 
-TEST(ConnectionHandler, PubSubModeWithHandshakeNoRetries) {
+TEST(ConnectionCore, PubSubModeWithHandshakeNoRetries) {
   PingHandshake handshake("hi there");
-  ConnectionHandler handler(nullptr, &handshake,
+  ConnectionCore core(nullptr, &handshake,
     BackpressureStrategy::Default(), RetryStrategy::NoRetries());
 
-  std::future<redisReplyPtr> fut1 = handler.stage(EncodedRequest::make("asdf", "1234"));
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("hi there")));
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("asdf", "1234"));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("hi there")));
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("chickens")));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("chickens")));
   ASSERT_REPLY(fut1, "chickens");
 
-  std::future<redisReplyPtr> fut2 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("qqqq", "adsf"));
 
   MessageQueue mq;
-  handler.enterSubscriptionMode(&mq);
+  core.enterSubscriptionMode(&mq);
 
   // should remain pending forever
-  std::future<redisReplyPtr> fut3 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
-  std::future<redisReplyPtr> fut4 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
-  std::future<redisReplyPtr> fut5 = handler.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut3 = core.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut4 = core.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut5 = core.stage(EncodedRequest::make("qqqq", "adsf"));
 
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStr("test")));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("test")));
   ASSERT_REPLY(fut2, "test");
 
   std::vector<std::string> incoming = {"message", "random-channel", "payload-1"};
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
   ASSERT_EQ(mq.size(), 1u);
 
   incoming = {"pmessage", "pattern-*", "random-channel-2", "payload-2"};
-  ASSERT_TRUE(handler.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStringArray(incoming)));
   ASSERT_EQ(mq.size(), 2u);
 
   Message* item = nullptr;

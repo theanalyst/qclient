@@ -71,7 +71,7 @@ add_library(qclient STATIC
   src/BackgroundFlusher.cc
   src/BaseSubscriber.cc
   src/CallbackExecutorThread.cc
-  src/ConnectionHandler.cc
+  src/ConnectionCore.cc
   src/ConnectionInitiator.cc
   src/EncodedRequest.cc
   src/FaultInjector.cc

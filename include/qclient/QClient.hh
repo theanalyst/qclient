@@ -64,7 +64,7 @@ namespace qclient
   class QCallback;
   class NetworkStream;
   class WriterThread;
-  class ConnectionHandler;
+  class ConnectionCore;
   class EndpointDecider;
 
 
@@ -243,7 +243,7 @@ private:
   void notifyConnectionLost(int errc, const std::string &err);
   void notifyConnectionEstablished();
 
-  std::unique_ptr<ConnectionHandler> connectionHandler;
+  std::unique_ptr<ConnectionCore> connectionCore;
   EventFD shutdownEventFD;
   std::unique_ptr<WriterThread> writerThread;
 

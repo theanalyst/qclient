@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ConnectionHandler.cc
+// File: ConnectionCore.cc
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ConnectionHandler.hh"
+#include "ConnectionCore.hh"
 #include "MessageParser.hh"
 #include "qclient/Handshake.hh"
 
@@ -29,12 +29,12 @@
 
 namespace qclient {
 
-ConnectionHandler::ConnectionHandler(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs)
+ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs)
 : logger(log), handshake(hs), backpressure(bp), retryStrategy(rs) {
   reconnection();
 }
 
-ConnectionHandler::~ConnectionHandler() {
+ConnectionCore::~ConnectionCore() {
 
 }
 
@@ -60,7 +60,7 @@ static bool isUnavailable(redisReply* reply) {
   return false;
 }
 
-void ConnectionHandler::reconnection() {
+void ConnectionCore::reconnection() {
   //----------------------------------------------------------------------------
   // The connection has dropped. This means:
   // - We're in handshake mode once again - forbidden to process user requests
@@ -121,13 +121,13 @@ void ConnectionHandler::reconnection() {
 // No normal callbacks will be serviced, everything will go through the
 // MessageListener.
 //------------------------------------------------------------------------------
-void ConnectionHandler::enterSubscriptionMode(MessageListener *list) {
+void ConnectionCore::enterSubscriptionMode(MessageListener *list) {
   std::lock_guard<std::mutex> lock(mtx);
   listener = list;
   pubsubThreshold = requestQueue.getNextSequenceNumber();
 }
 
-void ConnectionHandler::clearAllPending() {
+void ConnectionCore::clearAllPending() {
   std::lock_guard<std::mutex> lock(mtx);
 
   //----------------------------------------------------------------------------
@@ -145,14 +145,14 @@ void ConnectionHandler::clearAllPending() {
   reconnection();
 }
 
-void ConnectionHandler::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {
+void ConnectionCore::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {
   backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(mtx);
   requestQueue.emplace_back(callback, std::move(req), multiSize);
 }
 
-std::future<redisReplyPtr> ConnectionHandler::stage(EncodedRequest &&req, size_t multiSize) {
+std::future<redisReplyPtr> ConnectionCore::stage(EncodedRequest &&req, size_t multiSize) {
   std::lock_guard<std::mutex> lock(mtx);
 
   std::future<redisReplyPtr> retval = futureHandler.stage();
@@ -161,7 +161,7 @@ std::future<redisReplyPtr> ConnectionHandler::stage(EncodedRequest &&req, size_t
 }
 
 #if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> ConnectionHandler::follyStage(EncodedRequest &&req, size_t multiSize) {
+folly::Future<redisReplyPtr> ConnectionCore::follyStage(EncodedRequest &&req, size_t multiSize) {
   backpressure.reserve();
 
   std::lock_guard<std::mutex> lock(mtx);
@@ -172,14 +172,14 @@ folly::Future<redisReplyPtr> ConnectionHandler::follyStage(EncodedRequest &&req,
 }
 #endif
 
-void ConnectionHandler::acknowledgePending(redisReplyPtr &&reply) {
+void ConnectionCore::acknowledgePending(redisReplyPtr &&reply) {
   cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
   nextToAcknowledgeIterator.next();
   requestQueue.pop_front();
   backpressure.release();
 }
 
-bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
+bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
   // Is this a transient "unavailable" error? Specific to QDB.
   if(retryStrategy.active() && isUnavailable(reply.get())) {
     // Break connection, try again.
@@ -265,12 +265,12 @@ bool ConnectionHandler::consumeResponse(redisReplyPtr &&reply) {
   return true;
 }
 
-void ConnectionHandler::setBlockingMode(bool value) {
+void ConnectionCore::setBlockingMode(bool value) {
   handshakeRequests.setBlockingMode(value);
   requestQueue.setBlockingMode(value);
 }
 
-StagedRequest* ConnectionHandler::getNextToWrite() {
+StagedRequest* ConnectionCore::getNextToWrite() {
   if(inHandshake) {
     StagedRequest *item = handshakeIterator.getItemBlockOrNull();
     if(!item) return nullptr;

@@ -32,7 +32,6 @@
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
-#include "ConnectionHandler.hh"
 #include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/EncodedRequest.hh"
@@ -41,9 +40,11 @@
 
 namespace qclient {
 
+class ConnectionCore;
+
 class WriterThread {
 public:
-  WriterThread(Logger *logger, ConnectionHandler &handler, EventFD &shutdownFD);
+  WriterThread(Logger *logger, ConnectionCore &core, EventFD &shutdownFD);
   ~WriterThread();
 
   void activate(NetworkStream *stream);
@@ -52,7 +53,7 @@ public:
 
 private:
   Logger *logger;
-  ConnectionHandler &connectionHandler;
+  ConnectionCore &connectionCore;
   EventFD &shutdownEventFD;
   AssistedThread thread;
 
