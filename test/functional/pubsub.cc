@@ -25,6 +25,7 @@
 #include "qclient/BaseSubscriber.hh"
 #include "qclient/pubsub/MessageQueue.hh"
 #include "qclient/Debug.hh"
+#include "../ReplyMacros.hh"
 #include <gtest/gtest.h>
 
 using namespace qclient;
@@ -67,4 +68,40 @@ TEST(BaseSubscriber, BasicSanity) {
 
   it.next();
   listener->pop_front();
+
+  QClient publisher(members, {} );
+  ASSERT_REPLY(publisher.exec("publish", "pickles", "penguins"), 1);
+
+  item = it.getItemBlockOrNull();
+  ASSERT_EQ(listener->size(), 1u);
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(item->getChannel(), "pickles");
+  ASSERT_EQ(item->getPayload(), "penguins");
+
+  it.next();
+  listener->pop_front();
+
+  subscriber.psubscribe( {"test-*"} );
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternSubscribe);
+  ASSERT_EQ(item->getPattern(), "test-*");
+  ASSERT_EQ(item->getActiveSubscriptions(), 3);
+
+  ASSERT_REPLY(publisher.exec("publish", "test-3", "asdf"), 1);
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(item->getPattern(), "test-*");
+  ASSERT_EQ(item->getChannel(), "test-3");
+  ASSERT_EQ(item->getPayload(), "asdf");
 }

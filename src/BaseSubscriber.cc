@@ -81,6 +81,7 @@ BaseSubscriber::~BaseSubscriber() { }
 
 //------------------------------------------------------------------------------
 // Notify of a reconnection in the underlying qclient - re-subscribe
+// to everything
 //------------------------------------------------------------------------------
 void BaseSubscriber::notifyConnectionEstablished(int64_t epoch) {
   std::unique_lock<std::mutex> lock(mtx);
@@ -94,7 +95,6 @@ void BaseSubscriber::notifyConnectionEstablished(int64_t epoch) {
   for(auto it = patterns.begin(); it != patterns.end(); it++) {
     payloadPatterns.emplace_back(*it);
   }
-
 
   if(payloadChannels.size() != 1) {
     qcl.execute(nullptr, payloadChannels);
@@ -113,7 +113,6 @@ void BaseSubscriber::subscribe(const std::vector<std::string> &newChannels) {
   std::unique_lock<std::mutex> lock(mtx);
 
   std::vector<std::string> payload = {"subscribe"};
-
   for(auto it = newChannels.begin(); it != newChannels.end(); it++) {
     if(channels.find(*it) == channels.end()) {
       payload.emplace_back(*it);
@@ -141,7 +140,7 @@ void BaseSubscriber::psubscribe(const std::vector<std::string> &newPatterns) {
     }
   }
 
-  if(patterns.size() != 1) {
+  if(payload.size() != 1) {
     qcl.execute(nullptr, payload);
   }
 }
