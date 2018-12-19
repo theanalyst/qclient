@@ -104,4 +104,90 @@ TEST(BaseSubscriber, BasicSanity) {
   ASSERT_EQ(item->getPattern(), "test-*");
   ASSERT_EQ(item->getChannel(), "test-3");
   ASSERT_EQ(item->getPayload(), "asdf");
+
+  it.next();
+  listener->pop_front();
+
+  ASSERT_REPLY(publisher.exec("publish", "test-2", "chickens"), 2);
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(item->getChannel(), "test-2");
+  ASSERT_EQ(item->getPayload(), "chickens");
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(item->getChannel(), "test-2");
+  ASSERT_EQ(item->getPattern(), "test-*");
+  ASSERT_EQ(item->getPayload(), "chickens");
+
+  it.next();
+  listener->pop_front();
+
+  subscriber.unsubscribe( {"pickles"} );
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kUnsubscribe);
+  ASSERT_EQ(item->getChannel(), "pickles");
+  ASSERT_EQ(item->getActiveSubscriptions(), 2);
+
+  subscriber.unsubscribe( {"penguins"} );
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kUnsubscribe);
+  ASSERT_EQ(item->getChannel(), "penguins");
+  ASSERT_EQ(item->getActiveSubscriptions(), 2);
+
+  ASSERT_REPLY(publisher.exec("publish", "pickles", "no-listeners"), 0);
+
+  subscriber.unsubscribe( {"test-2"} );
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kUnsubscribe);
+  ASSERT_EQ(item->getChannel(), "test-2");
+  ASSERT_EQ(item->getActiveSubscriptions(), 1);
+
+  ASSERT_REPLY(publisher.exec("publish", "test-9", "giraffes"), 1);
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(item->getPattern(), "test-*");
+  ASSERT_EQ(item->getChannel(), "test-9");
+  ASSERT_EQ(item->getPayload(), "giraffes");
+
+  subscriber.punsubscribe( {"test-*"} );
+
+  it.next();
+  listener->pop_front();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternUnsubscribe);
+  ASSERT_EQ(item->getPattern(), "test-*");
+  ASSERT_EQ(item->getActiveSubscriptions(), 0);
 }
