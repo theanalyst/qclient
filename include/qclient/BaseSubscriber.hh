@@ -86,6 +86,13 @@ public:
   void punsubscribe(const std::vector<std::string> &patterns);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Notify of a reconnection in the underlying qclient
+  //----------------------------------------------------------------------------
+  friend class BaseSubscriberListener;
+  std::shared_ptr<ReconnectionListener> reconnectionListener;
+  void notifyConnectionEstablished(int64_t epoch);
+
   Members members;
   std::shared_ptr<MessageListener> listener;
   SubscriptionOptions options;
@@ -95,11 +102,6 @@ private:
   std::set<std::string> patterns;
   qclient::QClient qcl;
 
-  //----------------------------------------------------------------------------
-  //! Notify of a reconnection in the underlying qclient
-  //----------------------------------------------------------------------------
-  friend class BaseSubscriberListener;
-  void notifyConnectionEstablished(int64_t epoch);
 };
 
 }

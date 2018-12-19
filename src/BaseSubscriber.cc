@@ -47,7 +47,8 @@ private:
 // Make QClient options
 //------------------------------------------------------------------------------
 static Options makeOptions(SubscriptionOptions &&opts,
-  std::shared_ptr<MessageListener> listener) {
+  std::shared_ptr<MessageListener> listener,
+  std::shared_ptr<ReconnectionListener> reconnectionListener) {
 
   qclient::Options options;
   options.tlsconfig = opts.tlsconfig;
@@ -57,6 +58,7 @@ static Options makeOptions(SubscriptionOptions &&opts,
   options.retryStrategy = RetryStrategy::NoRetries();
   options.backpressureStrategy = BackpressureStrategy::Default();
   options.messageListener = listener;
+  options.reconnectionListener = reconnectionListener;
   return options;
 }
 
@@ -65,7 +67,9 @@ static Options makeOptions(SubscriptionOptions &&opts,
 //------------------------------------------------------------------------------
 BaseSubscriber::BaseSubscriber(const Members &memb,
   std::shared_ptr<MessageListener> list, SubscriptionOptions &&opt)
-: members(memb), listener(list), qcl(members, makeOptions(std::move(opt), list)) {
+: reconnectionListener(new BaseSubscriberListener(this)), members(memb),
+  listener(list),
+  qcl(members, makeOptions(std::move(opt), list, reconnectionListener)) {
 
   // Invalid listener?
   if(!listener) {
