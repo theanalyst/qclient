@@ -53,6 +53,10 @@ public:
     return queue.size();
   }
 
+  void clear() {
+    queue.reset();
+  }
+
 private:
   qclient::WaitableQueue<Message, 100> queue;
 };
