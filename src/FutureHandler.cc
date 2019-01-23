@@ -36,7 +36,7 @@ folly::Future<redisReplyPtr> FollyFutureHandler::stage() {
   folly::Future<redisReplyPtr> retval = prom.getFuture();
 
   promises.emplace_back(std::move(prom));
-  return std::move(retval);
+  return retval;
 }
 
 void FollyFutureHandler::handleResponse(redisReplyPtr &&reply) {
@@ -55,7 +55,7 @@ std::future<redisReplyPtr> FutureHandler::stage() {
   std::future<redisReplyPtr> retval = prom.get_future();
 
   promises.emplace_back(std::move(prom));
-  return std::move(retval);
+  return retval;
 }
 
 void FutureHandler::handleResponse(redisReplyPtr &&reply) {
