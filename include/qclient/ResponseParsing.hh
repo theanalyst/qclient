@@ -44,6 +44,23 @@ private:
   std::string val;
 };
 
+class IntegerParser {
+public:
+
+  IntegerParser(const redisReply *reply);
+  IntegerParser(const redisReplyPtr reply);
+
+  bool ok() const;
+  std::string err() const;
+  long long value() const;
+
+private:
+  bool isOk;
+  std::string error;
+  long long val;
+};
+
+
 }
 
 #endif

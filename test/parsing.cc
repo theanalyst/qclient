@@ -50,3 +50,19 @@ TEST(ResponseParsing, StatusParser) {
   ASSERT_EQ(parser.value(), "some status");
 }
 
+TEST(ResponseParsing, IntegerParserErr) {
+  redisReplyPtr reply = ResponseBuilder::makeStatus("aaa");
+
+  IntegerParser parser(reply);
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Unexpected reply type; was expecting INTEGER, received aaa");
+}
+
+TEST(ResponseParsing, IntegerParser) {
+  redisReplyPtr reply = ResponseBuilder::makeInt(13);
+
+  IntegerParser parser(reply);
+  ASSERT_TRUE(parser.ok());
+  ASSERT_EQ(parser.value(), 13);
+}
+

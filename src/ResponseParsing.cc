@@ -60,4 +60,35 @@ std::string StatusParser::value() const {
   return val;
 }
 
+IntegerParser::IntegerParser(const redisReply *reply) {
+  if(reply == nullptr) {
+    error = "Received null redisReply";
+    isOk = false;
+    return;
+  }
+
+  if(reply->type != REDIS_REPLY_INTEGER) {
+    error = SSTR("Unexpected reply type; was expecting INTEGER, received " << qclient::describeRedisReply(reply));
+    isOk = false;
+    return;
+  }
+
+  isOk = true;
+  val = reply->integer;
+}
+
+IntegerParser::IntegerParser(const redisReplyPtr reply) : IntegerParser(reply.get()) { }
+
+bool IntegerParser::ok() const {
+  return isOk;
+}
+
+std::string IntegerParser::err() const {
+  return error;
+}
+
+long long IntegerParser::value() const {
+  return val;
+}
+
 }
