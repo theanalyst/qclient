@@ -51,6 +51,7 @@ public:
   static redisReplyPtr makeStr(const std::string &msg);
   static redisReplyPtr makeStringArray(const std::vector<std::string> &msg);
   static redisReplyPtr makeArr(const std::string &str1, const std::string &str2, int num);
+  static redisReplyPtr makeStatus(const std::string &msg);
 
 private:
   struct Deleter {

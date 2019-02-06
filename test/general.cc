@@ -104,6 +104,14 @@ TEST(ResponseBuilder, MakeStr) {
   ASSERT_EQ(std::string(reply->str, reply->len), "test test 123");
 }
 
+TEST(ResponseBuilder, MakeStatus) {
+  redisReplyPtr reply = ResponseBuilder::makeStatus("aaa");
+  ASSERT_NE(reply, nullptr);
+
+  ASSERT_EQ(reply->type, REDIS_REPLY_STATUS);
+  ASSERT_EQ(std::string(reply->str, reply->len), "aaa");
+}
+
 TEST(ResponseBuilder, MakeStringArray) {
   redisReplyPtr reply = ResponseBuilder::makeStringArray( {"test", "abc", "asdf"} );
   ASSERT_NE(reply, nullptr);

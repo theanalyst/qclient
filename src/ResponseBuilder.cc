@@ -114,4 +114,15 @@ redisReplyPtr ResponseBuilder::makeArr(const std::string &str1, const std::strin
   return ans;
 }
 
+redisReplyPtr ResponseBuilder::makeStatus(const std::string &msg) {
+  ResponseBuilder builder;
+  builder.feed("+");
+  builder.feed(msg);
+  builder.feed("\r\n");
+
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
+}
+
 }
