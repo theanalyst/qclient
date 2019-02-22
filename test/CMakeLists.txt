@@ -1,5 +1,7 @@
 add_subdirectory(functional)
 
+add_definitions(-DQCLIENT_IS_UNDER_TEST=1)
+
 #-------------------------------------------------------------------------------
 # Build unit tests
 #-------------------------------------------------------------------------------
@@ -17,6 +19,7 @@ add_executable(
   network-stream.cc
   parsing.cc
   pubsub.cc
+  shared.cc
   thread-safe-queue.cc
 )
 

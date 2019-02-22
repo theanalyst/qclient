@@ -28,7 +28,7 @@
 #include <string>
 #include "qclient/Reply.hh"
 #include "qclient/QCallback.hh"
-#include "qclient/Assert.hh"
+#include "qclient/utils/Macros.hh"
 #include "qclient/Utils.hh"
 
 namespace qclient {

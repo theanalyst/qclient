@@ -26,7 +26,7 @@
 
 #include <iostream>
 #include "qclient/Handshake.hh"
-#include "qclient/Assert.hh"
+#include "qclient/utils/Macros.hh"
 using namespace qclient;
 
 //------------------------------------------------------------------------------

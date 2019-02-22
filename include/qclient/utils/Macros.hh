@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Assert.hh
+// File: Macros.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -21,9 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_ASSERT_H
-#define QCLIENT_ASSERT_H
+#ifndef QCLIENT_UTILS_MACROS_HH
+#define QCLIENT_UTILS_MACROS_HH
 
 #define qclient_assert(condition) if(!((condition))) std::cerr << "assertion violation, condition is not true: " << #condition << ". Location: " << __FILE__ << ":" << __LINE__
+
+#ifdef QCLIENT_IS_UNDER_TEST
+#define PUBLIC_FOR_TESTS_ONLY public
+#else
+#define PUBLIC_FOR_TESTS_ONLY private
+#endif
+
 
 #endif
