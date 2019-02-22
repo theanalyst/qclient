@@ -67,6 +67,9 @@ include_directories(
 )
 
 add_library(qclient STATIC
+  src/shared/SharedHash.cc
+  src/shared/SharedManager.cc
+
   src/AsyncHandler.cc
   src/BackgroundFlusher.cc
   src/BaseSubscriber.cc
