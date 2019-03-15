@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "qclient/Reply.hh"
+#include "qclient/Formatting.hh"
 #include <hiredis/hiredis.h>
 #include <sstream>
 #include <memory>
@@ -112,4 +113,17 @@ std::string describeRedisReply(const redisReply *const redisReply, const std::st
 std::string describeRedisReply(const redisReplyPtr &redisReply) {
   return describeRedisReply(redisReply.get(), "");
 }
+
+//------------------------------------------------------------------------------
+// Internal API: Serialize onto a given std::ostringstream.
+// We need this to support efficient serialization of arrays.
+//------------------------------------------------------------------------------
+void Formatting::serializeInternal(std::ostringstream &ss, const std::string &str) {
+  ss << "$" << str.size() << "\r\n" << str << "\r\n";
+}
+
+void Formatting::serializeInternal(std::ostringstream &ss, int64_t num) {
+  ss << ":" << num << "\r\n";
+}
+
 }

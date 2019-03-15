@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "qclient/QClient.hh"
+#include "qclient/Formatting.hh"
 using namespace qclient;
 
 void setStr(redisReplyPtr reply, const std::string &str) {
@@ -92,4 +93,41 @@ TEST(DescribeRedisReply, BasicSanity1) {
 
   reply->type = 999;
   ASSERT_EQ(describeRedisReply(reply), "!!! unknown reply type !!!");
+}
+
+TEST(Formatting, SerializeString) {
+  ASSERT_EQ(Formatting::serialize("asdf"), "$4\r\nasdf\r\n");
+}
+
+TEST(Formatting, SerializeVector) {
+  ASSERT_EQ(Formatting::serializeVector("asdf", "bbb", "aaaa"),
+    "*3\r\n"
+    "$4\r\nasdf\r\n"
+    "$3\r\nbbb\r\n"
+    "$4\r\naaaa\r\n"
+  );
+
+  ASSERT_EQ(Formatting::serializeVector("asdf", 1234),
+    "*2\r\n"
+    "$4\r\nasdf\r\n"
+    ":1234\r\n"
+  );
+}
+
+TEST(Formatting, SerializeIntVector) {
+  std::vector<int64_t> vec = {4, 9, 8};
+
+  ASSERT_EQ(Formatting::serialize(vec),
+    "*3\r\n"
+    ":4\r\n"
+    ":9\r\n"
+    ":8\r\n"
+  );
+
+  redisReplyPtr reply = ResponseBuilder::parseRedisEncodedString(Formatting::serialize(vec));
+  ASSERT_EQ(describeRedisReply(reply),
+    "1) (integer) 4\n"
+    "2) (integer) 9\n"
+    "3) (integer) 8\n"
+  );
 }

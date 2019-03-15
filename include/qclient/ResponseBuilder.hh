@@ -53,6 +53,10 @@ public:
   static redisReplyPtr makeArr(const std::string &str1, const std::string &str2, int num);
   static redisReplyPtr makeStatus(const std::string &msg);
 
+  // Convenience function to quickly parse a redis-encoded string into redisReplyPtr
+  static redisReplyPtr parseRedisEncodedString(const std::string &str);
+
+
 private:
   struct Deleter {
     void operator()(redisReader *reader) { redisReaderFree(reader); }

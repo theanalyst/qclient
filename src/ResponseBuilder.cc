@@ -125,4 +125,14 @@ redisReplyPtr ResponseBuilder::makeStatus(const std::string &msg) {
   return ans;
 }
 
+redisReplyPtr ResponseBuilder::parseRedisEncodedString(const std::string &str) {
+  ResponseBuilder builder;
+  builder.feed(str);
+
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
+}
+
+
 }
