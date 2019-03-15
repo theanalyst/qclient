@@ -131,3 +131,17 @@ TEST(Formatting, SerializeIntVector) {
     "3) (integer) 8\n"
   );
 }
+
+TEST(Formatting, SerializeStringMap) {
+  std::map<std::string, std::string> map;
+  map["i like"] = "pickles";
+  map["asdf"] = "1234";
+
+  ASSERT_EQ(Formatting::serialize(map),
+    "*4\r\n"
+    "$4\r\nasdf\r\n"
+    "$4\r\n1234\r\n"
+    "$6\r\ni like\r\n"
+    "$7\r\npickles\r\n"
+  );
+}

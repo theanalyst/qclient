@@ -26,6 +26,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <sstream>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -72,11 +73,26 @@ private:
   static void serializeInternal(std::ostringstream &ss, const std::string &str);
   static void serializeInternal(std::ostringstream &ss, int64_t num);
 
+  //----------------------------------------------------------------------------
+  // Serialize any kind of vector
+  //----------------------------------------------------------------------------
   template<typename T>
   static void serializeInternal(std::ostringstream &ss, const std::vector<T> &vec) {
     ss << "*" << vec.size() << "\r\n";
     for(size_t i = 0; i < vec.size(); i++) {
       serializeInternal(ss, vec[i]);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Serialize any kind of map
+  //----------------------------------------------------------------------------
+  template<typename K, typename V>
+  static void serializeInternal(std::ostringstream &ss, const std::map<K, V> &map) {
+    ss << "*" << 2*map.size() << "\r\n";
+    for(auto it = map.begin(); it != map.end(); it++) {
+      serializeInternal(ss, it->first);
+      serializeInternal(ss, it->second);
     }
   }
 
