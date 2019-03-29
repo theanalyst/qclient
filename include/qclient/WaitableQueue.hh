@@ -81,6 +81,20 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Returns a reference to the top item.
+  //----------------------------------------------------------------------------
+  T& front() {
+    return queue.front();
+  }
+
+  //----------------------------------------------------------------------------
+  // Returns a const reference to the top item.
+  //----------------------------------------------------------------------------
+  const T& front() const {
+    return queue.front();
+  }
+
+  //----------------------------------------------------------------------------
   // If blocking mode is set to false, threads in blockUntilItemHasArrived
   // do not realy block.
   //
