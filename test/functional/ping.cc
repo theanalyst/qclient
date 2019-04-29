@@ -23,7 +23,6 @@
 
 #include <gtest/gtest.h>
 #include "test-config.hh"
-#include "qclient/QSet.hh"
 #include "qclient/AsyncHandler.hh"
 #include <set>
 #include <list>

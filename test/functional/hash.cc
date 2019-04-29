@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "qclient/QHash.hh"
+#include "qclient/structures/QHash.hh"
 #include "test-config.hh"
 #include "qclient/AsyncHandler.hh"
 #include <algorithm>
