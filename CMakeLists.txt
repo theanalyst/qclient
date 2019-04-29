@@ -71,6 +71,7 @@ add_library(qclient STATIC
   src/shared/SharedManager.cc
 
   src/structures/QHash.cc
+  src/structures/QLocalityHash.cc
   src/structures/QSet.cc
 
   src/AsyncHandler.cc
