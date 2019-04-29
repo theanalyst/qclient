@@ -70,6 +70,9 @@ add_library(qclient STATIC
   src/shared/SharedHash.cc
   src/shared/SharedManager.cc
 
+  src/structures/QHash.cc
+  src/structures/QSet.cc
+
   src/AsyncHandler.cc
   src/BackgroundFlusher.cc
   src/BaseSubscriber.cc
@@ -86,8 +89,6 @@ add_library(qclient STATIC
   src/NetworkStream.cc
   src/Options.cc
   src/QClient.cc
-  src/QHash.cc
-  src/QSet.cc
   src/ResponseBuilder.cc
   src/ResponseParsing.cc
   src/TlsFilter.cc

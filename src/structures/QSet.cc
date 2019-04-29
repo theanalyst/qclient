@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/QSet.hh"
+#include "qclient/structures/QSet.hh"
 
 QCLIENT_NAMESPACE_BEGIN
 

@@ -21,7 +21,7 @@
 //! @brief Hash map implementation using QClient
 //------------------------------------------------------------------------------
 
-#include "qclient/QHash.hh"
+#include "qclient/structures/QHash.hh"
 
 QCLIENT_NAMESPACE_BEGIN
 
