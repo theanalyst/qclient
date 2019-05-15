@@ -145,8 +145,7 @@ public:
   //! @param value value to set
   //! @param ah async handler
   //----------------------------------------------------------------------------
-  template <typename T>
-  void hset_async(const std::string& field, const T& value, AsyncHandler* ah);
+  void hset_async(const std::string& field, const std::string& value, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! HASH set if doesn't exist command - synchronous
@@ -157,8 +156,7 @@ public:
   //! @return true if value set, otherwise false meaning the value existed and
   //!         no operation was performed
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool hsetnx(const std::string& field, const T& value);
+  bool hsetnx(const std::string& field, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! HASH multi set command - synchronous
@@ -315,11 +313,10 @@ private:
 //------------------------------------------------------------------------------
 // HSET operation - asynchronous
 //------------------------------------------------------------------------------
-template <typename T>
-void
-QHash::hset_async(const std::string& field, const T& value, AsyncHandler* ah)
+inline void
+QHash::hset_async(const std::string& field, const std::string& value, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"HSET", mKey, field, std::to_string(value)});
+  ah->Register(mClient, {"HSET", mKey, field, value});
 }
 
 //------------------------------------------------------------------------------
@@ -342,10 +339,9 @@ QHash::hset(const std::string& field, const T& value)
 //------------------------------------------------------------------------------
 // HSETNX operation - synchronous
 //------------------------------------------------------------------------------
-template <typename T>
-bool QHash::hsetnx(const std::string& field, const T& value)
+inline bool QHash::hsetnx(const std::string& field, const std::string& value)
 {
-  redisReplyPtr reply = mClient->exec("HSETNX", mKey, field, std::to_string(value)).get();
+  redisReplyPtr reply = mClient->exec("HSETNX", mKey, field, value).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error hsetnx key: " + mKey + " field: "

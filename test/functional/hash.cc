@@ -56,8 +56,8 @@ TEST(QHash, HashSync)
   ASSERT_TRUE(qhash.hset(fields[1], ivalues[1]));
   ASSERT_EQ(35, qhash.hincrby(fields[2], 5));
   ASSERT_TRUE(qhash.hdel(fields[2]));
-  ASSERT_TRUE(qhash.hsetnx(fields[2], ivalues[2]));
-  ASSERT_TRUE(qhash.hsetnx(fields[0], ivalues[0]));
+  ASSERT_TRUE(qhash.hsetnx(fields[2], std::to_string(ivalues[2])));
+  ASSERT_TRUE(qhash.hsetnx(fields[0], std::to_string(ivalues[0])));
   ASSERT_EQ(3, qhash.hlen());
   // Test the hkeys command
   std::vector<std::string> resp = qhash.hkeys();

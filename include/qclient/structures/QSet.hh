@@ -127,8 +127,7 @@ public:
   //!
   //! @return true if member added, otherwise false
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool sadd(const T& member);
+  bool sadd(const std::string& member);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command - asynchronous
@@ -136,8 +135,7 @@ public:
   //! @param member value to be added to the set
   //! @param ah async handler
   //----------------------------------------------------------------------------
-  template <typename T>
-  void sadd_async(const T& member, AsyncHandler* ah);
+  void sadd_async(const std::string& member, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET add command for multiple members - synchronous
@@ -181,8 +179,7 @@ public:
   //!
   //! @return true if member removed, otherwise false
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool srem(const T& member);
+  bool srem(const std::string& member);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command - asynchronous
@@ -190,8 +187,7 @@ public:
   //! @param member value to be removed from the set
   //! @param ah async handler
   //----------------------------------------------------------------------------
-  template <typename T>
-  void srem_async(const T& member, AsyncHandler* ah);
+  void srem_async(const std::string& member, AsyncHandler* ah);
 
   //----------------------------------------------------------------------------
   //! Redis SET remove command for multiple members - synchronous
@@ -216,8 +212,7 @@ public:
   //!
   //! @return true if member in the set, otherwise false
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool sismember(const T& member);
+  bool sismember(const std::string& member);
 
   //----------------------------------------------------------------------------
   //! Redis SET members command - synchronous
@@ -274,10 +269,9 @@ private:
 //------------------------------------------------------------------------------
 // Set related templated methods implementation
 //------------------------------------------------------------------------------
-template <typename T>
-void QSet::sadd_async(const T& member, AsyncHandler* ah)
+inline void QSet::sadd_async(const std::string& member, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"SADD", mKey, std::to_string(member)});
+  ah->Register(mClient, {"SADD", mKey, member});
 }
 
 template<typename Iter>
@@ -292,47 +286,42 @@ QSet::sadd_async(const Iter& begin, const Iter& end, AsyncHandler* ah)
   ah->Register(mClient, cmd);
 }
 
-template <typename T>
-bool QSet::sadd(const T& member)
+inline bool QSet::sadd(const std::string& member)
 {
-  redisReplyPtr reply = mClient->exec("SADD", mKey, std::to_string(member)).get();
+  redisReplyPtr reply = mClient->exec("SADD", mKey, member).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sadd key: " + mKey + " field: "
-                             + std::to_string(member) + ": Unexpected/null reply");
+                             + member + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
 }
 
-template <typename T>
-void
-QSet::srem_async(const T& member, AsyncHandler* ah)
+inline void QSet::srem_async(const std::string& member, AsyncHandler* ah)
 {
-  ah->Register(mClient, {"SREM", mKey, std::to_string(member)});
+  ah->Register(mClient, {"SREM", mKey, member});
 }
 
-template <typename T>
-bool QSet::srem(const T& member)
+inline bool QSet::srem(const std::string& member)
 {
-  redisReplyPtr reply = mClient->exec("SREM", mKey, std::to_string(member)).get();
+  redisReplyPtr reply = mClient->exec("SREM", mKey, member).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error srem key: " + mKey + " member: "
-                             + std::to_string(member) + ": Unexpected/null reply");
+                             + member + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
 }
 
-template <typename T>
-bool QSet::sismember(const T& member)
+inline bool QSet::sismember(const std::string& member)
 {
-  redisReplyPtr reply = mClient->exec("SISMEMBER", mKey, std::to_string(member)).get();
+  redisReplyPtr reply = mClient->exec("SISMEMBER", mKey, member).get();
 
   if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
     throw std::runtime_error("[FATAL] Error sismember key: " + mKey + " member: "
-                             + std::to_string(member) + ": Unexpected/null reply");
+                             + member + ": Unexpected/null reply");
   }
 
   return (reply->integer == 1);
