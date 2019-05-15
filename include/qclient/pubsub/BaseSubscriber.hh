@@ -25,8 +25,8 @@
 #define QCLIENT_BASE_SUBSCRIBER_HH
 
 #include "qclient/QClient.hh"
-#include "Members.hh"
-#include "Options.hh"
+#include "qclient/Members.hh"
+#include "qclient/Options.hh"
 #include <set>
 #include <mutex>
 

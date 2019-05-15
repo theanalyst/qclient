@@ -24,7 +24,7 @@
 #ifndef QCLIENT_WAITABLE_QUEUE_H
 #define QCLIENT_WAITABLE_QUEUE_H
 
-#include "qclient/ThreadSafeQueue.hh"
+#include "qclient/queueing/ThreadSafeQueue.hh"
 #include <atomic>
 #include <mutex>
 #include <condition_variable>

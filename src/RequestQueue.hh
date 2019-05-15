@@ -24,7 +24,7 @@
 #ifndef QCLIENT_REQUEST_QUEUE_HH
 #define QCLIENT_REQUEST_QUEUE_HH
 
-#include "qclient/WaitableQueue.hh"
+#include "qclient/queueing/WaitableQueue.hh"
 #include "StagedRequest.hh"
 
 namespace qclient {

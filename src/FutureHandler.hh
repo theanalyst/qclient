@@ -25,7 +25,7 @@
 #define QCLIENT_FUTURE_HANDLER_H
 
 #include "qclient/QCallback.hh"
-#include "qclient/ThreadSafeQueue.hh"
+#include "qclient/queueing/ThreadSafeQueue.hh"
 #include <future>
 
 #if HAVE_FOLLY == 1

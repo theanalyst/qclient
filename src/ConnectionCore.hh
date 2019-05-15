@@ -24,7 +24,7 @@
 #ifndef QCLIENT_CONNECTION_HANDLER_HH
 #define QCLIENT_CONNECTION_HANDLER_HH
 
-#include "qclient/WaitableQueue.hh"
+#include "qclient/queueing/WaitableQueue.hh"
 #include "BackpressureApplier.hh"
 #include "RequestQueue.hh"
 #include "FutureHandler.hh"

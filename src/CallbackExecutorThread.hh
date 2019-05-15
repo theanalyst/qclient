@@ -28,7 +28,7 @@
 #include <atomic>
 #include "qclient/QCallback.hh"
 #include "qclient/AssistedThread.hh"
-#include "qclient/WaitableQueue.hh"
+#include "qclient/queueing/WaitableQueue.hh"
 
 namespace qclient {
 

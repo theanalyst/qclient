@@ -32,7 +32,6 @@
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
-#include "qclient/ThreadSafeQueue.hh"
 #include "qclient/Options.hh"
 #include "qclient/EncodedRequest.hh"
 #include <deque>
@@ -56,7 +55,6 @@ private:
   ConnectionCore &connectionCore;
   EventFD &shutdownEventFD;
   AssistedThread thread;
-
 };
 
 }

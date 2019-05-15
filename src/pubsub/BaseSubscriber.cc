@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/BaseSubscriber.hh"
+#include "qclient/pubsub/BaseSubscriber.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/Logger.hh"
 #include "qclient/ReconnectionListener.hh"
