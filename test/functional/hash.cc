@@ -126,7 +126,7 @@ TEST(QHash, HashSync)
   std::map<std::string, std::string> map_elem;
 
   for (int i = 0; i < count; ++i) {
-    field = fmt::to_string(i);
+    field = std::to_string(i);
     val = "elem" + field;
     map_elem[field] = val;
     lst_elem.push_back(field);
@@ -136,7 +136,7 @@ TEST(QHash, HashSync)
   ASSERT_TRUE(qhash.hmset(lst_elem));
 
   for (int i = 0; i < count; ++i) {
-    field = fmt::to_string(i);
+    field = std::to_string(i);
     ASSERT_EQ(map_elem[field], qhash.hget(field));
   }
 

@@ -208,7 +208,7 @@ std::pair<std::string, std::map<std::string, std::string> >
 QHash::hscan(const std::string& cursor, long long count)
 {
   redisReplyPtr reply = mClient->exec("HSCAN", mKey, cursor, "COUNT",
-                                      fmt::to_string(count)).get();
+                                      std::to_string(count)).get();
 
   if (reply == nullptr) {
     throw std::runtime_error("[FATAL] Error hscan key: " + mKey +
