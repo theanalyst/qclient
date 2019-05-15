@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "MessageParser.hh"
-#include "qclient/Message.hh"
+#include "qclient/pubsub/Message.hh"
 
 namespace qclient {
 

@@ -22,9 +22,9 @@
  ************************************************************************/
 
 #include "ConnectionCore.hh"
-#include "MessageParser.hh"
+#include "pubsub/MessageParser.hh"
 #include "qclient/Handshake.hh"
-#include "qclient/MessageListener.hh"
+#include "qclient/pubsub/MessageListener.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 

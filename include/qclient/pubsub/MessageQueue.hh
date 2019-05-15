@@ -25,7 +25,7 @@
 #define QCLIENT_PUBSUB_MESSAGE_QUEUE_HH
 
 #include "qclient/queueing/WaitableQueue.hh"
-#include "qclient/MessageListener.hh"
+#include "qclient/pubsub/MessageListener.hh"
 
 namespace qclient {
 

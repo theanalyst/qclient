@@ -21,9 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "MessageParser.hh"
+#include "pubsub/MessageParser.hh"
 #include "qclient/ResponseBuilder.hh"
-#include "qclient/Message.hh"
+#include "qclient/pubsub/Message.hh"
 #include "qclient/pubsub/MessageQueue.hh"
 #include "gtest/gtest.h"
 

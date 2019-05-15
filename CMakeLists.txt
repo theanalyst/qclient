@@ -68,7 +68,8 @@ include_directories(
 
 add_library(qclient STATIC
   src/pubsub/BaseSubscriber.cc
-
+  src/pubsub/MessageParser.cc
+  src/pubsub/Subscriber.cc
 
   src/shared/SharedHash.cc
   src/shared/SharedManager.cc
@@ -88,7 +89,6 @@ add_library(qclient STATIC
   src/FutureHandler.cc
   src/GlobalInterceptor.cc
   src/Handshake.cc
-  src/MessageParser.cc
   src/NetworkStream.cc
   src/Options.cc
   src/QClient.cc
