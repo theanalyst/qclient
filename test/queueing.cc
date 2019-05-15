@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: thread-safe-queue.cc
+// File: queueing.cc
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -22,7 +22,8 @@
  ************************************************************************/
 
 #include <gtest/gtest.h>
-#include "qclient/ThreadSafeQueue.hh"
+#include "qclient/queueing/ThreadSafeQueue.hh"
+#include "qclient/queueing/AttachableQueue.hh"
 
 using namespace qclient;
 
@@ -99,4 +100,61 @@ TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
   }
 
   ASSERT_TRUE(this->queue.empty());
+}
+
+class Accumulator {
+public:
+
+  void add(int &&val) {
+    sum += val;
+  }
+
+  int getSum() const {
+    return sum;
+  }
+
+private:
+  int sum = 0;
+};
+
+TEST(AttachableQueue, BasicSanity) {
+  AttachableQueue<int, 10> queue;
+
+  // Detached mode, acts as a queue
+  queue.emplace_back(3);
+  ASSERT_EQ(queue.size(), 1u);
+  ASSERT_EQ(queue.front(), 3);
+  queue.pop_front();
+  ASSERT_EQ(queue.size(), 0u);
+
+  queue.emplace_back(4);
+  queue.emplace_back(5);
+  queue.emplace_back(5);
+
+  ASSERT_EQ(queue.size(), 3u);
+  ASSERT_EQ(queue.front(), 4);
+  queue.pop_front();
+  ASSERT_EQ(queue.size(), 2u);
+
+  // Attach callback
+  using std::placeholders::_1;
+
+  Accumulator acu;
+  queue.attach(std::bind(&Accumulator::add, &acu, _1));
+  ASSERT_EQ(queue.size(), 0u);
+  ASSERT_EQ(acu.getSum(), 10);
+
+  queue.emplace_back(3);
+  ASSERT_EQ(acu.getSum(), 13);
+  ASSERT_EQ(queue.size(), 0u);
+
+  queue.detach();
+  queue.emplace_back(7);
+  ASSERT_EQ(acu.getSum(), 13);
+  ASSERT_EQ(queue.size(), 1u);
+  ASSERT_EQ(queue.front(), 7);
+
+  queue.attach(std::bind(&Accumulator::add, &acu, _1));
+  ASSERT_EQ(queue.size(), 0u);
+  ASSERT_EQ(acu.getSum(), 20);
 }

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "test-config.hh"
-#include "qclient/BaseSubscriber.hh"
+#include "qclient/pubsub/BaseSubscriber.hh"
 #include "qclient/pubsub/MessageQueue.hh"
 #include "qclient/Debug.hh"
 #include "../ReplyMacros.hh"

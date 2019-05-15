@@ -19,8 +19,8 @@ add_executable(
   network-stream.cc
   parsing.cc
   pubsub.cc
+  queueing.cc
   shared.cc
-  thread-safe-queue.cc
 )
 
 target_link_libraries(
