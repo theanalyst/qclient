@@ -41,7 +41,7 @@ TEST(Ping, one)
   redisReplyPtr reply = cl.exec("PING", "hello there").get();
   ASSERT_TRUE(reply != nullptr);
   ASSERT_EQ(reply->type, REDIS_REPLY_STRING);
-  ASSERT_GT(reply->len, 0u);
+  ASSERT_GT( (int) reply->len, (int) 0);
 
   ASSERT_EQ(strcmp(reply->str, "hello there"), 0);
 }
