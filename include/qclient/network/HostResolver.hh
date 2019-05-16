@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: Subscriber.hh
+// File: HostResolver.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,115 +21,133 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_SUBSCRIBER_HH
-#define QCLIENT_SUBSCRIBER_HH
+#ifndef QCLIENT_HOST_RESOLVER_HH
+#define QCLIENT_HOST_RESOLVER_HH
 
-#include "qclient/pubsub/BaseSubscriber.hh"
-#include "qclient/queueing/AttachableQueue.hh"
+#include <netdb.h>
+#include <vector>
+#include <string>
 
 namespace qclient {
 
-class Subscriber;
-class Message;
+class Logger;
+class Status;
 
 //------------------------------------------------------------------------------
-// A pub-sub subscription which collects incoming messages. Make sure to
-// consume them from time to time, or it'll blow up in space.
-//
-// A Subscriber must outlive all dependent Subscriptions!
+// Protocol type
 //------------------------------------------------------------------------------
-class Subscription {
+enum class ProtocolType {
+  kIPv4,
+  kIPv6,
+};
+
+//------------------------------------------------------------------------------
+// Protocol type as string
+//------------------------------------------------------------------------------
+std::string protocolTypeToString(ProtocolType prot);
+
+//------------------------------------------------------------------------------
+// Socket type
+//------------------------------------------------------------------------------
+enum class SocketType {
+  kStream,
+  kDatagram
+};
+
+//------------------------------------------------------------------------------
+// Socket type as string
+//------------------------------------------------------------------------------
+std::string socketTypeToString(SocketType sock);
+
+//------------------------------------------------------------------------------
+// This class contains the necessary information to connect() directly to a
+// service, no further DNS lookups should be necessary.
+//------------------------------------------------------------------------------
+class ServiceEndpoint {
+public:
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ServiceEndpoint(ProtocolType &protocol, SocketType &socket,
+    const std::vector<char> addr);
+
+  //----------------------------------------------------------------------------
+  // Get stored protocol type
+  //----------------------------------------------------------------------------
+  ProtocolType getProtocolType() const;
+
+  //----------------------------------------------------------------------------
+  // Get socket type
+  //----------------------------------------------------------------------------
+  SocketType getSocketType() const;
+
+  //----------------------------------------------------------------------------
+  // Get raw address bytes (the form ::connect expects)
+  //----------------------------------------------------------------------------
+  const std::vector<char>& getAddressBytes() const;
+
+  //----------------------------------------------------------------------------
+  // Get printable address (ie 127.0.0.1) that a human would expect
+  //----------------------------------------------- -----------------------------
+  std::string getPrintableAddress() const;
+
+  //----------------------------------------------------------------------------
+  // Get service port number
+  //----------------------------------------------------------------------------
+  uint16_t getPort() const;
+
+  //----------------------------------------------------------------------------
+  // Describe as a string
+  //----------------------------------------------------------------------------
+  std::string getString() const;
+
+  //----------------------------------------------------------------------------
+  // Get ai_family to pass to ::socket
+  //----------------------------------------------------------------------------
+  int getAiFamily() const;
+
+  //----------------------------------------------------------------------------
+  // Get ai_socktype to pass to ::socket
+  //----------------------------------------------------------------------------
+  int getAiSocktype() const;
+
+  //----------------------------------------------------------------------------
+  // Get ai_protocol to pass to ::socket
+  //----------------------------------------------------------------------------
+  int getAiProtocol() const;
+
+
+private:
+  ProtocolType protocolType;
+  SocketType socketType;
+  std::vector<char> address; // struct sockaddr bytes stored in a char vector
+};
+
+//------------------------------------------------------------------------------
+// Class for resolving hostnames into IPs we can directly connect to.
+//------------------------------------------------------------------------------
+class HostResolver {
 public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Subscription(Subscriber* subscriber);
+  HostResolver(Logger *logger);
 
   //----------------------------------------------------------------------------
-  // Destructor - notify subscriber we're shutting down
+  // Main resolve function: How many service endpoints match the given
+  // hostname and port pair?
   //----------------------------------------------------------------------------
-  ~Subscription();
-
-private:
-  friend class Subscriber;
-
-  //----------------------------------------------------------------------------
-  // Process incoming message
-  //----------------------------------------------------------------------------
-  void processIncoming(const Message &msg);
-
-  //----------------------------------------------------------------------------
-  // Internal state
-  //----------------------------------------------------------------------------
-  qclient::AttachableQueue<Message, 50> queue;
-  Subscriber *subscriber;
-};
-
-
-//------------------------------------------------------------------------------
-// A class that builds on top of BaseSubscriber and offers a more comfortable
-// API.
-//------------------------------------------------------------------------------
-class Subscriber {
-public:
-  //----------------------------------------------------------------------------
-  // Constructor - real mode, connect to a real server
-  //----------------------------------------------------------------------------
-  Subscriber(const Members &members, SubscriptionOptions &&options);
-
-  //----------------------------------------------------------------------------
-  // Simulated mode - enable ability to feed fake messages for testing
-  // this class
-  //----------------------------------------------------------------------------
-  Subscriber();
-
-  //----------------------------------------------------------------------------
-  // Feed fake message - only has an effect in sumulated mode
-  //----------------------------------------------------------------------------
-  void feedFakeMessage(Message&& msg);
-
-  //----------------------------------------------------------------------------
-  // Subscribe to the given channel through a Subscription object
-  //----------------------------------------------------------------------------
-  std::shared_ptr<Subscription> subscribe(const std::string &channel);
-
-  //----------------------------------------------------------------------------
-  // Subscribe to the given pattern through a Subscription object
-  //----------------------------------------------------------------------------
-  std::shared_ptr<Subscription> psubscribe(const std::string &pattern);
-
+  std::vector<ServiceEndpoint> resolve(const std::string &host, int port,
+    Status &st);
 
 private:
-  friend class Subscription;
+  Logger *logger;
 
-  //----------------------------------------------------------------------------
-  // Receive notification about a Subscription being destroyed
-  //----------------------------------------------------------------------------
-  void unsubscribe(Subscription *subscription);
-
-  std::unique_ptr<BaseSubscriber> base;
-  std::shared_ptr<MessageListener> listener;
-
-  //----------------------------------------------------------------------------
-  // Subscription maps
-  //----------------------------------------------------------------------------
-  std::mutex mtx;
-
-  // std::multi map<std::string, std::shared_ptr<Subscription>> channelSubscriptions;
-  // std::map<std::string, std::shared_ptr<Subscription>> patternSubscriptions;
-
-  // std::map<Subscription*, std::string> reverseChannelSubscriptions;
-  // std::map<Subscription*, std::string> reversePatternSubscriptions;
-
-  //----------------------------------------------------------------------------
-  // Process incoming message
-  //----------------------------------------------------------------------------
-  void processIncomingMessage(Message &&msg);
-
-
-
-
+  std::string lastError;
+  int lastErrno;
 };
+
 
 }
 

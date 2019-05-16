@@ -22,7 +22,10 @@
  ************************************************************************/
 
 #include "qclient/ConnectionInitiator.hh"
+#include "qclient/network/HostResolver.hh"
+#include "qclient/Logger.hh"
 #include "qclient/Utils.hh"
+#include "qclient/Status.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -44,40 +47,38 @@ inline std::string q(const std::string &str) {
 }
 
 ConnectionInitiator::ConnectionInitiator(const std::string &hostname, int port) {
-  struct addrinfo hints, *servinfo, *p;
 
-  int rv;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_CANONNAME;
+  HostResolver resolver(new StandardErrorLogger());
+  Status st;
+  std::vector<ServiceEndpoint> endpoints = resolver.resolve(hostname, port, st);
 
-  if ((rv = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
-                        &hints, &servinfo)) != 0) {
-    localerrno = rv;
-    error = SSTR("error when resolving " << q(hostname) << ": " << gai_strerror(rv));
+  if(!st.ok()) {
+    localerrno = st.getErrc();
+    error = st.getMsg();
     return;
   }
 
-  // loop through all the results and connect to the first we can
-  for (p = servinfo; p != NULL; p = p->ai_next) {
-    if ((fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+  bool success = false;
+  for(auto it = endpoints.begin(); it != endpoints.end(); it++) {
+    if ((fd = socket(it->getAiFamily(), it->getAiSocktype(), it->getAiProtocol())) == -1) {
       continue;
     }
 
-    if (::connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
+    const std::vector<char>& addr = it->getAddressBytes();
+
+    if (::connect(fd, (const sockaddr*) addr.data(), addr.size()) == -1) {
       localerrno = errno;
       close(fd);
       fd = -1;
       continue;
     }
 
+    // success
+    success = true;
     break;
   }
 
-  freeaddrinfo(servinfo);
-
-  if (p == NULL) {
+  if(!success) {
     error = SSTR("Unable to connect to " << q(hostname) << ":" << port);
     fd = -1;
     return;
@@ -87,7 +88,7 @@ ConnectionInitiator::ConnectionInitiator(const std::string &hostname, int port) 
   localerrno = 0;
 
   // make socket non-blocking
-  rv = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+  int rv = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
   if(rv != 0) {
     localerrno = errno;
     error = SSTR("Unable to make socket non-blocking");
