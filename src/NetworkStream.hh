@@ -26,15 +26,26 @@
 
 #include <string>
 #include <atomic>
+#include <memory>
 #include "qclient/ConnectionInitiator.hh"
 #include "qclient/TlsFilter.hh"
+#include "qclient/network/HostResolver.hh"
 
 namespace qclient {
 
 class NetworkStream {
 public:
+  //----------------------------------------------------------------------------
+  // Create a network stream based on existing connection. The descriptor
+  // must be asynchronous, and the TCP connection must have already succeeded!
+  //----------------------------------------------------------------------------
+  NetworkStream(ServiceEndpoint endpoint, int fd, TlsConfig tlsconfig);
+
+
   NetworkStream(const std::string &host, int port, TlsConfig tlsconfig = {});
   ~NetworkStream();
+
+
 
   bool ok() {
     return isOk;
@@ -57,6 +68,11 @@ public:
   LinkStatus send(const char *buff, int len);
 
 private:
+  //----------------------------------------------------------------------------
+  // Initialize TlsFilter
+  //----------------------------------------------------------------------------
+  void initializeTlsFliter(const TlsConfig &tlsconfig);
+
   std::string host;
   int port;
 
@@ -67,7 +83,7 @@ private:
   int fd = -1;
 
   bool fdShutdown = false;
-  TlsFilter *tlsfilter = nullptr;
+  std::unique_ptr<TlsFilter> tlsfilter;
   std::atomic<bool> isOk;
 
   void close();

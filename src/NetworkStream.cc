@@ -57,6 +57,16 @@ static LinkStatus sendfn(int socket, const char *buffer, int len, int timeout) {
   return send(socket, buffer, len, timeout);
 }
 
+//------------------------------------------------------------------------------
+// Create a network stream based on existing connection. The descriptor
+// must be asynchronous, and the TCP connection must have already succeeded!
+//------------------------------------------------------------------------------
+NetworkStream::NetworkStream(ServiceEndpoint endpoint, int fd_, TlsConfig tlsconfig)
+: fd(fd_) {
+  isOk = true;
+  initializeTlsFliter(tlsconfig);
+}
+
 NetworkStream::NetworkStream(const std::string &hst, int prt, TlsConfig tlsconfig)
 : host(hst), port(prt) {
 
@@ -71,7 +81,13 @@ NetworkStream::NetworkStream(const std::string &hst, int prt, TlsConfig tlsconfi
 
   fd = initiator.getFd();
   isOk = (fd >= 0);
+  initializeTlsFliter(tlsconfig);
+}
 
+//------------------------------------------------------------------------------
+// Initialize TlsFilter
+//------------------------------------------------------------------------------
+void NetworkStream::initializeTlsFliter(const TlsConfig &tlsconfig) {
   if(tlsconfig.active) {
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -80,7 +96,7 @@ NetworkStream::NetworkStream(const std::string &hst, int prt, TlsConfig tlsconfi
     RecvFunction recvF = std::bind(recvfn, fd, _1, _2, _3);
     SendFunction sendF = std::bind(sendfn, fd, _1, _2, 0);
 
-    tlsfilter = new TlsFilter(tlsconfig, FilterType::CLIENT, recvF, sendF);
+    tlsfilter.reset(new TlsFilter(tlsconfig, FilterType::CLIENT, recvF, sendF));
   }
 }
 
@@ -126,7 +142,7 @@ LinkStatus NetworkStream::send(const char *buff, int len) {
 }
 
 NetworkStream::~NetworkStream() {
-  if(tlsfilter) delete tlsfilter;
+  tlsfilter.reset();
   if(fd > 0) {
     shutdown();
     close();
