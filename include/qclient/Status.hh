@@ -42,7 +42,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor with an error
   //----------------------------------------------------------------------------
-  Status(int err, std::string_view msg) : errcode(err), errorMessage(msg) {}
+  Status(int err, const std::string &msg) : errcode(err), errorMessage(msg) {}
 
   //----------------------------------------------------------------------------
   // Is status ok?
