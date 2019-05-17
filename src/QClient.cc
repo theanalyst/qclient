@@ -23,6 +23,7 @@
 
 #include "qclient/QClient.hh"
 #include "qclient/Utils.hh"
+#include "qclient/network/HostResolver.hh"
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
@@ -148,7 +149,8 @@ void QClient::startEventLoop()
     options.handshake.reset(new PingHandshake());
   }
 
-  endpointDecider = std::make_unique<EndpointDecider>(options.logger.get(), members);
+  hostResolver = std::make_unique<HostResolver>(options.logger.get());
+  endpointDecider = std::make_unique<EndpointDecider>(options.logger.get(), hostResolver.get(), members);
 
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
@@ -209,9 +211,9 @@ bool QClient::feed(const char* buf, size_t len)
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Should we purge any requests currently queued inside WriterThread?
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool QClient::shouldPurgePendingRequests() {
   if(options.retryStrategy.getMode() == RetryStrategy::Mode::kInfiniteRetries) {
     //--------------------------------------------------------------------------
@@ -228,9 +230,9 @@ bool QClient::shouldPurgePendingRequests() {
     return false;
   }
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Yes, purge.
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   return true;
 }
 
@@ -286,6 +288,39 @@ void QClient::connect()
   connectTCP();
 }
 
+//----------------------------------------------------------------------------
+// Wait on an asynchronous file descriptor to connect.. interrupt if
+// asked to shut down.
+//----------------------------------------------------------------------------
+bool QClient::waitForConnect(ThreadAssistant &assistant, int fd) {
+  struct pollfd polls[2];
+  polls[0].fd = shutdownEventFD.getFD();
+  polls[0].events = POLLIN;
+  polls[1].fd = fd;
+  polls[1].events = POLLOUT | POLLERR | POLLHUP;
+
+  while(true) {
+    int rpoll = poll(polls, 2, 60);
+    if(rpoll < 0 && errno != EINTR) {
+      // something's wrong, bail out
+      return false;
+    }
+
+    if(assistant.terminationRequested()) {
+      // we're shutting down, quit trying to connect
+      return false;
+    }
+
+    if( !(polls[1].revents & POLLOUT)) {
+      // could not connect
+      return false;
+    }
+
+    // looks like we're connected
+    return true;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Main event loop thread, handles processing of incoming requests and
 // reconnects in case of network instabilities.
@@ -297,6 +332,12 @@ void QClient::eventLoop(ThreadAssistant &assistant)
 
   while (true) {
     shutdownEventFD.clear();
+
+    //--------------------------------------------------------------------------
+    // Connect..
+    //--------------------------------------------------------------------------
+
+
     bool receivedBytes = handleConnectionEpoch(assistant);
     if(receivedBytes) {
       backoff = std::chrono::milliseconds(1);

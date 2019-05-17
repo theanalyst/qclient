@@ -27,6 +27,7 @@
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/MultiBuilder.hh"
 #include "qclient/Handshake.hh"
+#include "qclient/network/HostResolver.hh"
 #include "qclient/pubsub/MessageQueue.hh"
 #include "ConnectionCore.hh"
 #include "ReplyMacros.hh"
@@ -311,7 +312,8 @@ TEST(EndpointDecider, BasicSanity) {
   members.push_back(Endpoint("host2.cern.ch", 2345));
   members.push_back(Endpoint("host3.cern.ch", 3456));
 
-  EndpointDecider decider(&logger, members);
+  HostResolver resolver(&logger);
+  EndpointDecider decider(&logger, &resolver, members);
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
   ASSERT_EQ(decider.getNext(), Endpoint("host2.cern.ch", 2345));
 

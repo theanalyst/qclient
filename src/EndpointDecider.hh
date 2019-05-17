@@ -30,30 +30,41 @@
 
 namespace qclient {
 
+class HostResolver;
+
+//------------------------------------------------------------------------------
+// In face of having multiple cluster members, each cluster member entry
+// potentially pointing to several IP addresses, and on top of that redirections
+// which might point to hosts which are not even part of the given members...
+// How do we decide where to connect to? We need to somehow take into account
+// if we just received a redirection, or previous connection attempts against
+// an IP failed.
+//
+// This class gives an answer on where to connect to next.
+//------------------------------------------------------------------------------
 class EndpointDecider {
 public:
-  EndpointDecider(Logger *log, const Members &memb) : logger(log), members(memb) {}
+  //----------------------------------------------------------------------------
+  // Constructor provided with cluster members as per configuration. We may
+  // contact different clusters when issued a redirection, however, outside of
+  // the original list.
+  //----------------------------------------------------------------------------
+  EndpointDecider(Logger *log, HostResolver *resolver, const Members &memb);
 
-  void registerRedirection(const Endpoint &redir) {
-    redirection = redir;
-  }
+  //----------------------------------------------------------------------------
+  // We were just notified of a redirection.
+  //----------------------------------------------------------------------------
+  void registerRedirection(const Endpoint &redir);
 
-  Endpoint getNext() {
-    if(!redirection.empty()) {
-      Endpoint retval = redirection;
-      redirection = {};
-      QCLIENT_LOG(logger, LogLevel::kInfo, "redirecting to " << retval.toString());
-      return retval;
-    }
-
-    Endpoint retval = members.getEndpoints()[nextMember];
-    nextMember = (nextMember + 1) % members.size();
-    QCLIENT_LOG(logger, LogLevel::kInfo, "attempting connection to " << retval.toString());
-    return retval;
-  }
+  //----------------------------------------------------------------------------
+  // The event loop needs to reconnect - which endpoint should we target?
+  //----------------------------------------------------------------------------
+  Endpoint getNext();
 
 private:
   Logger *logger;
+  HostResolver *resolver;
+
   size_t nextMember = 0u;
   Members members;
   Endpoint redirection;

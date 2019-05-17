@@ -66,7 +66,7 @@ namespace qclient
   class WriterThread;
   class ConnectionCore;
   class EndpointDecider;
-
+  class HostResolver;
 
 //------------------------------------------------------------------------------
 //! Describe a redisReplyPtr, in a format similar to what redis-cli would give.
@@ -253,10 +253,21 @@ private:
 
   friend class FaultInjector;
 
+  std::unique_ptr<HostResolver> hostResolver;
+
   //----------------------------------------------------------------------------
   // Notify this QClient object that a fault injection has been added
   //----------------------------------------------------------------------------
   void notifyFaultInjectionsUpdated();
+
+  //----------------------------------------------------------------------------
+  // Wait on an asynchronous file descriptor to connect.. interrupt if
+  // asked to shut down.
+  //
+  // Return value of true means "fd is connected", and false means "fd not
+  // connected, close() it"
+  //----------------------------------------------------------------------------
+  bool waitForConnect(ThreadAssistant &assistant, int fd);
 
 };
 

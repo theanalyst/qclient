@@ -86,6 +86,7 @@ add_library(qclient STATIC
   src/ConnectionCore.cc
   src/ConnectionInitiator.cc
   src/EncodedRequest.cc
+  src/EndpointDecider.cc
   src/FaultInjector.cc
   src/Formatting.cc
   src/FutureHandler.cc
