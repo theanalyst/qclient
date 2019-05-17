@@ -25,6 +25,7 @@
 #define QCLIENT_STATUS_HH
 
 #include "utils/Macros.hh"
+#include <sstream>
 
 namespace qclient {
 
@@ -62,6 +63,15 @@ public:
   //----------------------------------------------------------------------------
   std::string getMsg() const {
     return errorMessage;
+  }
+
+  //----------------------------------------------------------------------------
+  // To string, including error code
+  //----------------------------------------------------------------------------
+  std::string toString() const {
+    std::ostringstream ss;
+    ss << "(" << errcode << "): " << errorMessage;
+    return ss.str();
   }
 
 private:

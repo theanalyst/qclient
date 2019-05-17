@@ -27,10 +27,13 @@
 #include "qclient/Logger.hh"
 #include "qclient/Members.hh"
 #include "qclient/GlobalInterceptor.hh"
+#include "qclient/network/HostResolver.hh"
+#include <vector>
 
 namespace qclient {
 
 class HostResolver;
+class ServiceEndpoint;
 
 //------------------------------------------------------------------------------
 // In face of having multiple cluster members, each cluster member entry
@@ -58,8 +61,17 @@ public:
 
   //----------------------------------------------------------------------------
   // The event loop needs to reconnect - which endpoint should we target?
+  //
+  // Returns non-resolved Endpoint, leaving the DNS resolution up to the
+  // caller.
   //----------------------------------------------------------------------------
   Endpoint getNext();
+
+  //----------------------------------------------------------------------------
+  // Get next fully resolved service endpoint, ready to be passed to connect().
+  // False means all DNS resolution attempts failed.
+  //----------------------------------------------------------------------------
+  bool getNextEndpoint(ServiceEndpoint &endpoint);
 
 private:
   Logger *logger;
@@ -68,6 +80,13 @@ private:
   size_t nextMember = 0u;
   Members members;
   Endpoint redirection;
+
+  std::vector<ServiceEndpoint> resolvedEndpoints;
+
+  //----------------------------------------------------------------------------
+  // Fetch one of the resolved endpoints, return true
+  //----------------------------------------------------------------------------
+  bool fetchServiceEndpoint(ServiceEndpoint &out);
 };
 
 }

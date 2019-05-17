@@ -29,6 +29,7 @@
 #include "qclient/Handshake.hh"
 #include "qclient/network/HostResolver.hh"
 #include "qclient/pubsub/MessageQueue.hh"
+#include "qclient/Status.hh"
 #include "ConnectionCore.hh"
 #include "ReplyMacros.hh"
 
@@ -331,4 +332,34 @@ TEST(MultiBuilder, BasicSanity) {
   ASSERT_EQ(builder.size(), 2u);
   ASSERT_EQ(builder.getDeque()[0], EncodedRequest::make("GET", "123"));
   ASSERT_EQ(builder.getDeque()[1], EncodedRequest::make("GET", "234"));
+}
+
+TEST(ServiceEndpoint, BasicSanity) {
+  ServiceEndpoint ipv4(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.100", 9999, "example.com");
+  ASSERT_EQ(ipv4.getPort(), 9999);
+  ASSERT_EQ(ipv4.getPrintableAddress(), "192.168.1.100");
+  ASSERT_EQ(ipv4.getOriginalHostname(), "example.com");
+
+  ServiceEndpoint ipv6(ProtocolType::kIPv6, SocketType::kStream, "2001:db8:85a3:8d3:1319:8a2e:370:7348", 8888, "example.com");
+  ASSERT_EQ(ipv6.getPort(), 8888);
+  ASSERT_EQ(ipv6.getPrintableAddress(), "2001:db8:85a3:8d3:1319:8a2e:370:7348");
+  ASSERT_EQ(ipv6.getOriginalHostname(), "example.com");
+}
+
+TEST(HostResolver, BasicSanity) {
+  StandardErrorLogger logger;
+  HostResolver resolver(&logger);
+
+  std::vector<ServiceEndpoint> endpoints;
+  endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.100", 4444, "1.example.com");
+  endpoints.emplace_back(ProtocolType::kIPv6, SocketType::kStream, "2001:db8:85a3:8d3:1319:8a2e:370:7348", 4444, "2.example.com");
+  resolver.feedFake("example.com", 4444, endpoints);
+
+  Status st;
+  ASSERT_EQ(resolver.resolve("example.com", 4444, st), endpoints);
+  ASSERT_TRUE(st.ok());
+
+  ASSERT_TRUE(resolver.resolve("3.example.com", 5555, st).empty());
+  ASSERT_FALSE(st.ok());
+  ASSERT_EQ(st.getErrc(), ENOENT);
 }

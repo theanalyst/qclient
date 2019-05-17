@@ -27,6 +27,8 @@
 #include <netdb.h>
 #include <vector>
 #include <string>
+#include <mutex>
+#include <map>
 
 namespace qclient {
 
@@ -69,8 +71,15 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ServiceEndpoint(ProtocolType &protocol, SocketType &socket,
+  ServiceEndpoint(ProtocolType protocol, SocketType socket,
     const std::vector<char> addr, const std::string &original);
+
+  //----------------------------------------------------------------------------
+  // Constructor, taking the IP address as text and a port, not sockaddr bytes
+  //----------------------------------------------------------------------------
+  ServiceEndpoint(ProtocolType protocol, SocketType socket,
+    const std::string &addr, int port, const std::string &original);
+
 
   //----------------------------------------------------------------------------
   // Get stored protocol type
@@ -89,7 +98,7 @@ public:
 
   //----------------------------------------------------------------------------
   // Get printable address (ie 127.0.0.1) that a human would expect
-  //----------------------------------------------- -----------------------------
+  //----------------------------------------------------------------------------
   std::string getPrintableAddress() const;
 
   //----------------------------------------------------------------------------
@@ -122,6 +131,12 @@ public:
   //----------------------------------------------------------------------------
   std::string getOriginalHostname() const;
 
+  //----------------------------------------------------------------------------
+  // Equality operator
+  //----------------------------------------------------------------------------
+  bool operator==(const ServiceEndpoint& other) const;
+
+
 private:
   ProtocolType protocolType;
   SocketType socketType;
@@ -146,11 +161,23 @@ public:
   std::vector<ServiceEndpoint> resolve(const std::string &host, int port,
     Status &st);
 
+  //----------------------------------------------------------------------------
+  // Feed fake data - once you call this, _all_ responses will be faked
+  //----------------------------------------------------------------------------
+  void feedFake(const std::string &host, int port, const std::vector<ServiceEndpoint> &out);
+
 private:
   Logger *logger;
 
-  std::string lastError;
-  int lastErrno;
+  std::mutex mtx;
+  std::map<std::pair<std::string, int>, std::vector<ServiceEndpoint>> fakeMap;
+
+  //----------------------------------------------------------------------------
+  // Resolve function that only returns fake data
+  //----------------------------------------------------------------------------
+  std::vector<ServiceEndpoint> resolveFake(const std::string &host, int port,
+    Status &st);
+
 };
 
 

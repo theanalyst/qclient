@@ -22,6 +22,10 @@
  ************************************************************************/
 
 #include "EndpointDecider.hh"
+#include "qclient/Status.hh"
+#include "qclient/network/HostResolver.hh"
+#include "qclient/Logger.hh"
+#include <algorithm>
 
 namespace qclient {
 
@@ -37,6 +41,7 @@ EndpointDecider::EndpointDecider(Logger *log, HostResolver *resolv, const Member
 // We were just notified of a redirection.
 //------------------------------------------------------------------------------
 void EndpointDecider::registerRedirection(const Endpoint &redir) {
+  resolvedEndpoints.clear();
   redirection = redir;
 }
 
@@ -44,6 +49,8 @@ void EndpointDecider::registerRedirection(const Endpoint &redir) {
 // The event loop needs to reconnect - which endpoint should we target?
 //------------------------------------------------------------------------------
 Endpoint EndpointDecider::getNext() {
+  resolvedEndpoints.clear();
+
   if(!redirection.empty()) {
     Endpoint retval = redirection;
     redirection = {};
@@ -55,6 +62,48 @@ Endpoint EndpointDecider::getNext() {
   nextMember = (nextMember + 1) % members.size();
   QCLIENT_LOG(logger, LogLevel::kInfo, "attempting connection to " << retval.toString());
   return retval;
+}
+
+//------------------------------------------------------------------------------
+// Fetch one of the resolved endpoints, return true
+//------------------------------------------------------------------------------
+bool EndpointDecider::fetchServiceEndpoint(ServiceEndpoint &out) {
+  out = resolvedEndpoints.back();
+  resolvedEndpoints.pop_back();
+  QCLIENT_LOG(logger, LogLevel::kInfo, "Resolved endpoint " << out.getString());
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get next service endpoint. False means all DNS resolution attempts failed.
+//------------------------------------------------------------------------------
+bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
+
+  if(!resolvedEndpoints.empty()) {
+    return fetchServiceEndpoint(resolved);
+  }
+
+  for(size_t attempt = 0; attempt < members.size() + (!redirection.empty()); attempt++) {
+    Endpoint endpoint = getNext();
+
+    Status st;
+    resolvedEndpoints = resolver->resolve(endpoint.getHost(), endpoint.getPort(), st);
+    std::reverse(resolvedEndpoints.begin(), resolvedEndpoints.end());
+
+    if(!st.ok()) {
+      QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to resolve endpoint " << endpoint.toString() << ": " << st.toString());
+    }
+
+    if(!resolvedEndpoints.empty()) {
+      return fetchServiceEndpoint(resolved);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // All resolution requests for all members we know about failed!
+  //----------------------------------------------------------------------------
+  QCLIENT_LOG(logger, LogLevel::kError, "Unable to resolve any endpoints, possible trouble with DNS");
+  return false;
 }
 
 }

@@ -68,10 +68,39 @@ std::string socketTypeToString(SocketType sock) {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ServiceEndpoint::ServiceEndpoint(ProtocolType &protocol, SocketType &socket,
+ServiceEndpoint::ServiceEndpoint(ProtocolType protocol, SocketType socket,
   const std::vector<char> addr, const std::string &original)
 : protocolType(protocol), socketType(socket), address(addr),
   originalHostname(original) { }
+
+//------------------------------------------------------------------------------
+// Constructor, taking the IP address as text and a port, not sockaddr bytes
+//------------------------------------------------------------------------------
+ServiceEndpoint::ServiceEndpoint(ProtocolType protocol, SocketType socket,
+    const std::string &addr, int port, const std::string &original)
+: protocolType(protocol), socketType(socket), originalHostname(original) {
+
+  if(protocolType == ProtocolType::kIPv4) {
+    struct sockaddr_in out;
+    memset(&out, 0, sizeof(struct sockaddr_in));
+    out.sin_family = AF_INET;
+    out.sin_port = htons(port);
+    inet_pton(AF_INET, addr.c_str(), &(out.sin_addr));
+
+    address.resize(sizeof(struct sockaddr_in));
+    memcpy(address.data(), &out, sizeof(struct sockaddr_in));
+  }
+  else if(protocolType == ProtocolType::kIPv6) {
+    struct sockaddr_in6 out;
+    memset(&out, 0, sizeof(sockaddr_in6));
+    out.sin6_family = AF_INET6;
+    out.sin6_port = htons(port);
+    inet_pton(AF_INET6, addr.c_str(), &(out.sin6_addr));
+
+    address.resize(sizeof(struct sockaddr_in6));
+    memcpy(address.data(), &out, sizeof(struct sockaddr_in6));
+  }
+}
 
 //------------------------------------------------------------------------------
 // Get stored protocol type
@@ -141,7 +170,7 @@ uint16_t ServiceEndpoint::getPort() const {
 std::string ServiceEndpoint::getString() const {
   std::ostringstream ss;
   ss << "[" << getPrintableAddress() << "]" << ":" << getPort() << " ("  << protocolTypeToString(protocolType) << "," <<
-    socketTypeToString(socketType) << ")";
+    socketTypeToString(socketType) << " resolved from " << originalHostname << ")";
 
   return ss.str();
 }
@@ -194,11 +223,21 @@ int ServiceEndpoint::getAiProtocol() const {
   return 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Recover original hostname, the one we passed to HostResolver
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string ServiceEndpoint::getOriginalHostname() const {
   return originalHostname;
+}
+
+//------------------------------------------------------------------------------
+// Equality operator
+//------------------------------------------------------------------------------
+bool ServiceEndpoint::operator==(const ServiceEndpoint& other) const {
+  return protocolType     == other.protocolType &&
+         socketType       == other.socketType   &&
+         address          == other.address      &&
+         originalHostname == other.originalHostname;
 }
 
 //------------------------------------------------------------------------------
@@ -211,6 +250,10 @@ HostResolver::HostResolver(Logger *log) : logger(log) { }
 // hostname and port pair?
 //------------------------------------------------------------------------------
 std::vector<ServiceEndpoint> HostResolver::resolve(const std::string &host, int port, Status &st) {
+  if(!fakeMap.empty()) {
+    return resolveFake(host, port, st);
+  }
+
   std::vector<ServiceEndpoint> output;
 
   struct addrinfo hints, *servinfo, *p;
@@ -268,6 +311,33 @@ std::vector<ServiceEndpoint> HostResolver::resolve(const std::string &host, int 
   st = Status();
   return output;
 }
+
+//----------------------------------------------------------------------------
+// Feed fake data - once you call this, _all_ responses will be faked
+//----------------------------------------------------------------------------
+void HostResolver::feedFake(const std::string &host, int port, const std::vector<ServiceEndpoint> &out) {
+  std::lock_guard<std::mutex> lock(mtx);
+  fakeMap[std::pair<std::string, int>(host, port)] = out;
+}
+
+//------------------------------------------------------------------------------
+// Resolve function that only returns fake data
+//------------------------------------------------------------------------------
+std::vector<ServiceEndpoint> HostResolver::resolveFake(const std::string &host, int port,
+    Status &st) {
+
+  std::lock_guard<std::mutex> lock(mtx);
+  auto it = fakeMap.find(std::pair<std::string, int>(host, port));
+  if(it != fakeMap.end()) {
+    st = Status();
+    return it->second;
+  }
+
+  st = Status(ENOENT, "Unable to resolve");
+  return {};
+}
+
+
 
 }
 
