@@ -69,8 +69,9 @@ std::string socketTypeToString(SocketType sock) {
 // Constructor
 //------------------------------------------------------------------------------
 ServiceEndpoint::ServiceEndpoint(ProtocolType &protocol, SocketType &socket,
-  const std::vector<char> addr) : protocolType(protocol), socketType(socket),
-  address(addr) { }
+  const std::vector<char> addr, const std::string &original)
+: protocolType(protocol), socketType(socket), address(addr),
+  originalHostname(original) { }
 
 //------------------------------------------------------------------------------
 // Get stored protocol type
@@ -193,6 +194,13 @@ int ServiceEndpoint::getAiProtocol() const {
   return 0;
 }
 
+//----------------------------------------------------------------------------
+// Recover original hostname, the one we passed to HostResolver
+//----------------------------------------------------------------------------
+std::string ServiceEndpoint::getOriginalHostname() const {
+  return originalHostname;
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -253,7 +261,7 @@ std::vector<ServiceEndpoint> HostResolver::resolve(const std::string &host, int 
       continue;
     }
 
-    output.emplace_back(protocolType, socketType, addr);
+    output.emplace_back(protocolType, socketType, addr, host);
   }
 
   freeaddrinfo(servinfo);

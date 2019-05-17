@@ -70,7 +70,7 @@ public:
   // Constructor
   //----------------------------------------------------------------------------
   ServiceEndpoint(ProtocolType &protocol, SocketType &socket,
-    const std::vector<char> addr);
+    const std::vector<char> addr, const std::string &original);
 
   //----------------------------------------------------------------------------
   // Get stored protocol type
@@ -117,11 +117,16 @@ public:
   //----------------------------------------------------------------------------
   int getAiProtocol() const;
 
+  //----------------------------------------------------------------------------
+  // Recover original hostname, the one we passed to HostResolver
+  //----------------------------------------------------------------------------
+  std::string getOriginalHostname() const;
 
 private:
   ProtocolType protocolType;
   SocketType socketType;
   std::vector<char> address; // struct sockaddr bytes stored in a char vector
+  std::string originalHostname;
 };
 
 //------------------------------------------------------------------------------
