@@ -363,3 +363,74 @@ TEST(HostResolver, BasicSanity) {
   ASSERT_FALSE(st.ok());
   ASSERT_EQ(st.getErrc(), ENOENT);
 }
+
+TEST(EndpointDecider, WithHostResolution) {
+  Members members;
+  members.push_back("1.example.com", 3333);
+  members.push_back("2.example.com", 4444);
+
+  StandardErrorLogger logger;
+  HostResolver resolver(&logger);
+  EndpointDecider decider(&logger, &resolver, members);
+
+  ServiceEndpoint ex3_1(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.2", 5555, "3.example.com");
+  ServiceEndpoint ex3_2(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.222", 5555, "3.example.com");
+
+  resolver.feedFake("3.example.com", 5555, { ex3_1, ex3_2 });
+
+  // no DNS entries for 3.example.com
+  ServiceEndpoint connectToNext = ServiceEndpoint(ProtocolType::kIPv4, SocketType::kStream, "127.0.0.1", 9999, "example.com");
+  ASSERT_FALSE(decider.getNextEndpoint(connectToNext));
+
+  // only 1.example.com has valid entries
+  std::vector<ServiceEndpoint> endpoints;
+  endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.3", 3333, "1.example.com");
+  endpoints.emplace_back(ProtocolType::kIPv6, SocketType::kStream, "2001:db8:85a3:8d3:1319:8a2e:370:7348", 3333, "1.example.com");
+  resolver.feedFake("1.example.com", 3333, endpoints);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[1]);
+
+  // cycle back to 1.example.com, since 2.example.com has no entry
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[1]);
+
+  // 2.example.com comes alive.. only an IPv4 here.
+  std::vector<ServiceEndpoint> endpoints2;
+  endpoints2.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.4", 4444, "2.example.com");
+  resolver.feedFake("2.example.com", 4444, endpoints2);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints2[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[1]);
+
+  // hey, we just got a redirection to 3.example.com:5555
+  decider.registerRedirection(Endpoint("3.example.com", 5555));
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, ex3_1);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, ex3_2);
+
+  // redirection hosts have been exhausted, back to cycling
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints2[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[0]);
+
+  ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
+  ASSERT_EQ(connectToNext, endpoints[1]);
+}
