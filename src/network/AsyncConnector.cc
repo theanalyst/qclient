@@ -95,8 +95,8 @@ bool AsyncConnector::isReady() {
   // poll() should be instantaneous here.
   //----------------------------------------------------------------------------
   struct pollfd polls[1];
-  polls[1].fd = fd;
-  polls[1].events = POLLOUT;
+  polls[0].fd = fd;
+  polls[0].events = POLLOUT;
 
   int rpoll = poll(polls, 1, 0);
   if(rpoll == 1) {
