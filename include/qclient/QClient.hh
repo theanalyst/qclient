@@ -224,6 +224,7 @@ private:
 
   std::chrono::steady_clock::time_point lastAvailable;
   bool successfulResponses;
+  bool successfulResponsesEver = false;
   std::unique_ptr<NetworkStream> networkStream;
 
   void startEventLoop();

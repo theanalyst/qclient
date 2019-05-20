@@ -231,6 +231,24 @@ bool QClient::shouldPurgePendingRequests() {
   }
 
   //----------------------------------------------------------------------------
+  // We shouldn't purge while trying to connect.. Otherwise, the following
+  // will occur:
+  //
+  // qclient::QClient qcl( ... );
+  // qcl.execute("PING") -> failed because the first ServiceEndpoint was
+  //                        invalid, even though the rest were good
+  //
+  // Instead, we should consider purging only after we've tried all service
+  // endpoints.
+  //----------------------------------------------------------------------------
+  if(!successfulResponsesEver && !endpointDecider->madeFullCircle()) {
+    //--------------------------------------------------------------------------
+    // We're still trying out endpoints, no purge
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Yes, purge.
   //----------------------------------------------------------------------------
   return true;
@@ -245,6 +263,7 @@ void QClient::cleanup()
   networkStream.reset();
 
   responseBuilder.restart();
+  successfulResponsesEver = successfulResponsesEver | successfulResponses;
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
