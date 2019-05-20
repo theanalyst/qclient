@@ -295,9 +295,6 @@ void QClient::connect()
 {
   currentConnectionEpoch++;
   cleanup();
-  untranslatedTargetEndpoint = endpointDecider->getNext();
-  targetEndpoint = GlobalInterceptor::translate(untranslatedTargetEndpoint);
-
   connectTCP();
 }
 
@@ -411,8 +408,7 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
       }
     }
 
-    if( (polls[0].revents != 0 && faultInjector.hasPartition(untranslatedTargetEndpoint))
-        || assistant.terminationRequested()) {
+    if( (polls[0].revents != 0) || assistant.terminationRequested()) {
       notifyConnectionLost(0, "shutdown requested");
       break;
     }

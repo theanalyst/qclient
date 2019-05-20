@@ -220,9 +220,6 @@ private:
   std::unique_ptr<EndpointDecider> endpointDecider;
 
   // the endpoint we're actually connecting to
-  Endpoint untranslatedTargetEndpoint;
-  Endpoint targetEndpoint;
-
   Options options;
 
   std::chrono::steady_clock::time_point lastAvailable;
