@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: NetworkStream.hh
+// File: AsyncConnector.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,79 +21,72 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __QCLIENT_NETWORK_STREAM_H__
-#define __QCLIENT_NETWORK_STREAM_H__
+#ifndef QCLIENT_ASYNC_CONNECTOR_HH
+#define QCLIENT_ASYNC_CONNECTOR_HH
 
-#include <string>
-#include <atomic>
-#include <memory>
-#include "qclient/ConnectionInitiator.hh"
-#include "qclient/TlsFilter.hh"
-#include "qclient/network/HostResolver.hh"
+#include "qclient/Status.hh"
 
 namespace qclient {
 
-class NetworkStream {
+class ServiceEndpoint;
+
+//------------------------------------------------------------------------------
+// Establishes connection to the specified resolved endpoint asynchronously.
+// Does not manage the lifetime of the file descriptor once connected!
+//------------------------------------------------------------------------------
+class AsyncConnector {
 public:
   //----------------------------------------------------------------------------
-  // Create a network stream based on an existing socket fd.
+  // Constructor - initiate connection towards the given ServiceEndpoint. Does
+  // not block the calling thread until connected - issues an asynchronous
+  // request the OS, asking to connect.
   //----------------------------------------------------------------------------
-  NetworkStream(int fd, TlsConfig tlsconfig);
-
-  //----------------------------------------------------------------------------
-  // Create a network stream by connecting to the specified endpoint. No
-  // DNS lookups will be necessary.
-  //----------------------------------------------------------------------------
-  NetworkStream(ServiceEndpoint endpoint, TlsConfig tlsconfig);
+  AsyncConnector(const ServiceEndpoint &endpoint);
 
   //----------------------------------------------------------------------------
-  // Destructor
+  // Is ::connect ready yet?
   //----------------------------------------------------------------------------
-  ~NetworkStream();
+  bool isReady();
 
+  //----------------------------------------------------------------------------
+  // Block until file descriptor is ready, OR a POLLIN event occurs in the
+  // given shutdown fd.
+  //
+  // Return true if file descriptor is ready, false if we had to cancel due
+  // to events in shutdownFd.
+  //----------------------------------------------------------------------------
+  bool blockUntilReady(int shutdownFd);
 
-  bool ok() {
-    return isOk;
-  }
+  //----------------------------------------------------------------------------
+  // Has there been an error yet? Note that, if ::connect is still pending,
+  // there might be an error in the future.
+  //----------------------------------------------------------------------------
+  bool ok() const;
 
-  int getErrno() {
-    return localerrno;
-  }
+  //----------------------------------------------------------------------------
+  // Get file descriptor - could be -1 if an error has occurred.
+  //----------------------------------------------------------------------------
+  int getFd() const;
 
-  std::string getError() {
-    return error;
-  }
+  //----------------------------------------------------------------------------
+  // If an error has occurred, return its errno. Returns 0 if no errors have
+  // occurred.
+  //----------------------------------------------------------------------------
+  int getErrno() const;
 
-  int getFd() {
-    return fd;
-  }
-
-  void shutdown();
-  RecvStatus recv(char *buff, int len, int timeout);
-  LinkStatus send(const char *buff, int len);
+  //----------------------------------------------------------------------------
+  // If an error has occurred, return a string description. Returns empty string
+  // if no errors have occurred.
+  //----------------------------------------------------------------------------
+  std::string getError() const;
 
 private:
-  //----------------------------------------------------------------------------
-  // Initialize TlsFilter
-  //----------------------------------------------------------------------------
-  void initializeTlsFliter(const TlsConfig &tlsconfig);
-
-  std::string host;
-  int port;
-
+  int fd = -1;
   int localerrno = 0;
   std::string error;
 
-  // fd is immutable after construction, safe to access concurrently.
-  int fd = -1;
-
-  bool fdShutdown = false;
-  std::unique_ptr<TlsFilter> tlsfilter;
-  std::atomic<bool> isOk;
-
-  void close();
+  bool finished = false;
 };
-
 
 }
 

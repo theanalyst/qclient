@@ -58,6 +58,16 @@ static LinkStatus sendfn(int socket, const char *buffer, int len, int timeout) {
 }
 
 //------------------------------------------------------------------------------
+// Create a network stream based on an existing socket fd.
+//------------------------------------------------------------------------------
+NetworkStream::NetworkStream(int fd_, TlsConfig tlsconfig)
+: fd(fd_) {
+
+  isOk = (fd >= 0);
+  initializeTlsFliter(tlsconfig);
+}
+
+//------------------------------------------------------------------------------
 // Create a network stream by connecting to the specified endpoint. No
 // DNS lookups will be done.
 //------------------------------------------------------------------------------

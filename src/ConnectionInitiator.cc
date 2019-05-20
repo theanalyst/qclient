@@ -76,7 +76,7 @@ ConnectionInitiator::ConnectionInitiator(const ServiceEndpoint &endpoint) {
 
 ConnectionInitiator::ConnectionInitiator(const std::string &hostname, int port) {
 
-  HostResolver resolver(new StandardErrorLogger());
+  HostResolver resolver(nullptr);
   Status st;
   std::vector<ServiceEndpoint> endpoints = resolver.resolve(hostname, port, st);
 

@@ -24,6 +24,7 @@
 #include "qclient/QClient.hh"
 #include "qclient/Utils.hh"
 #include "qclient/network/HostResolver.hh"
+#include "qclient/network/AsyncConnector.hh"
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
@@ -267,14 +268,20 @@ void QClient::connectTCP()
 
   ServiceEndpoint endpoint;
   if(!endpointDecider->getNextEndpoint(endpoint)) {
-    std::cerr << "could not DNS resolve!" << std::endl;
     return;
   }
 
-  networkStream.reset(new NetworkStream(endpoint, options.tlsconfig));
+  AsyncConnector connector(endpoint);
+  if(!connector.blockUntilReady(shutdownEventFD.getFD())) {
+    return;
+  }
 
+  if(!connector.ok()) {
+    return;
+  }
+
+  networkStream.reset(new NetworkStream(connector.getFd(), options.tlsconfig));
   if(!networkStream->ok()) {
-    std::cerr << "network stream NOT OK" << std::endl;
     return;
   }
 
@@ -293,39 +300,6 @@ void QClient::connect()
   targetEndpoint = GlobalInterceptor::translate(untranslatedTargetEndpoint);
 
   connectTCP();
-}
-
-//----------------------------------------------------------------------------
-// Wait on an asynchronous file descriptor to connect.. interrupt if
-// asked to shut down.
-//----------------------------------------------------------------------------
-bool QClient::waitForConnect(ThreadAssistant &assistant, int fd) {
-  struct pollfd polls[2];
-  polls[0].fd = shutdownEventFD.getFD();
-  polls[0].events = POLLIN;
-  polls[1].fd = fd;
-  polls[1].events = POLLOUT | POLLERR | POLLHUP;
-
-  while(true) {
-    int rpoll = poll(polls, 2, 60);
-    if(rpoll < 0 && errno != EINTR) {
-      // something's wrong, bail out
-      return false;
-    }
-
-    if(assistant.terminationRequested()) {
-      // we're shutting down, quit trying to connect
-      return false;
-    }
-
-    if( !(polls[1].revents & POLLOUT)) {
-      // could not connect
-      return false;
-    }
-
-    // looks like we're connected
-    return true;
-  }
 }
 
 //------------------------------------------------------------------------------

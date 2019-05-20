@@ -67,6 +67,7 @@ include_directories(
 )
 
 add_library(qclient STATIC
+  src/network/AsyncConnector.cc
   src/network/HostResolver.cc
 
   src/pubsub/BaseSubscriber.cc
