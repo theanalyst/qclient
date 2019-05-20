@@ -25,6 +25,7 @@
 #include "qclient/GlobalInterceptor.hh"
 #include "qclient/Logger.hh"
 #include "qclient/Status.hh"
+#include "qclient/GlobalInterceptor.hh"
 #include <arpa/inet.h>
 #include <string.h>
 
@@ -246,10 +247,18 @@ bool ServiceEndpoint::operator==(const ServiceEndpoint& other) const {
 HostResolver::HostResolver(Logger *log) : logger(log) { }
 
 //------------------------------------------------------------------------------
+// Resolve, while taking into account intercepts as well
+//------------------------------------------------------------------------------
+std::vector<ServiceEndpoint> HostResolver::resolve(const std::string &host, int port, Status &st) {
+  Endpoint translated = GlobalInterceptor::translate(Endpoint(host, port));
+  return resolveNoIntercept(translated.getHost(), translated.getPort(), st);
+}
+
+//------------------------------------------------------------------------------
 // Main resolve function: How many service endpoints match the given
 // hostname and port pair?
 //------------------------------------------------------------------------------
-std::vector<ServiceEndpoint> HostResolver::resolve(const std::string &host, int port, Status &st) {
+std::vector<ServiceEndpoint> HostResolver::resolveNoIntercept(const std::string &host, int port, Status &st) {
   if(!fakeMap.empty()) {
     return resolveFake(host, port, st);
   }

@@ -434,3 +434,23 @@ TEST(EndpointDecider, WithHostResolution) {
   ASSERT_TRUE(decider.getNextEndpoint(connectToNext));
   ASSERT_EQ(connectToNext, endpoints[1]);
 }
+
+TEST(EndpointDecider, WithInterception) {
+  GlobalInterceptor::addIntercept(Endpoint("1.example.com", 1111), Endpoint("2.example.com", 3333));
+
+  Members members;
+  members.push_back("1.example.com", 1111);
+
+  StandardErrorLogger logger;
+  HostResolver resolver(&logger);
+  EndpointDecider decider(&logger, &resolver, members);
+
+  std::vector<ServiceEndpoint> endpoints;
+  endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.4", 3333, "2.example.com");
+  resolver.feedFake("2.example.com", 3333, endpoints);
+
+  Status st;
+  std::vector<ServiceEndpoint> endpoints2 = resolver.resolve("1.example.com", 1111, st);
+  ASSERT_EQ(endpoints2.size(), 1u);
+  ASSERT_EQ(endpoints2[0], endpoints[0]);
+}

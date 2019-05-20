@@ -162,6 +162,13 @@ public:
     Status &st);
 
   //----------------------------------------------------------------------------
+  // Like above, but do not take global interceptions into account.
+  //----------------------------------------------------------------------------
+  std::vector<ServiceEndpoint> resolveNoIntercept(const std::string &host, int port,
+    Status &st);
+
+
+  //----------------------------------------------------------------------------
   // Feed fake data - once you call this, _all_ responses will be faked
   //----------------------------------------------------------------------------
   void feedFake(const std::string &host, int port, const std::vector<ServiceEndpoint> &out);
