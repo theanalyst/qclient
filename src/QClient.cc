@@ -158,7 +158,6 @@ void QClient::startEventLoop()
   connectionCore.reset(new ConnectionCore(options.logger.get(),
     options.handshake.get(), options.backpressureStrategy, options.retryStrategy, options.messageListener.get()));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionCore.get(), shutdownEventFD));
-  connect();
   eventLoopThread.reset(&QClient::eventLoop, this);
 }
 
@@ -328,11 +327,7 @@ void QClient::eventLoop(ThreadAssistant &assistant)
 
   while (true) {
     shutdownEventFD.clear();
-
-    //--------------------------------------------------------------------------
-    // Connect..
-    //--------------------------------------------------------------------------
-
+    this->connect();
 
     bool receivedBytes = handleConnectionEpoch(assistant);
     if(receivedBytes) {
@@ -354,8 +349,6 @@ void QClient::eventLoop(ThreadAssistant &assistant)
     if (backoff < std::chrono::milliseconds(2048)) {
       backoff++;
     }
-
-    this->connect();
   }
 }
 

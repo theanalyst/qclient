@@ -257,16 +257,6 @@ private:
   // Notify this QClient object that a fault injection has been added
   //----------------------------------------------------------------------------
   void notifyFaultInjectionsUpdated();
-
-  //----------------------------------------------------------------------------
-  // Wait on an asynchronous file descriptor to connect.. interrupt if
-  // asked to shut down.
-  //
-  // Return value of true means "fd is connected", and false means "fd not
-  // connected, close() it"
-  //----------------------------------------------------------------------------
-  bool waitForConnect(ThreadAssistant &assistant, int fd);
-
 };
 
 }
