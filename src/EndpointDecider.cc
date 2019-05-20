@@ -60,6 +60,9 @@ Endpoint EndpointDecider::getNext() {
 
   Endpoint retval = members.getEndpoints()[nextMember];
   nextMember = (nextMember + 1) % members.size();
+  if(nextMember == 0) {
+    fullCircle = true;
+  }
   QCLIENT_LOG(logger, LogLevel::kInfo, "attempting connection to " << retval.toString());
   return retval;
 }
@@ -105,5 +108,14 @@ bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
   QCLIENT_LOG(logger, LogLevel::kError, "Unable to resolve any endpoints, possible trouble with DNS");
   return false;
 }
+
+//------------------------------------------------------------------------------
+// Have we made a full circle yet? That is, have we tried all possible
+// ServiceEndpoints at least once? Including possible redirects.
+//------------------------------------------------------------------------------
+bool EndpointDecider::madeFullCircle() const {
+  return fullCircle;
+}
+
 
 }

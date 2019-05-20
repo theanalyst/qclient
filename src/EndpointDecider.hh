@@ -73,11 +73,20 @@ public:
   //----------------------------------------------------------------------------
   bool getNextEndpoint(ServiceEndpoint &endpoint);
 
+  //----------------------------------------------------------------------------
+  // Have we made a full circle yet? That is, have we tried all possible
+  // ServiceEndpoints at least once? Including possible redirects.
+  //----------------------------------------------------------------------------
+  bool madeFullCircle() const;
+
+
 private:
   Logger *logger;
   HostResolver *resolver;
 
   size_t nextMember = 0u;
+  bool fullCircle = false;
+
   Members members;
   Endpoint redirection;
 

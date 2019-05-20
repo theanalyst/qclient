@@ -315,12 +315,16 @@ TEST(EndpointDecider, BasicSanity) {
 
   HostResolver resolver(&logger);
   EndpointDecider decider(&logger, &resolver, members);
+  ASSERT_FALSE(decider.madeFullCircle());
+
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
   ASSERT_EQ(decider.getNext(), Endpoint("host2.cern.ch", 2345));
 
   decider.registerRedirection(Endpoint("host4.cern.ch", 9999));
   ASSERT_EQ(decider.getNext(), Endpoint("host4.cern.ch", 9999));
+  ASSERT_FALSE(decider.madeFullCircle());
   ASSERT_EQ(decider.getNext(), Endpoint("host3.cern.ch", 3456));
+  ASSERT_TRUE(decider.madeFullCircle());
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
 }
 
@@ -372,6 +376,7 @@ TEST(EndpointDecider, WithHostResolution) {
   StandardErrorLogger logger;
   HostResolver resolver(&logger);
   EndpointDecider decider(&logger, &resolver, members);
+  ASSERT_FALSE(decider.madeFullCircle());
 
   ServiceEndpoint ex3_1(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.2", 5555, "3.example.com");
   ServiceEndpoint ex3_2(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.222", 5555, "3.example.com");
@@ -380,7 +385,9 @@ TEST(EndpointDecider, WithHostResolution) {
 
   // no DNS entries for 3.example.com
   ServiceEndpoint connectToNext = ServiceEndpoint(ProtocolType::kIPv4, SocketType::kStream, "127.0.0.1", 9999, "example.com");
+  ASSERT_FALSE(decider.madeFullCircle());
   ASSERT_FALSE(decider.getNextEndpoint(connectToNext));
+  ASSERT_TRUE(decider.madeFullCircle());
 
   // only 1.example.com has valid entries
   std::vector<ServiceEndpoint> endpoints;
@@ -449,8 +456,16 @@ TEST(EndpointDecider, WithInterception) {
   endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "192.168.1.4", 3333, "2.example.com");
   resolver.feedFake("2.example.com", 3333, endpoints);
 
-  Status st;
-  std::vector<ServiceEndpoint> endpoints2 = resolver.resolve("1.example.com", 1111, st);
-  ASSERT_EQ(endpoints2.size(), 1u);
-  ASSERT_EQ(endpoints2[0], endpoints[0]);
+  ServiceEndpoint ep;
+  ASSERT_FALSE(decider.madeFullCircle());
+  ASSERT_TRUE(decider.getNextEndpoint(ep));
+  ASSERT_TRUE(decider.madeFullCircle());
+  ASSERT_EQ(ep, endpoints[0]);
+
+
+
+  // Status st;
+  // std::vector<ServiceEndpoint> endpoints2 = resolver.resolve("1.example.com", 1111, st);
+  // ASSERT_EQ(endpoints2.size(), 1u);
+  // ASSERT_EQ(endpoints2[0], endpoints[0]);
 }
