@@ -36,15 +36,15 @@ namespace qclient {
 class NetworkStream {
 public:
   //----------------------------------------------------------------------------
-  // Create a network stream based on existing connection. The descriptor
-  // must be asynchronous, and the TCP connection must have already succeeded!
+  // Create a network stream by connecting to the specified endpoint. No
+  // DNS lookups will be necessary.
   //----------------------------------------------------------------------------
-  NetworkStream(ServiceEndpoint endpoint, int fd, TlsConfig tlsconfig);
+  NetworkStream(ServiceEndpoint endpoint, TlsConfig tlsconfig);
 
-
-  NetworkStream(const std::string &host, int port, TlsConfig tlsconfig = {});
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
   ~NetworkStream();
-
 
 
   bool ok() {

@@ -28,10 +28,20 @@
 
 namespace qclient {
 
+class ServiceEndpoint;
+
 // Initiates a TCP connection to the specified host+port. After a successful
 // connection, it does *not* manage the lifetime of the file descriptor.
 class ConnectionInitiator {
 public:
+  //----------------------------------------------------------------------------
+  // Connect to an already resolved endpoint, no DNS lookups
+  //----------------------------------------------------------------------------
+  ConnectionInitiator(const ServiceEndpoint &endpoint);
+
+  //----------------------------------------------------------------------------
+  // Connect to a host:port combination, resolve hostname manually.
+  //----------------------------------------------------------------------------
   ConnectionInitiator(const std::string &hostname, int port);
 
   bool ok() {

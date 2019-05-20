@@ -58,19 +58,11 @@ static LinkStatus sendfn(int socket, const char *buffer, int len, int timeout) {
 }
 
 //------------------------------------------------------------------------------
-// Create a network stream based on existing connection. The descriptor
-// must be asynchronous, and the TCP connection must have already succeeded!
+// Create a network stream by connecting to the specified endpoint. No
+// DNS lookups will be done.
 //------------------------------------------------------------------------------
-NetworkStream::NetworkStream(ServiceEndpoint endpoint, int fd_, TlsConfig tlsconfig)
-: fd(fd_) {
-  isOk = true;
-  initializeTlsFliter(tlsconfig);
-}
-
-NetworkStream::NetworkStream(const std::string &hst, int prt, TlsConfig tlsconfig)
-: host(hst), port(prt) {
-
-  ConnectionInitiator initiator(hst, prt);
+NetworkStream::NetworkStream(ServiceEndpoint endpoint, TlsConfig tlsconfig) {
+  ConnectionInitiator initiator(endpoint);
 
   if(!initiator.ok()) {
     localerrno = initiator.getErrno();

@@ -259,15 +259,22 @@ void QClient::cleanup()
 //------------------------------------------------------------------------------
 void QClient::connectTCP()
 {
-  if(faultInjector.hasPartition(untranslatedTargetEndpoint)) {
-    networkStream.reset();
+  // TODO(gbitzes): Fix fault injection eventually..
+  // if(faultInjector.hasPartition(untranslatedTargetEndpoint)) {
+  //   networkStream.reset();
+  //   return;
+  // }
+
+  ServiceEndpoint endpoint;
+  if(!endpointDecider->getNextEndpoint(endpoint)) {
+    std::cerr << "could not DNS resolve!" << std::endl;
     return;
   }
 
-  networkStream.reset(new NetworkStream(targetEndpoint.getHost(),
-    targetEndpoint.getPort(), options.tlsconfig));
+  networkStream.reset(new NetworkStream(endpoint, options.tlsconfig));
 
   if(!networkStream->ok()) {
+    std::cerr << "network stream NOT OK" << std::endl;
     return;
   }
 

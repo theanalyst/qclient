@@ -46,6 +46,34 @@ inline std::string q(const std::string &str) {
 
 }
 
+//------------------------------------------------------------------------------
+// Connect to an already resolved endpoint, no DNS lookups
+//------------------------------------------------------------------------------
+ConnectionInitiator::ConnectionInitiator(const ServiceEndpoint &endpoint) {
+  fd = socket(endpoint.getAiFamily(), endpoint.getAiSocktype(), endpoint.getAiProtocol());
+  if(fd == -1) {
+    error = SSTR("Unable to create a socket!");
+    return;
+  }
+
+  const std::vector<char>& addr = endpoint.getAddressBytes();
+
+  if (::connect(fd, (const sockaddr*) addr.data(), addr.size()) == -1) {
+    localerrno = errno;
+    close(fd);
+    fd = -1;
+    error = SSTR("Unable to connect to " << q(endpoint.getOriginalHostname()) << ":" << strerror(localerrno));
+  }
+
+  // make socket non-blocking
+  int rv = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+  if(rv != 0) {
+    localerrno = errno;
+    error = SSTR("Unable to make socket non-blocking");
+    fd = -1;
+  }
+}
+
 ConnectionInitiator::ConnectionInitiator(const std::string &hostname, int port) {
 
   HostResolver resolver(new StandardErrorLogger());
