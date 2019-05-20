@@ -68,25 +68,6 @@ NetworkStream::NetworkStream(int fd_, TlsConfig tlsconfig)
 }
 
 //------------------------------------------------------------------------------
-// Create a network stream by connecting to the specified endpoint. No
-// DNS lookups will be done.
-//------------------------------------------------------------------------------
-NetworkStream::NetworkStream(ServiceEndpoint endpoint, TlsConfig tlsconfig) {
-  ConnectionInitiator initiator(endpoint);
-
-  if(!initiator.ok()) {
-    localerrno = initiator.getErrno();
-    error = initiator.getError();
-    isOk = false;
-    return;
-  }
-
-  fd = initiator.getFd();
-  isOk = (fd >= 0);
-  initializeTlsFliter(tlsconfig);
-}
-
-//------------------------------------------------------------------------------
 // Initialize TlsFilter
 //------------------------------------------------------------------------------
 void NetworkStream::initializeTlsFliter(const TlsConfig &tlsconfig) {

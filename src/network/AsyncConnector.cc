@@ -145,14 +145,40 @@ bool AsyncConnector::blockUntilReady(int shutdownFd) {
 
     if(polls[1].revents != 0) {
       //------------------------------------------------------------------------
-      // fd seems ready - is it writable though?
+      // An event on our file descriptor.. we could check POLLOUT and POLLERR,
+      // but getsockopt seems more robust, and we can get the errno on failure.
       //------------------------------------------------------------------------
-      if( (polls[1].revents & POLLOUT) == 0) {
-        localerrno = EINVAL;
-        error = SSTR("Unable to connect, poll revents: " << polls[0].revents);
+      int valopt = 0;
+      socklen_t optlen = sizeof(int);
+      if(getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &optlen) < 0) {
+        //----------------------------------------------------------------------
+        // Not really supposed to happen..
+        //----------------------------------------------------------------------
+        localerrno = errno;
+        error = SSTR("Unable to run getsockopt() after poll(), errno=" << localerrno << strerror(localerrno));
+        finished = true;
+        return true;
+      }
+
+
+      if(valopt == EINTR || valopt == EINPROGRESS) {
+        //----------------------------------------------------------------------
+        // Strange, but ok.. retry.. might never happen.
+        //----------------------------------------------------------------------
+        continue;
       }
 
       finished = true;
+
+      if(valopt != 0) {
+        localerrno = valopt;
+        error = SSTR("Unable to connect (" << localerrno << ")" << ":" << strerror(localerrno));
+        return true;
+      }
+
+      //------------------------------------------------------------------------
+      // Success, connection is active
+      //------------------------------------------------------------------------
       return true;
     }
 

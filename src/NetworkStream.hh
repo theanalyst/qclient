@@ -27,7 +27,6 @@
 #include <string>
 #include <atomic>
 #include <memory>
-#include "qclient/ConnectionInitiator.hh"
 #include "qclient/TlsFilter.hh"
 #include "qclient/network/HostResolver.hh"
 
@@ -39,12 +38,6 @@ public:
   // Create a network stream based on an existing socket fd.
   //----------------------------------------------------------------------------
   NetworkStream(int fd, TlsConfig tlsconfig);
-
-  //----------------------------------------------------------------------------
-  // Create a network stream by connecting to the specified endpoint. No
-  // DNS lookups will be necessary.
-  //----------------------------------------------------------------------------
-  NetworkStream(ServiceEndpoint endpoint, TlsConfig tlsconfig);
 
   //----------------------------------------------------------------------------
   // Destructor

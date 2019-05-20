@@ -24,12 +24,21 @@
 #include <gtest/gtest.h>
 #include "qclient/QClient.hh"
 #include <functional>
-#include "qclient/ConnectionInitiator.hh"
+#include "qclient/network/AsyncConnector.hh"
+#include "qclient/network/HostResolver.hh"
 
 using namespace qclient;
 
-TEST(ConnectionInitiator, noone_is_listening) {
-  qclient::ConnectionInitiator initiator("localhost", 13000);
-  ASSERT_FALSE(initiator.ok());
-  ASSERT_EQ(initiator.getErrno(), ECONNREFUSED);
+TEST(AsyncConnector, noone_is_listening) {
+  HostResolver resolver(nullptr);
+
+  Status st;
+  std::vector<ServiceEndpoint> endpoints = resolver.resolve("localhost", 13000, st);
+  ASSERT_TRUE(st.ok());
+  ASSERT_EQ(endpoints.size(), 1u);
+
+  qclient::AsyncConnector connector(endpoints[0]);
+  ASSERT_TRUE(connector.blockUntilReady());
+  ASSERT_FALSE(connector.ok());
+  ASSERT_EQ(connector.getErrno(), ECONNREFUSED);
 }

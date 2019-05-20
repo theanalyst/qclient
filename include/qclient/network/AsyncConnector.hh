@@ -54,8 +54,11 @@ public:
   //
   // Return true if file descriptor is ready, false if we had to cancel due
   // to events in shutdownFd.
+  //
+  // Pass shutdownFd=-1 to disable cancellation, and wait indefinitely until
+  // something happens in our file descriptor.
   //----------------------------------------------------------------------------
-  bool blockUntilReady(int shutdownFd);
+  bool blockUntilReady(int shutdownFd = -1);
 
   //----------------------------------------------------------------------------
   // Has there been an error yet? Note that, if ::connect is still pending,

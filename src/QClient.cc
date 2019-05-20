@@ -32,7 +32,6 @@
 #include <fcntl.h>
 #include <sstream>
 #include <iterator>
-#include "qclient/ConnectionInitiator.hh"
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Logger.hh"
 #include "NetworkStream.hh"
