@@ -312,7 +312,9 @@ void QClient::connectTCP()
 void QClient::connect()
 {
   currentConnectionEpoch++;
-  cleanup();
+  if(currentConnectionEpoch != 1) {
+    cleanup();
+  }
   connectTCP();
 }
 

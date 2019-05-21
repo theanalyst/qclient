@@ -315,16 +315,13 @@ TEST(EndpointDecider, BasicSanity) {
 
   HostResolver resolver(&logger);
   EndpointDecider decider(&logger, &resolver, members);
-  ASSERT_FALSE(decider.madeFullCircle());
 
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
   ASSERT_EQ(decider.getNext(), Endpoint("host2.cern.ch", 2345));
 
   decider.registerRedirection(Endpoint("host4.cern.ch", 9999));
   ASSERT_EQ(decider.getNext(), Endpoint("host4.cern.ch", 9999));
-  ASSERT_FALSE(decider.madeFullCircle());
   ASSERT_EQ(decider.getNext(), Endpoint("host3.cern.ch", 3456));
-  ASSERT_TRUE(decider.madeFullCircle());
   ASSERT_EQ(decider.getNext(), Endpoint("host1.cern.ch", 1234));
 }
 
@@ -462,10 +459,33 @@ TEST(EndpointDecider, WithInterception) {
   ASSERT_TRUE(decider.madeFullCircle());
   ASSERT_EQ(ep, endpoints[0]);
 
-
-
   // Status st;
   // std::vector<ServiceEndpoint> endpoints2 = resolver.resolve("1.example.com", 1111, st);
   // ASSERT_EQ(endpoints2.size(), 1u);
   // ASSERT_EQ(endpoints2[0], endpoints[0]);
+}
+
+TEST(EndpointDecider, MadeFullCircleAfterAllServiceEndpoints) {
+  Members members;
+  members.push_back("example.com", 1111);
+
+  StandardErrorLogger logger;
+  HostResolver resolver(&logger);
+  EndpointDecider decider(&logger, &resolver, members);
+
+  std::vector<ServiceEndpoint> endpoints;
+  endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "127.0.0.1", 1111, "example.com");
+  endpoints.emplace_back(ProtocolType::kIPv4, SocketType::kStream, "127.0.0.1", 2222, "example.com");
+
+  resolver.feedFake("example.com", 1111, endpoints);
+
+  ServiceEndpoint ep;
+  ASSERT_FALSE(decider.madeFullCircle());
+  ASSERT_TRUE(decider.getNextEndpoint(ep));
+  ASSERT_EQ(ep, endpoints[0]);
+  ASSERT_FALSE(decider.madeFullCircle());
+
+  ASSERT_TRUE(decider.getNextEndpoint(ep));
+  ASSERT_EQ(ep, endpoints[1]);
+  ASSERT_TRUE(decider.madeFullCircle());
 }

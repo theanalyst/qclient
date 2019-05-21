@@ -60,9 +60,6 @@ Endpoint EndpointDecider::getNext() {
 
   Endpoint retval = members.getEndpoints()[nextMember];
   nextMember = (nextMember + 1) % members.size();
-  if(nextMember == 0) {
-    fullCircle = true;
-  }
   QCLIENT_LOG(logger, LogLevel::kInfo, "attempting connection to " << retval.toString());
   return retval;
 }
@@ -82,6 +79,10 @@ bool EndpointDecider::fetchServiceEndpoint(ServiceEndpoint &out) {
 //------------------------------------------------------------------------------
 bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
 
+  if(resolvedEndpoints.size() == 1 && nextMember == 0) {
+    fullCircle = true;
+  }
+
   if(!resolvedEndpoints.empty()) {
     return fetchServiceEndpoint(resolved);
   }
@@ -97,6 +98,10 @@ bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
       QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to resolve endpoint " << endpoint.toString() << ": " << st.toString());
     }
 
+    if(resolvedEndpoints.size() == 1 && nextMember == 0) {
+      fullCircle = true;
+    }
+
     if(!resolvedEndpoints.empty()) {
       return fetchServiceEndpoint(resolved);
     }
@@ -105,6 +110,7 @@ bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
   //----------------------------------------------------------------------------
   // All resolution requests for all members we know about failed!
   //----------------------------------------------------------------------------
+  fullCircle = true;
   QCLIENT_LOG(logger, LogLevel::kError, "Unable to resolve any endpoints, possible trouble with DNS");
   return false;
 }
