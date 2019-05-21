@@ -326,7 +326,6 @@ void QClient::eventLoop(ThreadAssistant &assistant)
   std::chrono::milliseconds backoff(1);
 
   while (true) {
-    shutdownEventFD.clear();
     this->connect();
 
     bool receivedBytes = handleConnectionEpoch(assistant);
@@ -363,7 +362,7 @@ FaultInjector& QClient::getFaultInjector() {
 // Notification from FaultInjector that fault injections were updated
 //------------------------------------------------------------------------------
 void QClient::notifyFaultInjectionsUpdated() {
-  shutdownEventFD.notify();
+  // shutdownEventFD.notify();
 }
 
 //------------------------------------------------------------------------------
