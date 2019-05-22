@@ -25,6 +25,7 @@
 #define QCLIENT_ASYNC_CONNECTOR_HH
 
 #include "qclient/Status.hh"
+#include "qclient/network/FileDescriptor.hh"
 
 namespace qclient {
 
@@ -67,9 +68,9 @@ public:
   bool ok() const;
 
   //----------------------------------------------------------------------------
-  // Get file descriptor - could be -1 if an error has occurred.
+  // Release file descriptor - explicit transfer of ownership
   //----------------------------------------------------------------------------
-  int getFd() const;
+  FileDescriptor release();
 
   //----------------------------------------------------------------------------
   // If an error has occurred, return its errno. Returns 0 if no errors have
@@ -84,7 +85,7 @@ public:
   std::string getError() const;
 
 private:
-  int fd = -1;
+  FileDescriptor fd;
   int localerrno = 0;
   std::string error;
 

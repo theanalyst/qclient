@@ -34,10 +34,9 @@ public:
   //----------------------------------------------------------------------------
   // Constructor - this object takes ownership of the specified file descriptor,
   // and will call ::close on it on destruction.
-  //
-  // FileDescriptor(-1) means it currently owns nothing.
   //----------------------------------------------------------------------------
-  FileDescriptor(int fd = -1);
+  constexpr FileDescriptor() noexcept : fd(-1) {}
+  explicit FileDescriptor(int fd) noexcept;
 
   //----------------------------------------------------------------------------
   // Destructor
@@ -53,8 +52,8 @@ public:
   //----------------------------------------------------------------------------
   // Only allow moving
   //----------------------------------------------------------------------------
-  FileDescriptor(FileDescriptor&& other);
-  FileDescriptor& operator=(FileDescriptor&& other);
+  FileDescriptor(FileDescriptor&& other) noexcept;
+  FileDescriptor& operator=(FileDescriptor&& other) noexcept;
 
   //----------------------------------------------------------------------------
   // Reset file descriptor - reset(-1) simply means clearing current ownership.
@@ -76,7 +75,7 @@ public:
   //----------------------------------------------------------------------------
   // Check if the object is currently managing an fd
   //----------------------------------------------------------------------------
-  operator bool() const;
+  explicit operator bool() const noexcept;
 
 
 private:

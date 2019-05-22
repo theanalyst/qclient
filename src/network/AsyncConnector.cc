@@ -42,8 +42,9 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
   //----------------------------------------------------------------------------
   // Create the socket..
   //----------------------------------------------------------------------------
-  fd = socket(endpoint.getAiFamily(), endpoint.getAiSocktype(), endpoint.getAiProtocol());
-  if(fd == -1) {
+  fd = FileDescriptor(socket(endpoint.getAiFamily(), endpoint.getAiSocktype(), endpoint.getAiProtocol()));
+  std::cout << "new fd: " << fd.get() << std::endl;
+  if(!fd) {
     localerrno = errno;
     error = SSTR("Unable to create a socket: " << strerror(localerrno));
     return;
@@ -52,12 +53,11 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
   //----------------------------------------------------------------------------
   // Make non-blocking..
   //----------------------------------------------------------------------------
-  int rv = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+  int rv = fcntl(fd.get(), F_SETFL, fcntl(fd.get(), F_GETFL) | O_NONBLOCK);
   if(rv != 0) {
     localerrno = errno;
     error = SSTR("Unable to make socket non-blocking: " << strerror(localerrno));
-    ::close(fd);
-    fd = -1;
+    fd.reset();
     return;
   }
 
@@ -65,12 +65,11 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
   // Initiate connect..
   //----------------------------------------------------------------------------
   const std::vector<char>& addr = endpoint.getAddressBytes();
-  rv = ::connect(fd, (const sockaddr*) addr.data(), addr.size());
+  rv = ::connect(fd.get(), (const sockaddr*) addr.data(), addr.size());
 
   if(rv < 0 && errno != EINPROGRESS) {
     localerrno = errno;
-    close(fd);
-    fd = -1;
+    fd.reset();
     error = SSTR("Unable to connect to " << endpoint.getOriginalHostname() << ":" << strerror(localerrno));
     return;
   }
@@ -86,7 +85,7 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
 // Is ::connect ready yet?
 //------------------------------------------------------------------------------
 bool AsyncConnector::isReady() {
-  if(finished || localerrno != 0 || fd < 0) {
+  if(finished || localerrno != 0 || fd.get() < 0) {
     return true;
   }
 
@@ -95,7 +94,7 @@ bool AsyncConnector::isReady() {
   // poll() should be instantaneous here.
   //----------------------------------------------------------------------------
   struct pollfd polls[1];
-  polls[0].fd = fd;
+  polls[0].fd = fd.get();
   polls[0].events = POLLOUT;
 
   int rpoll = poll(polls, 1, 0);
@@ -114,7 +113,7 @@ bool AsyncConnector::isReady() {
 // to events in shutdownFd.
 //------------------------------------------------------------------------------
 bool AsyncConnector::blockUntilReady(int shutdownFd) {
-  if(finished || localerrno != 0 || fd < 0) {
+  if(finished || localerrno != 0 || fd.get() < 0) {
     return true;
   }
 
@@ -124,7 +123,7 @@ bool AsyncConnector::blockUntilReady(int shutdownFd) {
   struct pollfd polls[2];
   polls[0].fd = shutdownFd;
   polls[0].events = POLLIN;
-  polls[1].fd = fd;
+  polls[1].fd = fd.get();
   polls[1].events = POLLOUT;
 
   while(true) {
@@ -150,7 +149,7 @@ bool AsyncConnector::blockUntilReady(int shutdownFd) {
       //------------------------------------------------------------------------
       int valopt = 0;
       socklen_t optlen = sizeof(int);
-      if(getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &optlen) < 0) {
+      if(getsockopt(fd.get(), SOL_SOCKET, SO_ERROR, (void*)(&valopt), &optlen) < 0) {
         //----------------------------------------------------------------------
         // Not really supposed to happen..
         //----------------------------------------------------------------------
@@ -196,14 +195,14 @@ bool AsyncConnector::blockUntilReady(int shutdownFd) {
 // there might be an error in the future.
 //------------------------------------------------------------------------------
 bool AsyncConnector::ok() const {
-  return (fd > 0) && (localerrno == 0) && (error.empty());
+  return (fd.get() > 0) && (localerrno == 0) && (error.empty());
 }
 
 //------------------------------------------------------------------------------
-// Get file descriptor - could be -1 if an error has occurred.
+// Get file descriptor - explicit transfer of ownership
 //------------------------------------------------------------------------------
-int AsyncConnector::getFd() const {
-  return fd;
+FileDescriptor AsyncConnector::release() {
+  return std::move(fd);
 }
 
 //------------------------------------------------------------------------------

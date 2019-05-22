@@ -32,7 +32,7 @@ namespace qclient {
 //
 // FileDescriptor(-1) means it currently owns nothing.
 //------------------------------------------------------------------------------
-FileDescriptor::FileDescriptor(int fd_) : fd(fd_) {}
+FileDescriptor::FileDescriptor(int fd_) noexcept : fd(fd_) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -56,13 +56,13 @@ void FileDescriptor::reset(int newfd) {
 //------------------------------------------------------------------------------
 // Only allow moving
 //------------------------------------------------------------------------------
-FileDescriptor::FileDescriptor(FileDescriptor&& other) {
+FileDescriptor::FileDescriptor(FileDescriptor&& other) noexcept {
   reset();
   fd = other.fd;
   other.fd = -1;
 }
 
-FileDescriptor& FileDescriptor::operator=(FileDescriptor&& other) {
+FileDescriptor& FileDescriptor::operator=(FileDescriptor&& other) noexcept {
   reset();
   fd = other.fd;
   other.fd = -1;
@@ -90,7 +90,7 @@ int FileDescriptor::release() {
 //------------------------------------------------------------------------------
 // Check if the object is currently managing an fd
 //------------------------------------------------------------------------------
-FileDescriptor::operator bool() const {
+FileDescriptor::operator bool() const noexcept {
   return fd >= 0;
 }
 
