@@ -43,8 +43,7 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
   // Create the socket..
   //----------------------------------------------------------------------------
   fd = FileDescriptor(socket(endpoint.getAiFamily(), endpoint.getAiSocktype(), endpoint.getAiProtocol()));
-  std::cout << "new fd: " << fd.get() << std::endl;
-  if(!fd) {
+  if(fd.get() < 0) {
     localerrno = errno;
     error = SSTR("Unable to create a socket: " << strerror(localerrno));
     return;
@@ -199,10 +198,10 @@ bool AsyncConnector::ok() const {
 }
 
 //------------------------------------------------------------------------------
-// Get file descriptor - explicit transfer of ownership
+// Get file descriptor - could be -1 if an error has occurred.
 //------------------------------------------------------------------------------
-FileDescriptor AsyncConnector::release() {
-  return std::move(fd);
+int AsyncConnector::release() {
+  return fd.release();
 }
 
 //------------------------------------------------------------------------------

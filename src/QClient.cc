@@ -297,7 +297,7 @@ void QClient::connectTCP()
     return;
   }
 
-  networkStream.reset(new NetworkStream(connector.release().release(), options.tlsconfig));
+  networkStream.reset(new NetworkStream(connector.release(), options.tlsconfig));
   if(!networkStream->ok()) {
     return;
   }

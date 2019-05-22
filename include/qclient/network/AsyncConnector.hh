@@ -68,9 +68,9 @@ public:
   bool ok() const;
 
   //----------------------------------------------------------------------------
-  // Release file descriptor - explicit transfer of ownership
+  // Get file descriptor - could be -1 if an error has occurred.
   //----------------------------------------------------------------------------
-  FileDescriptor release();
+  int release();
 
   //----------------------------------------------------------------------------
   // If an error has occurred, return its errno. Returns 0 if no errors have
