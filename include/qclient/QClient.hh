@@ -193,26 +193,6 @@ public:
   //----------------------------------------------------------------------------
   FaultInjector& getFaultInjector();
 
-  //----------------------------------------------------------------------------
-  //! Wrapper function for exists command
-  //!
-  //! @param key key to search for
-  //!
-  //! @return 1 if key exists, 0 if it doesn't, -errno if any error occured
-  //----------------------------------------------------------------------------
-  long long int
-  exists(const std::string& key);
-
-  //----------------------------------------------------------------------------
-  //! Wrapper function for del command
-  //!
-  //! @param key key to be deleted
-  //!
-  //! @return number of keys deleted, -errno if any error occured
-  //----------------------------------------------------------------------------
-  long long int
-  del(const std::string& key);
-
 private:
   // The cluster members, as given in the constructor.
   Members members;

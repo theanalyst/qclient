@@ -266,6 +266,7 @@ void QClient::cleanup()
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
+    QCLIENT_LOG(options.logger, LogLevel::kWarn, "Purging all pending requests, backend is unavailable");
     connectionCore->clearAllPending();
   }
 
@@ -290,10 +291,12 @@ void QClient::connectTCP()
 
   AsyncConnector connector(endpoint);
   if(!connector.blockUntilReady(shutdownEventFD.getFD())) {
+    QCLIENT_LOG(options.logger, LogLevel::kWarn, "blockUntilReady interrupted when connecting to " << endpoint.getString() << ": " << connector.getError());
     return;
   }
 
   if(!connector.ok()) {
+    QCLIENT_LOG(options.logger, LogLevel::kWarn, "connector encountered an error when connecting to " << endpoint.getString() << ": " << connector.getError());
     return;
   }
 
@@ -447,36 +450,4 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
   }
 
   return receivedBytes;
-}
-
-//------------------------------------------------------------------------------
-// Wrapper function for exists command
-//------------------------------------------------------------------------------
-long long int
-QClient::exists(const std::string& key)
-{
-  redisReplyPtr reply = exec("EXISTS", key).get();
-
-  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
-    throw std::runtime_error("[FATAL] Error exists key: " + key +
-                             ": Unexpected/null reply ");
-  }
-
-  return reply->integer;
-}
-
-//------------------------------------------------------------------------------
-// Wrapper function for del command
-//------------------------------------------------------------------------------
-long long int
-QClient::del(const std::string& key)
-{
-  redisReplyPtr reply = exec("DEL", key).get();
-
-  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
-    throw std::runtime_error("[FATAL] Error del key: " + key +
-                             ": Unexpected/null reply ");
-  }
-
-  return reply->integer;
 }
