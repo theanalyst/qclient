@@ -240,6 +240,7 @@ bool QClient::shouldPurgePendingRequests() {
   // Instead, we should consider purging only after we've tried all service
   // endpoints.
   //----------------------------------------------------------------------------
+  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", madeFullCircle: " << endpointDecider->madeFullCircle());
   if(!successfulResponsesEver && !endpointDecider->madeFullCircle()) {
     //--------------------------------------------------------------------------
     // We're still trying out endpoints, no purge
@@ -262,7 +263,9 @@ void QClient::cleanup()
   networkStream.reset();
 
   responseBuilder.restart();
+  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", successfulResponses: " << successfulResponses);
   successfulResponsesEver = successfulResponsesEver | successfulResponses;
+  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", successfulResponses: " << successfulResponses);
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
@@ -285,9 +288,12 @@ void QClient::connectTCP()
   // }
 
   ServiceEndpoint endpoint;
+
   if(!endpointDecider->getNextEndpoint(endpoint)) {
     return;
   }
+
+  QCLIENT_LOG(options.logger, LogLevel::kInfo, "getNextEndpoint returned: " << endpoint.getString());
 
   AsyncConnector connector(endpoint);
   if(!connector.blockUntilReady(shutdownEventFD.getFD())) {

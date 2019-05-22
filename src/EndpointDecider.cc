@@ -98,7 +98,13 @@ bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
       QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to resolve endpoint " << endpoint.toString() << ": " << st.toString());
     }
 
+    for(auto it = resolvedEndpoints.begin(); it != resolvedEndpoints.end(); it++) {
+      QCLIENT_LOG(logger, LogLevel::kWarn, " DNS resolution entry: " << it->getString());
+    }
+
+
     if(resolvedEndpoints.size() == 1 && nextMember == 0) {
+      QCLIENT_LOG(logger, LogLevel::kWarn, "Made full circle!");
       fullCircle = true;
     }
 
