@@ -25,6 +25,7 @@
 #include "qclient/Utils.hh"
 #include "qclient/network/HostResolver.hh"
 #include "qclient/network/AsyncConnector.hh"
+#include "network/NetworkStream.hh"
 #include <unistd.h>
 #include <string.h>
 #include <poll.h>
@@ -34,7 +35,6 @@
 #include <iterator>
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Logger.hh"
-#include "NetworkStream.hh"
 #include "WriterThread.hh"
 #include "EndpointDecider.hh"
 #include "ConnectionCore.hh"

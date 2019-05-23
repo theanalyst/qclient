@@ -28,7 +28,6 @@
 #include "qclient/AssistedThread.hh"
 #include "qclient/EventFD.hh"
 #include "FutureHandler.hh"
-#include "NetworkStream.hh"
 #include "BackpressureApplier.hh"
 #include "CallbackExecutorThread.hh"
 #include "StagedRequest.hh"
@@ -40,6 +39,7 @@
 namespace qclient {
 
 class ConnectionCore;
+class NetworkStream;
 
 class WriterThread {
 public:

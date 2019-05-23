@@ -23,6 +23,7 @@
 
 #include "WriterThread.hh"
 #include "ConnectionCore.hh"
+#include "network/NetworkStream.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/Logger.hh"
 #include <poll.h>

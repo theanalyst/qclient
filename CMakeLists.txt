@@ -70,6 +70,7 @@ add_library(qclient STATIC
   src/network/AsyncConnector.cc
   src/network/FileDescriptor.cc
   src/network/HostResolver.cc
+  src/network/NetworkStream.cc
 
   src/pubsub/BaseSubscriber.cc
   src/pubsub/MessageParser.cc
@@ -93,7 +94,6 @@ add_library(qclient STATIC
   src/FutureHandler.cc
   src/GlobalInterceptor.cc
   src/Handshake.cc
-  src/NetworkStream.cc
   src/Options.cc
   src/QClient.cc
   src/ResponseBuilder.cc
