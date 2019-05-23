@@ -54,13 +54,12 @@ Endpoint EndpointDecider::getNext() {
   if(!redirection.empty()) {
     Endpoint retval = redirection;
     redirection = {};
-    QCLIENT_LOG(logger, LogLevel::kInfo, "redirecting to " << retval.toString());
+    QCLIENT_LOG(logger, LogLevel::kInfo, "Received redirection to " << retval.toString());
     return retval;
   }
 
   Endpoint retval = members.getEndpoints()[nextMember];
   nextMember = (nextMember + 1) % members.size();
-  QCLIENT_LOG(logger, LogLevel::kInfo, "attempting connection to " << retval.toString());
   return retval;
 }
 
@@ -70,7 +69,6 @@ Endpoint EndpointDecider::getNext() {
 bool EndpointDecider::fetchServiceEndpoint(ServiceEndpoint &out) {
   out = resolvedEndpoints.back();
   resolvedEndpoints.pop_back();
-  QCLIENT_LOG(logger, LogLevel::kInfo, "Resolved endpoint " << out.getString());
   return true;
 }
 
@@ -94,17 +92,11 @@ bool EndpointDecider::getNextEndpoint(ServiceEndpoint &resolved) {
     resolvedEndpoints = resolver->resolve(endpoint.getHost(), endpoint.getPort(), st);
     std::reverse(resolvedEndpoints.begin(), resolvedEndpoints.end());
 
-    if(!st.ok()) {
-      QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to resolve endpoint " << endpoint.toString() << ": " << st.toString());
+    if(!st.ok() || resolvedEndpoints.empty()) {
+      QCLIENT_LOG(logger, LogLevel::kWarn, "DNS resolution of " << endpoint.toString() << " failed: " << st.toString());
     }
-
-    for(auto it = resolvedEndpoints.begin(); it != resolvedEndpoints.end(); it++) {
-      QCLIENT_LOG(logger, LogLevel::kWarn, " DNS resolution entry: " << it->getString());
-    }
-
 
     if(resolvedEndpoints.size() == 1 && nextMember == 0) {
-      QCLIENT_LOG(logger, LogLevel::kWarn, "Made full circle!");
       fullCircle = true;
     }
 

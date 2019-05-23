@@ -240,7 +240,6 @@ bool QClient::shouldPurgePendingRequests() {
   // Instead, we should consider purging only after we've tried all service
   // endpoints.
   //----------------------------------------------------------------------------
-  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", madeFullCircle: " << endpointDecider->madeFullCircle());
   if(!successfulResponsesEver && !endpointDecider->madeFullCircle()) {
     //--------------------------------------------------------------------------
     // We're still trying out endpoints, no purge
@@ -263,13 +262,11 @@ void QClient::cleanup()
   networkStream.reset();
 
   responseBuilder.restart();
-  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", successfulResponses: " << successfulResponses);
   successfulResponsesEver = successfulResponsesEver | successfulResponses;
-  QCLIENT_LOG(options.logger, LogLevel::kInfo, "successfulResponsesEver: " << successfulResponsesEver << ", successfulResponses: " << successfulResponses);
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
-    QCLIENT_LOG(options.logger, LogLevel::kWarn, "Purging all pending requests, backend is unavailable");
+    QCLIENT_LOG(options.logger, LogLevel::kInfo, "Purging pending requests, backend is unavailable");
     connectionCore->clearAllPending();
   }
 
@@ -293,16 +290,13 @@ void QClient::connectTCP()
     return;
   }
 
-  QCLIENT_LOG(options.logger, LogLevel::kInfo, "getNextEndpoint returned: " << endpoint.getString());
-
   AsyncConnector connector(endpoint);
   if(!connector.blockUntilReady(shutdownEventFD.getFD())) {
-    QCLIENT_LOG(options.logger, LogLevel::kWarn, "blockUntilReady interrupted when connecting to " << endpoint.getString() << ": " << connector.getError());
     return;
   }
 
   if(!connector.ok()) {
-    QCLIENT_LOG(options.logger, LogLevel::kWarn, "connector encountered an error when connecting to " << endpoint.getString() << ": " << connector.getError());
+    QCLIENT_LOG(options.logger, LogLevel::kInfo, "Encountered an error when connecting to " << endpoint.getString() << ": " << connector.getError());
     return;
   }
 

@@ -158,7 +158,7 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
   // Is this a transient "unavailable" error? Specific to QDB.
   if(retryStrategy.active() && isUnavailable(reply.get())) {
     // Break connection, try again.
-    QCLIENT_LOG(logger, LogLevel::kWarn, "cluster is temporarily unavailable: " << std::string(reply->str, reply->len));
+    QCLIENT_LOG(logger, LogLevel::kWarn, "Cluster is temporarily unavailable: " << std::string(reply->str, reply->len));
     return false;
   }
 
@@ -209,7 +209,7 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
     // The server is sending more responses than we sent requests... wtf.
     // Break connection.
     //--------------------------------------------------------------------------
-    QCLIENT_LOG(logger, LogLevel::kWarn, "server is sending more responses than there were requests ?!?");
+    QCLIENT_LOG(logger, LogLevel::kError, "Server is sending more responses than there were requests ?!?");
     return false;
   }
 
