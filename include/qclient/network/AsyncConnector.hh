@@ -26,6 +26,7 @@
 
 #include "qclient/Status.hh"
 #include "qclient/network/FileDescriptor.hh"
+#include <chrono>
 
 namespace qclient {
 
@@ -59,7 +60,8 @@ public:
   // Pass shutdownFd=-1 to disable cancellation, and wait indefinitely until
   // something happens in our file descriptor.
   //----------------------------------------------------------------------------
-  bool blockUntilReady(int shutdownFd = -1);
+  bool blockUntilReady(int shutdownFd = -1, std::chrono::seconds timeout =
+    std::chrono::seconds(2) );
 
   //----------------------------------------------------------------------------
   // Has there been an error yet? Note that, if ::connect is still pending,

@@ -111,10 +111,16 @@ bool AsyncConnector::isReady() {
 // Return true if file descriptor is ready, false if we had to cancel due
 // to events in shutdownFd.
 //------------------------------------------------------------------------------
-bool AsyncConnector::blockUntilReady(int shutdownFd) {
+bool AsyncConnector::blockUntilReady(int shutdownFd, std::chrono::seconds timeout) {
   if(finished || localerrno != 0 || fd.get() < 0) {
     return true;
   }
+
+  //----------------------------------------------------------------------------
+  // Calculate deadline
+  //----------------------------------------------------------------------------
+  std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now()
+    + timeout;
 
   //----------------------------------------------------------------------------
   // Sleep until something happens in either file descriptor..
@@ -126,7 +132,14 @@ bool AsyncConnector::blockUntilReady(int shutdownFd) {
   polls[1].events = POLLOUT;
 
   while(true) {
-    int rpoll = poll(polls, 2, -1);
+    //--------------------------------------------------------------------------
+    // Timed-out?
+    //--------------------------------------------------------------------------
+    if(deadline < std::chrono::steady_clock::now()) {
+      return false;
+    }
+
+    int rpoll = poll(polls, 2, 1);
     if(rpoll < 0 && errno != EINTR) {
       //------------------------------------------------------------------------
       // Something is wrong, bail out

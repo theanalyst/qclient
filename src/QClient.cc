@@ -291,7 +291,7 @@ void QClient::connectTCP()
   }
 
   AsyncConnector connector(endpoint);
-  if(!connector.blockUntilReady(shutdownEventFD.getFD())) {
+  if(!connector.blockUntilReady(shutdownEventFD.getFD(), options.tcpTimeout)) {
     return;
   }
 

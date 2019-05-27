@@ -215,6 +215,19 @@ public:
   bool ensureConnectionIsPrimed = true;
 
   //----------------------------------------------------------------------------
+  //! TCP connection timeout: The amount of time to wait between issuing
+  //! ::connect() towards an endpoint, and deciding that endpoint is broken if
+  //! no connection has been established within the timeout.
+  //!
+  //! This is required because QClient may have to try several endpoints in a
+  //! row: Multiple IPs from a host times multiple hosts.
+  //!
+  //! Given the default TCP timeout is often in the minutes, we would hang for
+  //! very long in case some of the endpoints to try were dropping packets.
+  //----------------------------------------------------------------------------
+  std::chrono::seconds tcpTimeout = std::chrono::seconds(2);
+
+  //----------------------------------------------------------------------------
   //! Specifies the logger object to use. If left empty, a simple logger
   //! writing to stderr will be used, with LogLevel::kInfo.
   //----------------------------------------------------------------------------
