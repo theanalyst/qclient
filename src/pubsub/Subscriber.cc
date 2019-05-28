@@ -26,46 +26,111 @@
 
 namespace qclient {
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+Subscription::Subscription(Subscriber* sub) : subscriber(sub) {}
+
+//------------------------------------------------------------------------------
 // Destructor - notify subscriber we're shutting down
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 Subscription::~Subscription() {
   if(subscriber) {
     subscriber->unsubscribe(this);
+    subscriber = nullptr;
   }
+}
+
+//------------------------------------------------------------------------------
+// Process incoming message
+//------------------------------------------------------------------------------
+void Subscription::processIncoming(const Message &msg) {
+  queue.emplace_back(msg);
+}
+
+//------------------------------------------------------------------------------
+// Is the queue empty?
+//------------------------------------------------------------------------------
+bool Subscription::empty() const {
+  return queue.size() == 0;
+}
+
+//------------------------------------------------------------------------------
+// Remove the oldest received message, ie the front of the queue.
+//------------------------------------------------------------------------------
+void Subscription::pop_front() {
+  return queue.pop_front();
+}
+
+//------------------------------------------------------------------------------
+// Get oldest message, ie the front of the queue. Return false if the queue
+// is empty.
+//------------------------------------------------------------------------------
+bool Subscription::front(Message &out) const {
+  if(queue.size() == 0) {
+    return false;
+  }
+
+  out = queue.front();
+  return true;
 }
 
 //------------------------------------------------------------------------------
 // Simulated mode - enable ability to feed fake messages for testing
 // this class
 //------------------------------------------------------------------------------
-Subscriber::Subscriber() {
-
-}
+Subscriber::Subscriber() {}
 
 //------------------------------------------------------------------------------
 // Receive notification about a Subscription being destroyed
 //------------------------------------------------------------------------------
 void Subscriber::unsubscribe(Subscription *subscription) {
+  std::lock_guard<std::mutex> lock(mtx);
 
+  auto it = reverseChannelSubscriptions.find(subscription);
+  if(it == reverseChannelSubscriptions.end()) {
+    // Something is not right, warn.. TODO
+    return;
+  }
+
+  channelSubscriptions.erase(it->second);
+  reverseChannelSubscriptions.erase(it);
 }
-
 
 //------------------------------------------------------------------------------
 // Feed fake message - only has an effect in sumulated mode
 //------------------------------------------------------------------------------
-void Subscriber::feedFakeMessage(Message&& msg) {
-
+void Subscriber::feedFakeMessage(const Message& msg) {
+  processIncomingMessage(msg);
 }
 
 //------------------------------------------------------------------------------
 // Process incoming message
 //------------------------------------------------------------------------------
-void Subscriber::processIncomingMessage(Message &&msg) {
+void Subscriber::processIncomingMessage(const Message &msg) {
   std::lock_guard<std::mutex> lock(mtx);
 
+  //----------------------------------------------------------------------------
+  // Feed to channel subscriptions
+  //----------------------------------------------------------------------------
+  auto channels = channelSubscriptions.equal_range(msg.getChannel());
+  for(auto it = channels.first; it != channels.second; it++) {
+    it->second->processIncoming(msg);
+  }
 }
 
+//------------------------------------------------------------------------------
+// Subscribe to the given channel through a Subscription object
+//------------------------------------------------------------------------------
+std::unique_ptr<Subscription> Subscriber::subscribe(const std::string &channel) {
+  std::lock_guard<std::mutex> lock(mtx);
+
+  std::unique_ptr<Subscription> subscription = std::make_unique<Subscription>(this);
+
+  auto it = channelSubscriptions.emplace(channel, subscription.get());
+  reverseChannelSubscriptions.emplace(subscription.get(), it);
+  return subscription;
+}
 
 
 }

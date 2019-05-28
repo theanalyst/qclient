@@ -25,6 +25,7 @@
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/pubsub/Message.hh"
 #include "qclient/pubsub/MessageQueue.hh"
+#include "qclient/pubsub/Subscriber.hh"
 #include "gtest/gtest.h"
 
 using namespace qclient;
@@ -105,5 +106,38 @@ TEST(MessageQueue, BasicSanity) {
   queue.pop_front();
 
   ASSERT_EQ(queue.size(), 0u);
+}
+
+TEST(Subscriber, BasicSanity) {
+  Subscriber subscriber;
+
+  std::unique_ptr<Subscription> ch1 = subscriber.subscribe("ch1");
+  ASSERT_TRUE(ch1->empty());
+
+  subscriber.feedFakeMessage(Message::createMessage("ch2", "test"));
+  ASSERT_TRUE(ch1->empty());
+
+  subscriber.feedFakeMessage(Message::createMessage("ch1", "aaaa"));
+
+  Message expected = Message::createMessage("ch1", "aaaa");
+
+  Message msg;
+  ASSERT_TRUE(ch1->front(msg));
+  ASSERT_EQ(msg, expected);
+  ch1->pop_front();
+  ASSERT_TRUE(ch1->empty());
+
+  std::unique_ptr<Subscription> ch1clone = subscriber.subscribe("ch1");
+  subscriber.feedFakeMessage(Message::createMessage("ch1", "aaaa"));
+
+  ASSERT_TRUE(ch1->front(msg));
+  ASSERT_EQ(msg, expected);
+  ch1->pop_front();
+  ASSERT_TRUE(ch1->empty());
+
+  ASSERT_TRUE(ch1clone->front(msg));
+  ASSERT_EQ(msg, expected);
+  ch1clone->pop_front();
+  ASSERT_TRUE(ch1clone->empty());
 }
 

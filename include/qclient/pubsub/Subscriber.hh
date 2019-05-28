@@ -50,6 +50,22 @@ public:
   //----------------------------------------------------------------------------
   ~Subscription();
 
+  //----------------------------------------------------------------------------
+  // Get oldest message, ie the front of the queue. Return false if the queue
+  // is empty.
+  //----------------------------------------------------------------------------
+  bool front(Message &out) const;
+
+  //----------------------------------------------------------------------------
+  // Remove the oldest received message, ie the front of the queue.
+  //----------------------------------------------------------------------------
+  void pop_front();
+
+  //----------------------------------------------------------------------------
+  // Is the queue empty?
+  //----------------------------------------------------------------------------
+  bool empty() const;
+
 private:
   friend class Subscriber;
 
@@ -65,7 +81,6 @@ private:
   Subscriber *subscriber;
 };
 
-
 //------------------------------------------------------------------------------
 // A class that builds on top of BaseSubscriber and offers a more comfortable
 // API.
@@ -75,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor - real mode, connect to a real server
   //----------------------------------------------------------------------------
-  Subscriber(const Members &members, SubscriptionOptions &&options);
+  Subscriber(const Members &members, SubscriptionOptions &&options, Logger *logger);
 
   //----------------------------------------------------------------------------
   // Simulated mode - enable ability to feed fake messages for testing
@@ -86,20 +101,16 @@ public:
   //----------------------------------------------------------------------------
   // Feed fake message - only has an effect in sumulated mode
   //----------------------------------------------------------------------------
-  void feedFakeMessage(Message&& msg);
+  void feedFakeMessage(const Message& msg);
 
   //----------------------------------------------------------------------------
   // Subscribe to the given channel through a Subscription object
   //----------------------------------------------------------------------------
-  std::shared_ptr<Subscription> subscribe(const std::string &channel);
-
-  //----------------------------------------------------------------------------
-  // Subscribe to the given pattern through a Subscription object
-  //----------------------------------------------------------------------------
-  std::shared_ptr<Subscription> psubscribe(const std::string &pattern);
+  std::unique_ptr<Subscription> subscribe(const std::string &channel);
 
 
 private:
+  Logger *logger;
   friend class Subscription;
 
   //----------------------------------------------------------------------------
@@ -115,18 +126,13 @@ private:
   //----------------------------------------------------------------------------
   std::mutex mtx;
 
-  // std::multi map<std::string, std::shared_ptr<Subscription>> channelSubscriptions;
-  // std::map<std::string, std::shared_ptr<Subscription>> patternSubscriptions;
-
-  // std::map<Subscription*, std::string> reverseChannelSubscriptions;
-  // std::map<Subscription*, std::string> reversePatternSubscriptions;
+  std::multimap<std::string, Subscription*> channelSubscriptions;
+  std::map<Subscription*, std::multimap<std::string, Subscription*>::iterator> reverseChannelSubscriptions;
 
   //----------------------------------------------------------------------------
   // Process incoming message
   //----------------------------------------------------------------------------
-  void processIncomingMessage(Message &&msg);
-
-
+  void processIncomingMessage(const Message &msg);
 
 
 };

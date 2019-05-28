@@ -54,6 +54,7 @@ enum class MessageType {
 //------------------------------------------------------------------------------
 class Message {
 public:
+
   //----------------------------------------------------------------------------
   //! Empty constructor.
   //----------------------------------------------------------------------------
@@ -90,6 +91,28 @@ public:
     pattern.clear();
     channel.clear();
     payload.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check equality of two messages
+  //----------------------------------------------------------------------------
+  bool operator==(const Message &other) const {
+    return messageType           ==   other.messageType           &&
+           activeSubscriptions   ==   other.activeSubscriptions   &&
+           pattern               ==   other.pattern               &&
+           channel               ==   other.channel               &&
+           payload               ==   other.payload;
+  }
+
+  //----------------------------------------------------------------------------
+  //! "Constructor": Make kMessage.
+  //----------------------------------------------------------------------------
+  static Message createMessage(const std::string &channel, const std::string &payload) {
+    Message out;
+    out.messageType = MessageType::kMessage;
+    out.channel = channel;
+    out.payload = payload;
+    return out;
   }
 
 private:
