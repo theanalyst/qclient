@@ -31,6 +31,7 @@ namespace qclient {
 
 class Subscriber;
 class Message;
+class SubscriberListener;
 
 //------------------------------------------------------------------------------
 // A pub-sub subscription which collects incoming messages. Make sure to
@@ -90,7 +91,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor - real mode, connect to a real server
   //----------------------------------------------------------------------------
-  Subscriber(const Members &members, SubscriptionOptions &&options, Logger *logger);
+  Subscriber(const Members &members, SubscriptionOptions &&options, Logger *logger = nullptr);
 
   //----------------------------------------------------------------------------
   // Simulated mode - enable ability to feed fake messages for testing
@@ -112,14 +113,15 @@ public:
 private:
   Logger *logger;
   friend class Subscription;
+  friend class SubscriberListener;
 
   //----------------------------------------------------------------------------
   // Receive notification about a Subscription being destroyed
   //----------------------------------------------------------------------------
   void unsubscribe(Subscription *subscription);
 
-  std::unique_ptr<BaseSubscriber> base;
   std::shared_ptr<MessageListener> listener;
+  std::unique_ptr<BaseSubscriber> base;
 
   //----------------------------------------------------------------------------
   // Subscription maps

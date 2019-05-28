@@ -33,7 +33,7 @@ class MessageQueue : public MessageListener {
 public:
   using Iterator = WaitableQueue<Message, 100>::Iterator;
 
-  virtual void handleIncomingMessage(Message&& msg) override {
+  virtual void handleIncomingMessage(const Message& msg) override {
     queue.emplace_back(std::move(msg));
   }
 

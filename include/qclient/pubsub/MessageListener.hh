@@ -31,7 +31,7 @@ namespace qclient {
 class MessageListener {
 public:
   virtual ~MessageListener() {}
-  virtual void handleIncomingMessage(Message&& msg) = 0;
+  virtual void handleIncomingMessage(const Message& msg) = 0;
 };
 
 }
