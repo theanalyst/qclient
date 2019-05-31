@@ -40,16 +40,48 @@ namespace qclient {
 //! Uses a simple pub-sub channel for communication.
 //------------------------------------------------------------------------------
 class SharedManager; class Logger;
+class Subscription; class Message;
 
 class TransientSharedHash {
 public:
   //----------------------------------------------------------------------------
-  //! Constructor - supply a SharedManager object. I'll keep a reference to it
-  //! throughout my lifetime - don't destroy it before me!
+  //! Set key to the given value.
   //----------------------------------------------------------------------------
-  TransientSharedHash(SharedManager *sharedManager);
+  void set(const std::string &key, const std::string &value);
 
+  //----------------------------------------------------------------------------
+  //! Set a batch of key-value pairs.
+  //----------------------------------------------------------------------------
+  void set(const std::map<std::string, std::string> &batch);
 
+  //----------------------------------------------------------------------------
+  //! Get key, if it exists
+  //----------------------------------------------------------------------------
+  bool get(const std::string &key) const;
+
+private:
+  friend class SharedManager;
+
+  //----------------------------------------------------------------------------
+  //! Private constructor - use SharedManager to instantiate this object.
+  //----------------------------------------------------------------------------
+  TransientSharedHash(SharedManager *sharedManager, const std::string &channel,
+    std::unique_ptr<qclient::Subscription> sub);
+
+  //----------------------------------------------------------------------------
+  //! Process incoming message
+  //----------------------------------------------------------------------------
+  void processIncoming(Message &&msg);
+
+  //----------------------------------------------------------------------------
+  //! Member variables
+  //----------------------------------------------------------------------------
+  SharedManager *sharedManager;
+  std::string channel;
+  std::map<std::string, std::string> localContents;
+  std::unique_ptr<qclient::Subscription> subscription;
+
+};
 
 }
 

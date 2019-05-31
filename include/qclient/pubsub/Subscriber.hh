@@ -67,6 +67,18 @@ public:
   //----------------------------------------------------------------------------
   bool empty() const;
 
+  //----------------------------------------------------------------------------
+  // Stop behaving like a queue, forward incoming messages to the given
+  // callback.
+  //----------------------------------------------------------------------------
+  using Callback = qclient::AttachableQueue<Message, 50>::Callback;
+  void attachCallback(const Callback &cb);
+
+  //----------------------------------------------------------------------------
+  // Detach callback, start behaving like a queue again
+  //----------------------------------------------------------------------------
+  void detachCallback();
+
 private:
   friend class Subscriber;
 

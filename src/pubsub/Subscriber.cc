@@ -91,6 +91,21 @@ bool Subscription::front(Message &out) const {
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Stop behaving like a queue, forward incoming messages to the given
+// callback.
+//------------------------------------------------------------------------------
+void Subscription::attachCallback(const Callback &cb) {
+  queue.attach(cb);
+}
+
+//------------------------------------------------------------------------------
+// Detach callback, start behaving like a queue again
+//------------------------------------------------------------------------------
+void Subscription::detachCallback() {
+  queue.detach();
+}
+
 //----------------------------------------------------------------------------
 // Constructor - real mode, connect to a real server
 //----------------------------------------------------------------------------

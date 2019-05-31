@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: SharedManager.cc
+// File: TransientSharedHash.cc
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,59 +21,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/shared/SharedManager.hh"
-#include "qclient/QClient.hh"
+#include "qclient/shared/TransientSharedHash.hh"
 #include "qclient/pubsub/Subscriber.hh"
-#include "qclient/pubsub/Message.hh"
 
 namespace qclient {
 
 //------------------------------------------------------------------------------
-// Constructor - supply necessary information for connecting to a QDB
-// instance.
-// "Options" will be used in a connection publishing information, and
-// "SubscriptionOptions" in a connection subscribing to the necessary
-// channels.
+//! Private constructor - use SharedManager to instantiate this object.
 //------------------------------------------------------------------------------
-SharedManager::SharedManager(const qclient::Members &members, qclient::Options &&options,
-  qclient::SubscriptionOptions &&subscriptionOptions) {
+TransientSharedHash::TransientSharedHash(SharedManager *sm,
+  const std::string &chan, std::unique_ptr<qclient::Subscription> sub)
+: sharedManager(sm), channel(chan), subscription(std::move(sub)) {
 
-  qclient.reset(new QClient(members, std::move(options)));
-  subscriber.reset(new Subscriber(members, std::move(subscriptionOptions)));
+  using namespace std::placeholders;
+  subscription->attachCallback(std::bind(&TransientSharedHash::processIncoming, this, _1));
 }
 
 //------------------------------------------------------------------------------
-// Empty constructor, simulation mode.
+// Process incoming message
 //------------------------------------------------------------------------------
-SharedManager::SharedManager() {
-  subscriber.reset(new Subscriber());
-}
-
-//------------------------------------------------------------------------------
-// Publish the given message. You probably should not call this directly,
-// it's used by our dependent shared data structures to publish
-// modifications.
-//------------------------------------------------------------------------------
-void SharedManager::publish(const std::string &channel, const std::string &payload) {
-  if(qclient) {
-    //--------------------------------------------------------------------------
-    // Real mode
-    //--------------------------------------------------------------------------
-    qclient->exec("PUBLISH", channel, payload);
-  }
-  else {
-    //--------------------------------------------------------------------------
-    // Simulation
-    //--------------------------------------------------------------------------
-    subscriber->feedFakeMessage(Message::createMessage(channel, payload));
-  }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-SharedManager::~SharedManager() {}
-
+void TransientSharedHash::processIncoming(Message &&msg) {
 
 }
 
+//------------------------------------------------------------------------------
+// Set key to the given value.
+//------------------------------------------------------------------------------
+void TransientSharedHash::set(const std::string &key, const std::string &value) {
+
+}
+
+
+
+}

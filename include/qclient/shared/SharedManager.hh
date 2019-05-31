@@ -25,10 +25,15 @@
 #define QCLIENT_SHARED_MANAGER_HH
 
 #include "../AssistedThread.hh"
+#include "../Options.hh"
+#include <memory>
 
 namespace qclient {
 
-class SharedHash;
+class Members;
+class QClient;
+class Subscriber;
+class TransientSharedHash;
 
 //------------------------------------------------------------------------------
 //! SharedManager class to babysit SharedHashes and SharedQueues.
@@ -37,21 +42,45 @@ class SharedHash;
 class SharedManager {
 public:
   //----------------------------------------------------------------------------
-  //! Empty constructor - SIMULATION mode. Feed fake data through
-  //! feedFakeHashEntry().
+  //! Empty constructor, simulation mode.
   //----------------------------------------------------------------------------
   SharedManager();
 
   //----------------------------------------------------------------------------
-  //! Real mode, connecting to a real QDB instance.
+  //! Destructor.
   //----------------------------------------------------------------------------
+  ~SharedManager();
+
+  //----------------------------------------------------------------------------
+  //! Constructor - supply necessary information for connecting to a QDB
+  //! instance.
+  //! "Options" will be used in a connection publishing information, and
+  //! "SubscriptionOptions" in a connection subscribing to the necessary
+  //! channels.
+  //----------------------------------------------------------------------------
+  SharedManager(const qclient::Members &members, qclient::Options &&options,
+    qclient::SubscriptionOptions &&subscriptionOptions);
+
+  //----------------------------------------------------------------------------
+  //! Make a transient shared hash based on the given channel
+  //----------------------------------------------------------------------------
+  std::unique_ptr<TransientSharedHash> makeTransientSharedHash(
+    const std::string &channel);
+
+  //----------------------------------------------------------------------------
+  //! Publish the given message. You probably should not call this directly,
+  //! it's used by our dependent shared data structures to publish
+  //! modifications.
+  //----------------------------------------------------------------------------
+  void publish(const std::string &channel, const std::string &payload);
+
 
 
 
 
 private:
-  std::set<SharedHash*> registeredHashes;
-  std::mutex hashMutex;
+  std::unique_ptr<QClient> qclient;
+  std::unique_ptr<Subscriber> subscriber;
 };
 
 }
