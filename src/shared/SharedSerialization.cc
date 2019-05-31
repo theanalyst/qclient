@@ -21,8 +21,100 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/shared/SharedSerialization.hh"
+#include "SharedSerialization.hh"
+#include "qclient/Formatting.hh"
+#include <sstream>
+#include <endian.h>
+#include <string.h>
+#include <iostream>
+
+static int64_t binaryStringToInt(const char* buff) {
+  int64_t result;
+  memcpy(&result, buff, sizeof(result));
+  return be64toh(result);
+}
+
+static void intToBinaryString(int64_t num, char* buff) {
+  int64_t be = htobe64(num);
+  memcpy(buff, &be, sizeof(be));
+}
 
 namespace qclient {
+
+//------------------------------------------------------------------------------
+//! Utilities for serializing the payload of messages intended for shared
+//! data structures.
+//------------------------------------------------------------------------------
+std::string serializeBatch(const std::map<std::string, std::string> &batch) {
+  std::string retval;
+
+  size_t retvalSize = 8; // 8 bytes for array size
+  for(auto it = batch.begin(); it != batch.end(); it++) {
+    // 8 bytes for key size + actual key
+    retvalSize += 8 + it->first.size();
+
+    // 8 bytes for value size + actual value
+    retvalSize += 8 + it->second.size();
+  }
+
+  retval.resize(retvalSize);
+  char* pos = retval.data();
+
+  intToBinaryString(batch.size() * 2, pos);
+  pos += 8;
+
+  for(auto it = batch.begin(); it != batch.end(); it++) {
+    intToBinaryString(it->first.size(), pos);
+    pos += 8;
+    memcpy(pos, it->first.data(), it->first.size());
+    pos += it->first.size();
+
+    intToBinaryString(it->second.size(), pos);
+    pos += 8;
+    memcpy(pos, it->second.data(), it->second.size());
+    pos += it->second.size();
+  }
+
+  return retval;
+}
+
+bool parseBatch(const std::string &payload, std::map<std::string, std::string> &out) {
+  out.clear();
+
+  if(payload.size() < 8) return false;
+  int64_t elements = 0;
+
+  elements = binaryStringToInt(payload.data());
+  size_t pos = 8;
+
+  if(elements < 0 || elements % 2 != 0) return false;
+
+  std::string key;
+  for(int64_t i = 0; i < elements; i++) {
+    if(pos >= payload.size()) return false;
+
+    // parse string length
+    int64_t stringSize = binaryStringToInt(payload.data()+pos);
+    pos += 8;
+    if(pos+stringSize > payload.size()) return false;
+
+    // parse string
+    std::string value;
+    value.resize(stringSize);
+    memcpy(value.data(), payload.data()+pos, stringSize);
+    pos += stringSize;
+
+    // adjust output
+    if(i % 2 != 0) {
+      out[key] = value;
+    }
+    else {
+      key = std::move(value);
+    }
+  }
+
+  return true;
+}
+
 
 }

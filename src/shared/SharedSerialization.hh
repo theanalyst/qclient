@@ -24,12 +24,17 @@
 #ifndef QCLIENT_SHARED_SERIALIZATION_HH
 #define QCLIENT_SHARED_SERIALIZATION_HH
 
+#include <map>
+#include <string>
+
 namespace qclient {
 
 //------------------------------------------------------------------------------
 //! Utilities for serializing the payload of messages intended for shared
 //! data structures.
 //------------------------------------------------------------------------------
+std::string serializeBatch(const std::map<std::string, std::string> &batch);
+bool parseBatch(const std::string &payload, std::map<std::string, std::string> &out);
 
 }
 

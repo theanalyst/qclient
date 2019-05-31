@@ -24,6 +24,8 @@
 #include "gtest/gtest.h"
 #include "qclient/QClient.hh"
 #include "qclient/Formatting.hh"
+#include "shared/SharedSerialization.hh"
+
 using namespace qclient;
 
 void setStr(redisReplyPtr reply, const std::string &str) {
@@ -144,4 +146,16 @@ TEST(Formatting, SerializeStringMap) {
     "$6\r\ni like\r\n"
     "$7\r\npickles\r\n"
   );
+}
+
+TEST(SharedSerialization, BatchUpdate) {
+  std::map<std::string, std::string> batch;
+  batch["a"] = "bb";
+  batch["ccc"] = "dddd";
+  batch["eeeee"] = "ffffff";
+
+  std::map<std::string, std::string> parsed;
+  ASSERT_TRUE(qclient::parseBatch(qclient::serializeBatch(batch), parsed));
+  ASSERT_EQ(batch, parsed);
+
 }
