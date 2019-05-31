@@ -58,7 +58,7 @@ std::string serializeBatch(const std::map<std::string, std::string> &batch) {
   }
 
   retval.resize(retvalSize);
-  char* pos = retval.data();
+  char* pos = (char*) retval.data();
 
   intToBinaryString(batch.size() * 2, pos);
   pos += 8;
@@ -101,7 +101,7 @@ bool parseBatch(const std::string &payload, std::map<std::string, std::string> &
     // parse string
     std::string value;
     value.resize(stringSize);
-    memcpy(value.data(), payload.data()+pos, stringSize);
+    memcpy( (char*) value.data(), payload.data()+pos, stringSize);
     pos += stringSize;
 
     // adjust output
