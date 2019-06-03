@@ -135,8 +135,16 @@ public:
   //!
   //! @return return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  template <typename T>
-  bool hset(const std::string& field, const T& value);
+  bool hset(const std::string& field, const std::string& value) {
+    redisReplyPtr reply = mClient->exec("HSET", mKey, field, value).get();
+
+    if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
+      throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
+                               + field + ": Unexpected/null reply");
+    }
+
+    return (reply->integer == 1);
+  }
 
   //----------------------------------------------------------------------------
   //! HASH set command - asynchronous
@@ -317,23 +325,6 @@ inline void
 QHash::hset_async(const std::string& field, const std::string& value, AsyncHandler* ah)
 {
   ah->Register(mClient, {"HSET", mKey, field, value});
-}
-
-//------------------------------------------------------------------------------
-// HSET operation - synchronous
-//------------------------------------------------------------------------------
-template <typename T>
-bool
-QHash::hset(const std::string& field, const T& value)
-{
-  redisReplyPtr reply = mClient->exec("HSET", mKey, field, std::to_string(value)).get();
-
-  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
-    throw std::runtime_error("[FATAL] Error hset key: " + mKey + " field: "
-                             + field + ": Unexpected/null reply");
-  }
-
-  return (reply->integer == 1);
 }
 
 //------------------------------------------------------------------------------

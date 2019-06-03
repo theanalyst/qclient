@@ -42,7 +42,7 @@ TEST(QHash, HashSync)
   std::vector<float> fvalues {100.0, 200.0, 300.0};
   std::vector<std::string> svalues {"1000", "2000", "3000"};
   ASSERT_EQ(0, qhash.hlen());
-  ASSERT_TRUE(qhash.hset(fields[0], fvalues[0]));
+  ASSERT_TRUE(qhash.hset(fields[0], std::to_string(fvalues[0])));
   ASSERT_FLOAT_EQ(fvalues[0], std::stof(qhash.hget(fields[0])));
   ASSERT_FLOAT_EQ(100.0005, qhash.hincrbyfloat(fields[0], 0.0005));
   ASSERT_TRUE(qhash.hexists(fields[0]));
@@ -52,8 +52,8 @@ TEST(QHash, HashSync)
   ASSERT_FALSE(qhash.hsetnx(fields[1], svalues[1]));
   ASSERT_EQ(svalues[1], qhash.hget(fields[1]));
   ASSERT_TRUE(qhash.hdel(fields[1]));
-  ASSERT_TRUE(qhash.hset(fields[2], ivalues[2]));
-  ASSERT_TRUE(qhash.hset(fields[1], ivalues[1]));
+  ASSERT_TRUE(qhash.hset(fields[2], std::to_string(ivalues[2])));
+  ASSERT_TRUE(qhash.hset(fields[1], std::to_string(ivalues[1])));
   ASSERT_EQ(35, qhash.hincrby(fields[2], 5));
   ASSERT_TRUE(qhash.hdel(fields[2]));
   ASSERT_TRUE(qhash.hsetnx(fields[2], std::to_string(ivalues[2])));
@@ -93,7 +93,7 @@ TEST(QHash, HashSync)
 
   for (int i = 0; i < 3000; ++i) {
     map.emplace(i, i);
-    ASSERT_EQ(1, qhash.hset(std::to_string(i), i));
+    ASSERT_EQ(1, qhash.hset(std::to_string(i), std::to_string(i)));
   }
 
   std::string cursor = "0";
