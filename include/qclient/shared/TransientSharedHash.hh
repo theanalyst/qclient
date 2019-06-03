@@ -85,11 +85,10 @@ private:
   std::shared_ptr<Logger> logger;
 
   std::string channel;
-  std::unique_ptr<qclient::Subscription> subscription;
 
   mutable std::mutex contentsMtx;
   std::map<std::string, std::string> contents;
-
+  std::unique_ptr<qclient::Subscription> subscription;
 };
 
 }
