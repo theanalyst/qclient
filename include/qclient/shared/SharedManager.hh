@@ -79,6 +79,7 @@ public:
 
 
 private:
+  std::shared_ptr<Logger> logger;
   std::unique_ptr<QClient> qclient;
   std::unique_ptr<Subscriber> subscriber;
 };

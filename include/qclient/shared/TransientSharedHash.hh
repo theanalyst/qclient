@@ -45,6 +45,11 @@ class Subscription; class Message;
 class TransientSharedHash {
 public:
   //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~TransientSharedHash();
+
+  //----------------------------------------------------------------------------
   //! Set key to the given value.
   //----------------------------------------------------------------------------
   void set(const std::string &key, const std::string &value);
@@ -57,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get key, if it exists
   //----------------------------------------------------------------------------
-  bool get(const std::string &key) const;
+  bool get(const std::string &key, std::string &value) const;
 
 private:
   friend class SharedManager;
@@ -77,9 +82,13 @@ private:
   //! Member variables
   //----------------------------------------------------------------------------
   SharedManager *sharedManager;
+  std::shared_ptr<Logger> logger;
+
   std::string channel;
-  std::map<std::string, std::string> localContents;
   std::unique_ptr<qclient::Subscription> subscription;
+
+  mutable std::mutex contentsMtx;
+  std::map<std::string, std::string> contents;
 
 };
 

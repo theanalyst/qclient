@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "qclient/shared/SharedHash.hh"
+#include "qclient/shared/SharedManager.hh"
+#include "qclient/shared/TransientSharedHash.hh"
 #include <gtest/gtest.h>
 
 using namespace qclient;
@@ -73,5 +75,23 @@ TEST(SharedHash, StandaloneTests) {
   ASSERT_TRUE(hash.get("qqq", tmp));
   ASSERT_EQ("www", tmp);
   ASSERT_EQ(hash.getCurrentVersion(), 8u);
+}
+
+TEST(TransientSharedHash, Standalone) {
+  SharedManager mg;
+
+  std::unique_ptr<TransientSharedHash> hash1 = mg.makeTransientSharedHash("some-hash");
+  std::unique_ptr<TransientSharedHash> hash2 = mg.makeTransientSharedHash("some-other-hash");
+  std::unique_ptr<TransientSharedHash> hash3 = mg.makeTransientSharedHash("some-hash");
+
+  hash1->set("a", "b");
+
+  // In simulation mode, there's no network latency and updates should take
+  // effect immediately
+  std::string out;
+  ASSERT_TRUE(hash3->get("a", out));
+  ASSERT_EQ(out, "b");
+
+  ASSERT_FALSE(hash2->get("a", out));
 }
 

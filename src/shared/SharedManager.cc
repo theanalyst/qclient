@@ -25,6 +25,7 @@
 #include "qclient/QClient.hh"
 #include "qclient/pubsub/Subscriber.hh"
 #include "qclient/pubsub/Message.hh"
+#include "qclient/shared/TransientSharedHash.hh"
 
 namespace qclient {
 
@@ -38,6 +39,7 @@ namespace qclient {
 SharedManager::SharedManager(const qclient::Members &members, qclient::Options &&options,
   qclient::SubscriptionOptions &&subscriptionOptions) {
 
+  logger = options.logger;
   qclient.reset(new QClient(members, std::move(options)));
   subscriber.reset(new Subscriber(members, std::move(subscriptionOptions)));
 }
@@ -70,10 +72,16 @@ void SharedManager::publish(const std::string &channel, const std::string &paylo
 }
 
 //------------------------------------------------------------------------------
+// Make a transient shared hash based on the given channel
+//------------------------------------------------------------------------------
+std::unique_ptr<TransientSharedHash> SharedManager::makeTransientSharedHash(const std::string &channel) {
+  return std::unique_ptr<TransientSharedHash>(new TransientSharedHash(this, channel, subscriber->subscribe(channel)));
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 SharedManager::~SharedManager() {}
-
 
 }
 

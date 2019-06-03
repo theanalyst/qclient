@@ -23,6 +23,10 @@
 
 #include "qclient/shared/TransientSharedHash.hh"
 #include "qclient/pubsub/Subscriber.hh"
+#include "qclient/pubsub/Message.hh"
+#include "SharedSerialization.hh"
+#include "qclient/Logger.hh"
+#include "qclient/shared/SharedManager.hh"
 
 namespace qclient {
 
@@ -38,19 +42,63 @@ TransientSharedHash::TransientSharedHash(SharedManager *sm,
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+TransientSharedHash::~TransientSharedHash() {}
+
+//------------------------------------------------------------------------------
 // Process incoming message
 //------------------------------------------------------------------------------
 void TransientSharedHash::processIncoming(Message &&msg) {
+  if(msg.getMessageType() != MessageType::kMessage || msg.getChannel() != channel) {
+    // Ignore, message does not concern us
+    return;
+  }
 
+  std::map<std::string, std::string> incomingBatch;
+  if(!parseBatch(msg.getPayload(), incomingBatch)) {
+    QCLIENT_LOG(logger, LogLevel::kError, "Could not parse message payload (length " << msg.getPayload().size() << ") received in channel " << channel << ", ignoring");
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Batch received and parsed, apply
+  //----------------------------------------------------------------------------
+  std::lock_guard<std::mutex> lock(contentsMtx);
+  contents.insert(incomingBatch.begin(), incomingBatch.end());
 }
 
 //------------------------------------------------------------------------------
 // Set key to the given value.
 //------------------------------------------------------------------------------
 void TransientSharedHash::set(const std::string &key, const std::string &value) {
-
+  std::map<std::string, std::string> batch;
+  batch[key] = value;
+  set(batch);
 }
 
+//------------------------------------------------------------------------------
+// Set a batch of key-value pairs.
+//------------------------------------------------------------------------------
+void TransientSharedHash::set(const std::map<std::string, std::string> &batch) {
+  std::string serializedBatch = serializeBatch(batch);
+  sharedManager->publish(channel, serializedBatch);
+}
+
+//------------------------------------------------------------------------------
+//! Get key, if it exists
+//------------------------------------------------------------------------------
+bool TransientSharedHash::get(const std::string &key, std::string &value) const {
+  std::lock_guard<std::mutex> lock(contentsMtx);
+
+  auto it = contents.find(key);
+  if(it == contents.end()) {
+    return false;
+  }
+
+  value = it->second;
+  return true;
+}
 
 
 }
