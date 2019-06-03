@@ -451,3 +451,36 @@ bool QClient::handleConnectionEpoch(ThreadAssistant &assistant) {
 
   return receivedBytes;
 }
+
+//------------------------------------------------------------------------------
+// Wrapper function for exists command
+//------------------------------------------------------------------------------
+long long int
+QClient::exists(const std::string& key)
+{
+  redisReplyPtr reply = exec("EXISTS", key).get();
+
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
+    throw std::runtime_error("[FATAL] Error exists key: " + key +
+                             ": Unexpected/null reply ");
+  }
+
+  return reply->integer;
+}
+
+//------------------------------------------------------------------------------
+// Wrapper function for del command
+//------------------------------------------------------------------------------
+long long int
+QClient::del(const std::string& key)
+{
+  redisReplyPtr reply = exec("DEL", key).get();
+
+  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
+    throw std::runtime_error("[FATAL] Error del key: " + key +
+                             ": Unexpected/null reply ");
+  }
+
+  return reply->integer;
+}
+
