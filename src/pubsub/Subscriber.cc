@@ -110,7 +110,7 @@ void Subscription::detachCallback() {
 // Constructor - real mode, connect to a real server
 //----------------------------------------------------------------------------
 Subscriber::Subscriber(const Members &members, SubscriptionOptions &&options, Logger *log)
-: logger(log), listener(new SubscriberListener(this)),
+: /*logger(log),*/ listener(new SubscriberListener(this)),
   base(new BaseSubscriber(members, listener, std::move(options))) {}
 
 //------------------------------------------------------------------------------

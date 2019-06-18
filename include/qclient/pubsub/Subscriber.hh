@@ -123,7 +123,7 @@ public:
 
 
 private:
-  Logger *logger;
+  // Logger *logger;
   friend class Subscription;
   friend class SubscriberListener;
 
