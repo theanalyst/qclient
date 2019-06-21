@@ -50,6 +50,12 @@ public:
   virtual std::vector<std::string> provideHandshake() = 0;
   virtual Status validateResponse(const redisReplyPtr &reply) = 0;
   virtual void restart() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Create a new handshake object of this type - if this is a multi-stage
+  //! handshake, the newly created object must start from the first stage!
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<Handshake> clone() const = 0;
 };
 
 //------------------------------------------------------------------------------
@@ -66,6 +72,7 @@ public:
   virtual std::vector<std::string> provideHandshake() override final;
   virtual Status validateResponse(const redisReplyPtr &reply) override final;
   virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
 
 private:
   bool firstDone = false;
@@ -83,6 +90,7 @@ public:
   virtual std::vector<std::string> provideHandshake() override final;
   virtual Status validateResponse(const redisReplyPtr &reply) override final;
   virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
 
 private:
   std::string password;
@@ -101,6 +109,7 @@ public:
   virtual std::vector<std::string> provideHandshake() override final;
   virtual Status validateResponse(const redisReplyPtr &reply) override final;
   virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
 
   //----------------------------------------------------------------------------
   //! Helper methods
@@ -129,6 +138,8 @@ public:
   virtual std::vector<std::string> provideHandshake() override final;
   virtual Status validateResponse(const redisReplyPtr &reply) override final;
   virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
+
 private:
   std::string pingToSend;
 };

@@ -66,6 +66,13 @@ Handshake::Status AuthHandshake::validateResponse(const redisReplyPtr &reply) {
 void AuthHandshake::restart() {}
 
 //------------------------------------------------------------------------------
+// Create a new handshake object of this type
+//------------------------------------------------------------------------------
+std::unique_ptr<Handshake> AuthHandshake::clone() const {
+  return std::unique_ptr<Handshake>(new AuthHandshake(password));
+}
+
+//------------------------------------------------------------------------------
 // HmacAuthHandshake: Constructor
 //------------------------------------------------------------------------------
 HmacAuthHandshake::HmacAuthHandshake(const std::string &pw) : password(pw) {}
@@ -183,6 +190,13 @@ void HmacAuthHandshake::restart() {
 }
 
 //------------------------------------------------------------------------------
+// Create a new handshake object of this type
+//------------------------------------------------------------------------------
+std::unique_ptr<Handshake> HmacAuthHandshake::clone() const {
+  return std::unique_ptr<Handshake>(new HmacAuthHandshake(password));
+}
+
+//------------------------------------------------------------------------------
 // HandshakeChainer: Constructor
 //------------------------------------------------------------------------------
 HandshakeChainer::HandshakeChainer(std::unique_ptr<Handshake> h1,
@@ -231,6 +245,13 @@ void HandshakeChainer::restart() {
 }
 
 //------------------------------------------------------------------------------
+// Create a new handshake object of this type
+//------------------------------------------------------------------------------
+std::unique_ptr<Handshake> HandshakeChainer::clone() const {
+  return std::unique_ptr<Handshake>(new HandshakeChainer(first->clone(), second->clone()));
+}
+
+//------------------------------------------------------------------------------
 // PingHandshake: Constructor
 //------------------------------------------------------------------------------
 PingHandshake::PingHandshake(const std::string &text) : pingToSend(text) {
@@ -267,5 +288,12 @@ Handshake::Status PingHandshake::validateResponse(const redisReplyPtr &reply) {
 // PingHandshake: Restart
 //------------------------------------------------------------------------------
 void PingHandshake::restart() {
+}
+
+//------------------------------------------------------------------------------
+// Create a new handshake object of this type
+//------------------------------------------------------------------------------
+std::unique_ptr<Handshake> PingHandshake::clone() const {
+  return std::unique_ptr<Handshake>(new PingHandshake(pingToSend));
 }
 
