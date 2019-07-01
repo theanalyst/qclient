@@ -81,6 +81,7 @@ add_library(qclient STATIC
   src/shared/SharedSerialization.cc
   src/shared/TransientSharedHash.cc
 
+  src/structures/QDeque.cc
   src/structures/QHash.cc
   src/structures/QLocalityHash.cc
   src/structures/QSet.cc

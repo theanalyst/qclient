@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: SharedManager.hh
+// File: QDeque.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,70 +21,55 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_SHARED_MANAGER_HH
-#define QCLIENT_SHARED_MANAGER_HH
+#ifndef QCLIENT_DEQUE_HH
+#define QCLIENT_DEQUE_HH
 
-#include "../AssistedThread.hh"
-#include "../Options.hh"
-#include <memory>
+#include <string>
+#include <qclient/Status.hh>
 
 namespace qclient {
 
-class Members;
 class QClient;
-class Subscriber;
-class TransientSharedHash;
 
 //------------------------------------------------------------------------------
-//! SharedManager class to babysit SharedHashes and SharedQueues.
-//! Do not destroy this object before all hashes and queues it manages!
+//! Class QDeque: All operations are synchronous.
 //------------------------------------------------------------------------------
-class SharedManager {
+class QDeque {
 public:
   //----------------------------------------------------------------------------
-  //! Empty constructor, simulation mode.
+  //! Constructor
   //----------------------------------------------------------------------------
-  SharedManager();
+  QDeque(QClient &qcl, const std::string& key);
 
   //----------------------------------------------------------------------------
-  //! Destructor.
+  //! Destructor
   //----------------------------------------------------------------------------
-  ~SharedManager();
+  ~QDeque();
 
   //----------------------------------------------------------------------------
-  //! Constructor - supply necessary information for connecting to a QDB
-  //! instance.
-  //! "Options" will be used in a connection publishing information, and
-  //! "SubscriptionOptions" in a connection subscribing to the necessary
-  //! channels.
+  //! Query deque size
   //----------------------------------------------------------------------------
-  SharedManager(const qclient::Members &members, qclient::Options &&options,
-    qclient::SubscriptionOptions &&subscriptionOptions);
+  qclient::Status size(size_t &out);
 
   //----------------------------------------------------------------------------
-  //! Make a transient shared hash based on the given channel
+  //! Add item to the back of the queue
   //----------------------------------------------------------------------------
-  std::unique_ptr<TransientSharedHash> makeTransientSharedHash(
-    const std::string &channel);
+  qclient::Status push_back(const std::string &contents);
 
   //----------------------------------------------------------------------------
-  //! Publish the given message. You probably should not call this directly,
-  //! it's used by our dependent shared data structures to publish
-  //! modifications.
+  //! Remove item from the front of the queue. If queue is empty, "" will be
+  //! returned - not an error.
   //----------------------------------------------------------------------------
-  void publish(const std::string &channel, const std::string &payload);
+  qclient::Status pop_front(std::string &out);
 
   //----------------------------------------------------------------------------
-  //! Get pointer to underlying QClient object - lifetime is tied to this
-  //! SharedManager.
+  //! Clear all items in the queue
   //----------------------------------------------------------------------------
-  qclient::QClient* getQClient();
-
+  qclient::Status clear();
 
 private:
-  std::shared_ptr<Logger> logger;
-  std::unique_ptr<QClient> qclient;
-  std::unique_ptr<Subscriber> subscriber;
+  qclient::QClient& mQcl;
+  std::string mKey;
 };
 
 }
