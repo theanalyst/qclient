@@ -60,6 +60,21 @@ private:
   long long val;
 };
 
+class StringParser {
+public:
+  StringParser(const redisReplyPtr reply);
+
+  bool ok() const;
+  std::string err() const;
+  std::string value() const;
+
+private:
+  bool isOk;
+  std::string error;
+  std::string val;
+};
+
+
 
 }
 

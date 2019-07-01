@@ -66,3 +66,19 @@ TEST(ResponseParsing, IntegerParser) {
   ASSERT_EQ(parser.value(), 13);
 }
 
+TEST(ResponseParsing, StringParser) {
+  redisReplyPtr reply = ResponseBuilder::makeStr("turtles");
+
+  StringParser parser(reply);
+  ASSERT_TRUE(parser.ok());
+  ASSERT_TRUE(parser.err().empty());
+  ASSERT_EQ(parser.value(), "turtles");
+}
+
+TEST(ResponseParsing, StringParserErr) {
+  redisReplyPtr reply = ResponseBuilder::makeInt(13);
+
+  StringParser parser(reply);
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Unexpected reply type; was expecting STRING, received (integer) 13");
+}

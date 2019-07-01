@@ -91,4 +91,33 @@ long long IntegerParser::value() const {
   return val;
 }
 
+StringParser::StringParser(const redisReplyPtr reply) {
+  if(reply == nullptr) {
+    error = "Received null redisReply";
+    isOk = false;
+    return;
+  }
+
+  if(reply->type != REDIS_REPLY_STRING) {
+    error = SSTR("Unexpected reply type; was expecting STRING, received " << qclient::describeRedisReply(reply.get()));
+    isOk = false;
+    return;
+  }
+
+  isOk = true;
+  val = std::string(reply->str, reply->len);
+}
+
+bool StringParser::ok() const {
+  return isOk;
+}
+
+std::string StringParser::err() const {
+  return error;
+}
+
+std::string StringParser::value() const {
+  return val;
+}
+
 }
