@@ -359,9 +359,11 @@ TEST(HostResolver, BasicSanity) {
   Status st;
   ASSERT_EQ(resolver.resolve("example.com", 4444, st), endpoints);
   ASSERT_TRUE(st.ok());
+  ASSERT_TRUE(st);
 
   ASSERT_TRUE(resolver.resolve("3.example.com", 5555, st).empty());
   ASSERT_FALSE(st.ok());
+  ASSERT_FALSE(st);
   ASSERT_EQ(st.getErrc(), ENOENT);
 }
 

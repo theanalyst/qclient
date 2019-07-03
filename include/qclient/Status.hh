@@ -74,6 +74,13 @@ public:
     return ss.str();
   }
 
+  //----------------------------------------------------------------------------
+  // Implicit conversion to boolean: Same value as ok()
+  //----------------------------------------------------------------------------
+  operator bool() const {
+    return ok();
+  }
+
 private:
   int errcode;
   std::string errorMessage;
