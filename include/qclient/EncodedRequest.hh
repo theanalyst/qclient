@@ -27,6 +27,7 @@
 #include <memory>
 #include <vector>
 #include <deque>
+#include <string>
 
 namespace qclient {
 
