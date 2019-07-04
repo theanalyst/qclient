@@ -64,7 +64,7 @@ AsyncHandler::Wait()
       }
     } catch (std::runtime_error& qdb_err) {
       std::cerr << "Exception: " << qdb_err.what() << std::endl;
-      mResponses.emplace_back(-ECOMM);
+      mResponses.emplace_back(-EINVAL);
       is_ok &= false;
     }
   }
