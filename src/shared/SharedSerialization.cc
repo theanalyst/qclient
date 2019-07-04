@@ -24,7 +24,7 @@
 #include "SharedSerialization.hh"
 #include "qclient/Formatting.hh"
 #include <sstream>
-#include <endian.h>
+#include <sys/types.h>
 #include <string.h>
 #include <iostream>
 
