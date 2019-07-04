@@ -24,7 +24,7 @@
 #ifndef QCLIENT_THREAD_SAFE_QUEUE_H
 #define QCLIENT_THREAD_SAFE_QUEUE_H
 
-#include <vector>
+#include <array>
 #include <memory>
 #include <mutex>
 
