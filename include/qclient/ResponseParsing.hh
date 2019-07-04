@@ -25,6 +25,7 @@
 #define QCLIENT_RESPONSE_PARSER_HH
 
 #include "qclient/Reply.hh"
+#include <string>
 
 namespace qclient {
 
