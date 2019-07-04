@@ -28,9 +28,16 @@
 #include <functional>
 #include <mutex>
 #include <list>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
 #include "qclient/Namespace.hh"
+
+struct ssl_ctx_st;
+typedef struct ssl_ctx_st SSL_CTX;
+
+struct ssl_st;
+typedef struct ssl_st SSL;
+
+struct bio_st;
+typedef struct bio_st BIO;
 
 QCLIENT_NAMESPACE_BEGIN
 

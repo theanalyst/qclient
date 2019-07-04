@@ -25,8 +25,21 @@
 #include <iostream>
 #include <sstream>
 
+#ifdef __APPLE__
+  #define TLS_FILTER_ACTIVE 0
+#else
+  #define TLS_FILTER_ACTIVE 1
+#endif
+
+#if TLS_FILTER_ACTIVE
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
 using namespace qclient;
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
+
+#if TLS_FILTER_ACTIVE
 
 static void initOpenSSL() {
   SSL_library_init();
@@ -255,3 +268,22 @@ LinkStatus TlsFilter::close(int defer) {
   }
   return 0;
 }
+
+#else
+
+TlsFilter::TlsFilter(const TlsConfig &config, const FilterType &filtertype, RecvFunction rc, SendFunction sd) {}
+TlsFilter::~TlsFilter() {}
+
+LinkStatus TlsFilter::send(const char *buff, int blen) {
+  return sendFunc(buff, blen);
+}
+
+RecvStatus TlsFilter::recv(char *buff, int blen, int timeout) {
+  return recvFunc(buff, blen, timeout);
+}
+
+LinkStatus TlsFilter::close(int defer) {
+  return 0;
+}
+
+#endif
