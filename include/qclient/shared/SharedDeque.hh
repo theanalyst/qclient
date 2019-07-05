@@ -52,12 +52,12 @@ public:
   //----------------------------------------------------------------------------
   //! Push an element into the back of the deque
   //----------------------------------------------------------------------------
-  void push_back(const std::string &contents);
+  qclient::Status push_back(const std::string &contents);
 
   //----------------------------------------------------------------------------
   //! Clear deque contents
   //----------------------------------------------------------------------------
-  void clear();
+  qclient::Status clear();
 
   //----------------------------------------------------------------------------
   //! Remove item from the front of the queue. If queue is empty, "" will be

@@ -51,21 +51,35 @@ SharedDeque::~SharedDeque() {}
 //------------------------------------------------------------------------------
 // Push an element into the back of the deque
 //------------------------------------------------------------------------------
-void SharedDeque::push_back(const std::string &contents) {
+qclient::Status SharedDeque::push_back(const std::string &contents) {
   invalidateCachedSize();
+
   mSharedManager->publish(mKey, "push-back-prepare");
-  mQcl->exec("deque-push-back", mKey, contents);
+  IntegerParser parser(mQcl->exec("deque-push-back", mKey, contents).get());
   mSharedManager->publish(mKey, "push-back-done");
+
+  if(!parser.ok()) {
+    return qclient::Status(EINVAL, parser.err());
+  }
+
+  return qclient::Status();
 }
 
 //------------------------------------------------------------------------------
 // Clear deque contents
 //------------------------------------------------------------------------------
-void SharedDeque::clear() {
+qclient::Status SharedDeque::clear() {
   invalidateCachedSize();
+
   mSharedManager->publish(mKey, "clear-prepare");
-  mQcl->exec("deque-clear", mKey);
+  IntegerParser parser(mQcl->exec("deque-clear", mKey).get());
   mSharedManager->publish(mKey, "clear-done");
+
+  if(!parser.ok()) {
+    return qclient::Status(EINVAL, parser.err());
+  }
+
+  return qclient::Status();
 }
 
 //------------------------------------------------------------------------------
