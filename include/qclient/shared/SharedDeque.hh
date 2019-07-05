@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: QDeque.hh
+// File: SharedDeque.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_DEQUE_HH
-#define QCLIENT_DEQUE_HH
+#ifndef QCLIENT_SHARED_DEQUE_HH
+#define QCLIENT_SHARED_DEQUE_HH
 
 #include <qclient/Status.hh>
 #include <string>
+#include <mutex>
+#include <memory>
 
 namespace qclient {
 
+class SharedManager;
 class QClient;
+class Subscription;
+class Message;
 
-//------------------------------------------------------------------------------
-//! Class QDeque: All operations are synchronous.
-//------------------------------------------------------------------------------
-class QDeque {
+class SharedDeque {
 public:
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QDeque(QClient &qcl, const std::string& key);
+  SharedDeque(SharedManager *sm, const std::string &key);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~QDeque();
+  ~SharedDeque();
 
   //----------------------------------------------------------------------------
-  //! Query deque size
+  //! Push an element into the back of the deque
   //----------------------------------------------------------------------------
-  qclient::Status size(size_t &out);
+  void push_back(const std::string &contents);
 
   //----------------------------------------------------------------------------
-  //! Add item to the back of the queue
+  //! Clear deque contents
   //----------------------------------------------------------------------------
-  qclient::Status push_back(const std::string &contents);
+  void clear();
 
   //----------------------------------------------------------------------------
   //! Remove item from the front of the queue. If queue is empty, "" will be
@@ -63,13 +66,30 @@ public:
   qclient::Status pop_front(std::string &out);
 
   //----------------------------------------------------------------------------
-  //! Clear all items in the queue
+  //! Query deque size
   //----------------------------------------------------------------------------
-  qclient::Status clear();
+  qclient::Status size(size_t &out);
+
+  //----------------------------------------------------------------------------
+  //! Invalidate cached size
+  //----------------------------------------------------------------------------
+  void invalidateCachedSize();
 
 private:
-  qclient::QClient& mQcl;
+  SharedManager *mSharedManager;
   std::string mKey;
+  qclient::QClient *mQcl;
+  std::unique_ptr<qclient::Subscription> mSubscription;
+
+  std::mutex mCacheMutex;
+  size_t mCachedSize = 0u;
+  bool mCachedSizeValid = false;
+
+  //----------------------------------------------------------------------------
+  //! Process incoming message
+  //----------------------------------------------------------------------------
+  void processIncoming(Message &&msg);
+
 };
 
 }

@@ -76,6 +76,7 @@ add_library(qclient STATIC
   src/pubsub/MessageParser.cc
   src/pubsub/Subscriber.cc
 
+  src/shared/SharedDeque.cc
   src/shared/SharedHash.cc
   src/shared/SharedManager.cc
   src/shared/SharedSerialization.cc

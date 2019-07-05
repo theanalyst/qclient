@@ -80,6 +80,11 @@ public:
   //----------------------------------------------------------------------------
   qclient::QClient* getQClient();
 
+  //----------------------------------------------------------------------------
+  //! Get pointer to underlying Subscriber object - lifetime is tied to this
+  //! SharedManager.
+  //----------------------------------------------------------------------------
+  qclient::Subscriber* getSubscriber();
 
 private:
   std::shared_ptr<Logger> logger;

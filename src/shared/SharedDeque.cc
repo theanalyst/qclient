@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: SharedManager.cc
+// File: SharedQueue.cc
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,83 +21,111 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "qclient/shared/SharedDeque.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "qclient/ResponseParsing.hh"
 #include "qclient/QClient.hh"
 #include "qclient/pubsub/Subscriber.hh"
-#include "qclient/pubsub/Message.hh"
-#include "qclient/shared/TransientSharedHash.hh"
+
 
 namespace qclient {
 
 //------------------------------------------------------------------------------
-// Constructor - supply necessary information for connecting to a QDB
-// instance.
-// "Options" will be used in a connection publishing information, and
-// "SubscriptionOptions" in a connection subscribing to the necessary
-// channels.
+// Constructor
 //------------------------------------------------------------------------------
-SharedManager::SharedManager(const qclient::Members &members, qclient::Options &&options,
-  qclient::SubscriptionOptions &&subscriptionOptions) {
+SharedDeque::SharedDeque(SharedManager *sm, const std::string &key)
+: mSharedManager(sm), mKey(key), mQcl(sm->getQClient()) {
 
-  logger = options.logger;
-  qclient.reset(new QClient(members, std::move(options)));
-  subscriber.reset(new Subscriber(members, std::move(subscriptionOptions)));
-}
+  mSubscription = sm->getSubscriber()->subscribe(mKey);
 
-//------------------------------------------------------------------------------
-// Empty constructor, simulation mode.
-//------------------------------------------------------------------------------
-SharedManager::SharedManager() {
-  subscriber.reset(new Subscriber());
-}
+  using namespace std::placeholders;
+  mSubscription->attachCallback(std::bind(&SharedDeque::processIncoming, this, _1));
 
-//------------------------------------------------------------------------------
-// Publish the given message. You probably should not call this directly,
-// it's used by our dependent shared data structures to publish
-// modifications.
-//------------------------------------------------------------------------------
-void SharedManager::publish(const std::string &channel, const std::string &payload) {
-  if(qclient) {
-    //--------------------------------------------------------------------------
-    // Real mode
-    //--------------------------------------------------------------------------
-    qclient->exec("PUBLISH", channel, payload);
-  }
-  else {
-    //--------------------------------------------------------------------------
-    // Simulation
-    //--------------------------------------------------------------------------
-    subscriber->feedFakeMessage(Message::createMessage(channel, payload));
-  }
-}
-
-//------------------------------------------------------------------------------
-// Make a transient shared hash based on the given channel
-//------------------------------------------------------------------------------
-std::unique_ptr<TransientSharedHash> SharedManager::makeTransientSharedHash(const std::string &channel) {
-  return std::unique_ptr<TransientSharedHash>(new TransientSharedHash(this, channel, subscriber->subscribe(channel)));
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SharedManager::~SharedManager() {}
+SharedDeque::~SharedDeque() {}
 
 //------------------------------------------------------------------------------
-// Get pointer to underlying QClient object - lifetime is tied to this
-// SharedManager.
+// Push an element into the back of the deque
 //------------------------------------------------------------------------------
-qclient::QClient* SharedManager::getQClient() {
-  return qclient.get();
+void SharedDeque::push_back(const std::string &contents) {
+  invalidateCachedSize();
+  mSharedManager->publish(mKey, "push-back-prepare");
+  mQcl->exec("deque-push-back", mKey, contents);
+  mSharedManager->publish(mKey, "push-back-done");
+}
+
+//------------------------------------------------------------------------------
+// Clear deque contents
+//------------------------------------------------------------------------------
+void SharedDeque::clear() {
+  invalidateCachedSize();
+  mSharedManager->publish(mKey, "clear-prepare");
+  mQcl->exec("deque-clear", mKey);
+  mSharedManager->publish(mKey, "clear-done");
+}
+
+//------------------------------------------------------------------------------
+// Remove item from the front of the queue. If queue is empty, "" will be
+// returned - not an error.
+//------------------------------------------------------------------------------
+qclient::Status SharedDeque::pop_front(std::string &out) {
+  invalidateCachedSize();
+  mSharedManager->publish(mKey, "pop-front-prepare");
+  StringParser parser(mQcl->exec("deque-pop-front", mKey).get());
+  mSharedManager->publish(mKey, "pop-front-done");
+
+  if(!parser.ok()) {
+    return qclient::Status(EINVAL, parser.err());
+  }
+
+  out = parser.value();
+  return qclient::Status();
+}
+
+//------------------------------------------------------------------------------
+//! Query deque size
+//------------------------------------------------------------------------------
+qclient::Status SharedDeque::size(size_t &out) {
+  std::unique_lock<std::mutex> lock(mCacheMutex);
+
+  if(mCachedSizeValid) {
+    out = mCachedSize;
+    return qclient::Status();
+  }
+
+  lock.unlock();
+
+  IntegerParser parser(mQcl->exec("deque-len", mKey).get());
+  if(!parser.ok()) {
+    return qclient::Status(EINVAL, parser.err());
+  }
+
+  lock.lock();
+
+  out = parser.value();
+  mCachedSize = out;
+  mCachedSizeValid = true;
+  return qclient::Status();
 }
 
 //----------------------------------------------------------------------------
-// Get pointer to underlying Subscriber object - lifetime is tied to this
-// SharedManager.
+//! Invalidate cached size
 //----------------------------------------------------------------------------
-qclient::Subscriber* SharedManager::getSubscriber() {
-  return subscriber.get();
+void SharedDeque::invalidateCachedSize() {
+  std::unique_lock<std::mutex> lock(mCacheMutex);
+  mCachedSize = 0u;
+  mCachedSizeValid = false;
+}
+
+//------------------------------------------------------------------------------
+//! Process incoming message
+//------------------------------------------------------------------------------
+void SharedDeque::processIncoming(Message &&msg) {
+  invalidateCachedSize();
 }
 
 }
-
