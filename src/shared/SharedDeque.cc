@@ -26,6 +26,7 @@
 #include "qclient/ResponseParsing.hh"
 #include "qclient/QClient.hh"
 #include "qclient/pubsub/Subscriber.hh"
+#include "qclient/pubsub/Message.hh"
 
 
 namespace qclient {
