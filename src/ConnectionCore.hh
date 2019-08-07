@@ -61,7 +61,9 @@ public:
 
   void setBlockingMode(bool value);
   StagedRequest* getNextToWrite();
-  void clearAllPending();
+
+  // Wipe out pending request queue - return size of queue
+  size_t clearAllPending();
 
 private:
   Logger *logger;

@@ -98,7 +98,7 @@ void ConnectionCore::reconnection() {
   nextToAcknowledgeIterator = requestQueue.begin();
 }
 
-void ConnectionCore::clearAllPending() {
+size_t ConnectionCore::clearAllPending() {
   std::lock_guard<std::mutex> lock(mtx);
 
   //----------------------------------------------------------------------------
@@ -112,8 +112,11 @@ void ConnectionCore::clearAllPending() {
     acknowledgePending(std::move(nullReply));
   }
 
+  size_t retval = requestQueue.size();
+
   requestQueue.reset();
   reconnection();
+  return retval;
 }
 
 void ConnectionCore::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {

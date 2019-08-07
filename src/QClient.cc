@@ -51,6 +51,7 @@ template class folly::Future<qclient::redisReplyPtr>;
 #endif
 
 using namespace qclient;
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
 //------------------------------------------------------------------------------
@@ -79,7 +80,7 @@ QClient::~QClient()
 {
   shutdownEventFD.notify();
   eventLoopThread.join();
-  cleanup();
+  cleanup(true);
 }
 
 //------------------------------------------------------------------------------
@@ -256,7 +257,7 @@ bool QClient::shouldPurgePendingRequests() {
 //------------------------------------------------------------------------------
 // Cleanup before reconnection or when exiting
 //------------------------------------------------------------------------------
-void QClient::cleanup()
+void QClient::cleanup(bool shutdown)
 {
   writerThread->deactivate();
   networkStream.reset();
@@ -266,8 +267,15 @@ void QClient::cleanup()
   successfulResponses = false;
 
   if(shouldPurgePendingRequests()) {
-    QCLIENT_LOG(options.logger, LogLevel::kInfo, "Purging pending requests, backend is unavailable");
-    connectionCore->clearAllPending();
+
+    size_t previouslyPending = connectionCore->clearAllPending();
+    if(shutdown) {
+      QCLIENT_LOG(options.logger, LogLevel::kDebug, SSTR("Shutting down QClient, discarding " << previouslyPending << " pending requests"));
+    }
+    else {
+      QCLIENT_LOG(options.logger, LogLevel::kInfo, SSTR("Backend is unavailable, discarding " << previouslyPending << " pending requests"));
+    }
+
   }
 
   connectionCore->reconnection();
@@ -316,7 +324,7 @@ void QClient::connect()
 {
   currentConnectionEpoch++;
   if(currentConnectionEpoch != 1) {
-    cleanup();
+    cleanup(false);
   }
   connectTCP();
 }
