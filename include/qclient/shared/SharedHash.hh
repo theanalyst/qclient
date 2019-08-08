@@ -27,6 +27,7 @@
 #include "qclient/utils/Macros.hh"
 #include <map>
 #include <shared_mutex>
+#include <vector>
 
 namespace qclient {
 
@@ -95,6 +96,12 @@ PUBLIC_FOR_TESTS_ONLY:
   //!   contents. The change is not applied - a return value of false means
   //!   "please bring me up-to-date by calling resilver function"
   //----------------------------------------------------------------------------
+  bool feedRevision(uint64_t revision, const std::vector<std::pair<std::string, std::string>> &updates);
+
+  //----------------------------------------------------------------------------
+  //! Same as above, but the given revision updates only a single
+  //! key-value pair
+  //----------------------------------------------------------------------------
   bool feedRevision(uint64_t revision, const std::string &key, const std::string &value);
 
   //----------------------------------------------------------------------------
@@ -113,6 +120,10 @@ private:
   std::map<std::string, std::string> contents;
   uint64_t currentVersion;
 
+  //----------------------------------------------------------------------------
+  // Feed a single key-value update. Assumes lock is taken.
+  //----------------------------------------------------------------------------
+  void feedSingleKeyValue(const std::string &key, const std::string &value);
 };
 
 }

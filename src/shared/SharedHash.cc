@@ -66,6 +66,20 @@ uint64_t SharedHash::getCurrentVersion() const {
 }
 
 //------------------------------------------------------------------------------
+// Feed a single key-value update. Assumes lock is taken.
+//------------------------------------------------------------------------------
+void SharedHash::feedSingleKeyValue(const std::string &key, const std::string &value) {
+  if(value.empty()) {
+    // Deletion
+    contents.erase(key);
+    return;
+  }
+
+  // Insert
+  contents[key] = value;
+}
+
+//------------------------------------------------------------------------------
 // Notify the hash of a new update. Two possibilities:
 // - The hash is up-to-date, and is able to apply this revision. This
 //   function returns true.
@@ -73,7 +87,7 @@ uint64_t SharedHash::getCurrentVersion() const {
 //   contents. The change is not applied - a return value of false means
 //   "please bring me up-to-date by calling resilver function"
 //------------------------------------------------------------------------------
-bool SharedHash::feedRevision(uint64_t revision, const std::string &key, const std::string &value) {
+bool SharedHash::feedRevision(uint64_t revision, const std::vector<std::pair<std::string, std::string>> &updates) {
   std::unique_lock<std::shared_timed_mutex> lock(contentsMutex);
 
   if(revision <= currentVersion) {
@@ -97,17 +111,22 @@ bool SharedHash::feedRevision(uint64_t revision, const std::string &key, const s
 
   qclient_assert(revision == currentVersion+1);
 
-  if(value.empty()) {
-    // Deletion
-    contents.erase(key);
-    currentVersion = revision;
-    return true;
+  for(size_t i = 0; i < updates.size(); i++) {
+    feedSingleKeyValue(updates[i].first, updates[i].second);
   }
 
-  // Insert
-  contents[key] = value;
   currentVersion = revision;
   return true;
+}
+
+//----------------------------------------------------------------------------
+// Same as above, but the given revision updates only a single
+// key-value pair
+//----------------------------------------------------------------------------
+bool SharedHash::feedRevision(uint64_t revision, const std::string &key, const std::string &value) {
+  std::vector<std::pair<std::string, std::string>> updates;
+  updates.emplace_back(key, value);
+  return feedRevision(revision, updates);
 }
 
 //------------------------------------------------------------------------------
