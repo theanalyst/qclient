@@ -119,10 +119,10 @@ bool SharedHash::feedRevision(uint64_t revision, const std::vector<std::pair<std
   return true;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Same as above, but the given revision updates only a single
 // key-value pair
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool SharedHash::feedRevision(uint64_t revision, const std::string &key, const std::string &value) {
   std::vector<std::pair<std::string, std::string>> updates;
   updates.emplace_back(key, value);

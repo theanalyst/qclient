@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "qclient/QClient.hh"
 #include "qclient/Formatting.hh"
+#include "qclient/ResponseBuilder.hh"
 #include "shared/SharedSerialization.hh"
 
 using namespace qclient;
@@ -148,6 +149,18 @@ TEST(Formatting, SerializeStringMap) {
   );
 }
 
+TEST(Formatting, DescribeEncodedString) {
+  ASSERT_EQ(
+    "(integer) 5",
+    qclient::ResponseBuilder::parseAndDescribeRedisEncodedString(":5\r\n")
+  );
+
+  ASSERT_EQ(
+    "nullptr",
+    qclient::ResponseBuilder::parseAndDescribeRedisEncodedString("aaaaaaaaaa")
+  );
+}
+
 TEST(SharedSerialization, BatchUpdate) {
   std::map<std::string, std::string> batch;
   batch["a"] = "bb";
@@ -157,5 +170,4 @@ TEST(SharedSerialization, BatchUpdate) {
   std::map<std::string, std::string> parsed;
   ASSERT_TRUE(qclient::parseBatch(qclient::serializeBatch(batch), parsed));
   ASSERT_EQ(batch, parsed);
-
 }

@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "qclient/ResponseBuilder.hh"
+#include "qclient/QClient.hh"
 #include <sstream>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -134,5 +135,10 @@ redisReplyPtr ResponseBuilder::parseRedisEncodedString(const std::string &str) {
   return ans;
 }
 
+// Convenience function to quickly parse a redis-encoded string into redis-cli-like
+// description
+std::string ResponseBuilder::parseAndDescribeRedisEncodedString(const std::string &str) {
+  return qclient::describeRedisReply(parseRedisEncodedString(str));
+}
 
 }

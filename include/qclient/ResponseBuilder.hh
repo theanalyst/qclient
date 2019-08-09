@@ -56,6 +56,9 @@ public:
   // Convenience function to quickly parse a redis-encoded string into redisReplyPtr
   static redisReplyPtr parseRedisEncodedString(const std::string &str);
 
+  // Convenience function to quickly parse a redis-encoded string into redis-cli-like
+  // description
+  static std::string parseAndDescribeRedisEncodedString(const std::string &str);
 
 private:
   struct Deleter {
