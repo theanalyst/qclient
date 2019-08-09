@@ -79,6 +79,11 @@ public:
   //----------------------------------------------------------------------------
   void detachCallback();
 
+  //----------------------------------------------------------------------------
+  // Has this subscription been acknowledged by the server yet?
+  //----------------------------------------------------------------------------
+  bool acknowledged() const;
+
 private:
   friend class Subscriber;
 
@@ -88,10 +93,16 @@ private:
   void processIncoming(const Message &msg);
 
   //----------------------------------------------------------------------------
+  // Mark subscription as acknowledged
+  //----------------------------------------------------------------------------
+  void markAcknowledged();
+
+  //----------------------------------------------------------------------------
   // Internal state
   //----------------------------------------------------------------------------
   qclient::AttachableQueue<Message, 50> queue;
   Subscriber *subscriber;
+  std::atomic<bool> isAcknowledged {false};
 };
 
 //------------------------------------------------------------------------------

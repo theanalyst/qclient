@@ -106,9 +106,23 @@ void Subscription::detachCallback() {
   queue.detach();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Has this subscription been acknowledged by the server yet?
+//------------------------------------------------------------------------------
+bool Subscription::acknowledged() const {
+  return isAcknowledged;
+}
+
+//------------------------------------------------------------------------------
+// Mark subscription as acknowledged
+//------------------------------------------------------------------------------
+void Subscription::markAcknowledged() {
+  isAcknowledged = true;
+}
+
+//------------------------------------------------------------------------------
 // Constructor - real mode, connect to a real server
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 Subscriber::Subscriber(const Members &members, SubscriptionOptions &&options, Logger *log)
 : /*logger(log),*/ listener(new SubscriberListener(this)),
   base(new BaseSubscriber(members, listener, std::move(options))) {}
@@ -146,12 +160,21 @@ void Subscriber::feedFakeMessage(const Message& msg) {
 // Process incoming message
 //------------------------------------------------------------------------------
 void Subscriber::processIncomingMessage(const Message &msg) {
+  std::lock_guard<std::mutex> lock(mtx);
+
+  if(msg.getMessageType() == MessageType::kSubscribe) {
+    auto targetChannel = channelSubscriptions.find(msg.getChannel());
+    if(targetChannel != channelSubscriptions.end()) {
+      targetChannel->second->markAcknowledged();
+    }
+
+    return;
+  }
+
   if(msg.getMessageType() != MessageType::kMessage &&
      msg.getMessageType() != MessageType::kPatternMessage) {
     return;
   }
-
-  std::lock_guard<std::mutex> lock(mtx);
 
   //----------------------------------------------------------------------------
   // Feed to channel subscriptions
