@@ -73,6 +73,7 @@ namespace qclient
 //------------------------------------------------------------------------------
 std::string describeRedisReply(const redisReply *const redisReply, const std::string &prefix = "");
 std::string describeRedisReply(const redisReplyPtr &redisReply);
+std::string describeRedisReply(const std::string &str); // receives redis-encoded string
 
 //------------------------------------------------------------------------------
 //! Class QClient

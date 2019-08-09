@@ -141,4 +141,8 @@ std::string ResponseBuilder::parseAndDescribeRedisEncodedString(const std::strin
   return qclient::describeRedisReply(parseRedisEncodedString(str));
 }
 
+std::string describeRedisReply(const std::string &str) {
+  return ResponseBuilder::parseAndDescribeRedisEncodedString(str);
+}
+
 }
