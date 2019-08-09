@@ -37,7 +37,7 @@ void setStr(redisReplyPtr reply, const std::string &str) {
 TEST(DescribeRedisReply, BasicSanity1) {
   ASSERT_EQ(describeRedisReply(redisReplyPtr()), "nullptr");
 
-  redisReplyPtr reply = redisReplyPtr((redisReply*) malloc(sizeof(redisReply)), freeReplyObject);
+  redisReplyPtr reply = redisReplyPtr(new redisReply());
 
   reply->type = REDIS_REPLY_NIL;
   ASSERT_EQ(describeRedisReply(reply), "(nil)");
@@ -63,36 +63,19 @@ TEST(DescribeRedisReply, BasicSanity1) {
   ASSERT_EQ(describeRedisReply(reply), "\"abc111\\x00\\x00\\xABaaaaaaa\"");
   reply->str = nullptr;
 
-  redisReader* reader = redisReaderCreate();
-  str = "*2\r\n$6\r\nnext:d\r\n*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n";
-  redisReaderFeed(reader, str.c_str(), str.size());
-  redisReply *rep = nullptr;
-  redisReaderGetReply(reader, (void**) &rep);
-  ASSERT_NE(rep, nullptr);
+  std::string description;
 
-  std::cout << describeRedisReply(rep) << std::endl;
-  ASSERT_EQ(describeRedisReply(rep), "1) \"next:d\"\n2) 1) \"a\"\n   2) \"b\"\n   3) \"c\"\n");
-  freeReplyObject(rep);
+  description = qclient::describeRedisReply("*2\r\n$6\r\nnext:d\r\n*3\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n");
+  std::cout << description << std::endl;
+  ASSERT_EQ(description, "1) \"next:d\"\n2) 1) \"a\"\n   2) \"b\"\n   3) \"c\"\n");
 
-  str = "*2\r\n$6\r\nnext:d\r\n*3\r\n*2\r\n:1337\r\n$2\r\nbb\r\n$1\r\nb\r\n$1\r\nc\r\n";
-  redisReaderFeed(reader, str.c_str(), str.size());
-  redisReaderGetReply(reader, (void**) &rep);
-  ASSERT_NE(rep, nullptr);
+  description = qclient::describeRedisReply("*2\r\n$6\r\nnext:d\r\n*3\r\n*2\r\n:1337\r\n$2\r\nbb\r\n$1\r\nb\r\n$1\r\nc\r\n");
+  std::cout << description << std::endl;
+  ASSERT_EQ(description, "1) \"next:d\"\n2) 1) 1) (integer) 1337\n      2) \"bb\"\n   2) \"b\"\n   3) \"c\"\n");
 
-  std::cout << describeRedisReply(rep) << std::endl;
-  ASSERT_EQ(describeRedisReply(rep), "1) \"next:d\"\n2) 1) 1) (integer) 1337\n      2) \"bb\"\n   2) \"b\"\n   3) \"c\"\n");
-  freeReplyObject(rep);
-
-  str = "*2\r\n$6\r\nnext:d\r\n*0\r\n";
-  redisReaderFeed(reader, str.c_str(), str.size());
-  redisReaderGetReply(reader, (void**) &rep);
-  ASSERT_NE(rep, nullptr);
-
-  std::cout << describeRedisReply(rep);
-  ASSERT_EQ(describeRedisReply(rep), "1) \"next:d\"\n2) (empty list or set)\n");
-  freeReplyObject(rep);
-
-  redisReaderFree(reader);
+  description = qclient::describeRedisReply("*2\r\n$6\r\nnext:d\r\n*0\r\n");
+  std::cout << description << std::endl;
+  ASSERT_EQ(description, "1) \"next:d\"\n2) (empty list or set)\n");
 
   reply->type = 999;
   ASSERT_EQ(describeRedisReply(reply), "!!! unknown reply type !!!");
