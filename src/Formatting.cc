@@ -83,7 +83,7 @@ std::string describeRedisReply(const redisReply *const redisReply, const std::st
     spacePrefix += " ";
   }
 
-  if(redisReply->type == REDIS_REPLY_ARRAY) {
+  if(redisReply->type == REDIS_REPLY_ARRAY || redisReply->type == REDIS_REPLY_PUSH) {
     std::stringstream ss;
 
     if(redisReply->elements == 0u) {
@@ -98,7 +98,7 @@ std::string describeRedisReply(const redisReply *const redisReply, const std::st
         ss << describeRedisReply(redisReply->element[i], SSTR(spacePrefix << i+1 << ") ") );
       }
 
-      if(redisReply->element[i]->type != REDIS_REPLY_ARRAY) {
+      if(redisReply->element[i]->type != REDIS_REPLY_ARRAY && redisReply->element[i]->type != REDIS_REPLY_PUSH) {
         ss << std::endl;
       }
     }

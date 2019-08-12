@@ -81,6 +81,7 @@ void freeReplyObject(void *reply) {
     case REDIS_REPLY_INTEGER:
         break; /* Nothing to free */
     case REDIS_REPLY_ARRAY:
+    case REDIS_REPLY_PUSH:
         if (r->element != NULL) {
             for (j = 0; j < r->elements; j++)
                 freeReplyObject(r->element[j]);
@@ -295,7 +296,7 @@ static void moveToNextTask(redisReader *r) {
 
         cur = &(r->rstack[r->ridx]);
         prv = &(r->rstack[r->ridx-1]);
-        assert(prv->type == REDIS_REPLY_ARRAY);
+        assert(prv->type == REDIS_REPLY_ARRAY || prv->type == REDIS_REPLY_PUSH);
         if (cur->idx == prv->elements-1) {
             r->ridx--;
         } else {
@@ -414,7 +415,7 @@ static int processBulkItem(redisReader *r) {
     return REDIS_ERR;
 }
 
-static int processMultiBulkItem(redisReader *r) {
+static int processMultiBulkItem(redisReader *r, int type) {
     redisReadTask *cur = &(r->rstack[r->ridx]);
     void *obj;
     char *p;
@@ -457,7 +458,7 @@ static int processMultiBulkItem(redisReader *r) {
             moveToNextTask(r);
         } else {
             if (r->fn && r->fn->createArray)
-                obj = r->fn->createArray(cur,elements);
+                obj = r->fn->createArray(cur,elements,type);
             else
                 obj = (void*)REDIS_REPLY_ARRAY;
 
@@ -513,6 +514,9 @@ static int processItem(redisReader *r) {
             case '*':
                 cur->type = REDIS_REPLY_ARRAY;
                 break;
+            case '>':
+                cur->type = REDIS_REPLY_PUSH;
+                break;
             default:
                 __redisReaderSetErrorProtocolByte(r,*p);
                 return REDIS_ERR;
@@ -532,7 +536,8 @@ static int processItem(redisReader *r) {
     case REDIS_REPLY_STRING:
         return processBulkItem(r);
     case REDIS_REPLY_ARRAY:
-        return processMultiBulkItem(r);
+    case REDIS_REPLY_PUSH:
+        return processMultiBulkItem(r, cur->type);
     default:
         assert(NULL);
         return REDIS_ERR; /* Avoid warning. */
@@ -678,16 +683,16 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
 
     if (task->parent) {
         parent = (redisReply*) task->parent->obj;
-        assert(parent->type == REDIS_REPLY_ARRAY);
+        assert(parent->type == REDIS_REPLY_ARRAY || parent->type == REDIS_REPLY_PUSH);
         parent->element[task->idx] = r;
     }
     return r;
 }
 
-static void *createArrayObject(const redisReadTask *task, size_t elements) {
+static void *createArrayObject(const redisReadTask *task, size_t elements, int type) {
     redisReply *r, *parent;
 
-    r = createReplyObject(REDIS_REPLY_ARRAY);
+    r = createReplyObject(type);
     if (r == NULL)
         return NULL;
 

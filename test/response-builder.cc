@@ -1,11 +1,11 @@
-//------------------------------------------------------------------------------
-// File: Reply.hh
+// ----------------------------------------------------------------------
+// File: response-builder.cc
 // Author: Georgios Bitzes - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,32 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#pragma once
+#include <gtest/gtest.h>
+#include "qclient/ResponseBuilder.hh"
+#include "qclient/QClient.hh"
 
-#include <memory>
+using namespace qclient;
 
-/* This is the reply object returned by redisCommand() */
-typedef struct redisReply {
-    int type; /* REDIS_REPLY_* */
-    long long integer; /* The integer when type is REDIS_REPLY_INTEGER */
-    size_t len; /* Length of string */
-    char *str; /* Used for both REDIS_REPLY_ERROR and REDIS_REPLY_STRING */
-    size_t elements; /* number of elements, for REDIS_REPLY_ARRAY */
-    struct redisReply **element; /* elements vector for REDIS_REPLY_ARRAY */
-} redisReply;
+TEST(ResponseBuilder, PushReplies) {
+  ResponseBuilder builder;
 
-#define REDIS_REPLY_STRING 1
-#define REDIS_REPLY_ARRAY 2
-#define REDIS_REPLY_INTEGER 3
-#define REDIS_REPLY_NIL 4
-#define REDIS_REPLY_STATUS 5
-#define REDIS_REPLY_ERROR 6
-#define REDIS_REPLY_PUSH 7
+  builder.feed(">2\r\n$4\r\nabcd\r\n$3\r\naaa\r\n");
 
-namespace qclient {
+  redisReplyPtr reply;
+  ASSERT_EQ(builder.pull(reply), ResponseBuilder::Status::kOk);
 
-using Reply = redisReply;
-using ReplyPtr = std::shared_ptr<Reply>;
-using redisReplyPtr = ReplyPtr;
+  ASSERT_EQ(reply->type, REDIS_REPLY_PUSH);
+  ASSERT_EQ(describeRedisReply(reply),
+    "1) \"abcd\"\n"
+    "2) \"aaa\"\n"
+  );
 
 }

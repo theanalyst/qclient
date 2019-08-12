@@ -20,6 +20,7 @@ add_executable(
   parsing.cc
   pubsub.cc
   queueing.cc
+  response-builder.cc
   shared.cc
 )
 
