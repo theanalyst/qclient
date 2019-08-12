@@ -144,6 +144,23 @@ private:
   std::string pingToSend;
 };
 
+//------------------------------------------------------------------------------
+//! ActivatePushTypes handshake - send 'ACTIVATE-PUSH-TYPES', expect OK
+//! Only useful for QuarkDB.
+//------------------------------------------------------------------------------
+class ActivatePushTypesHandshake : public Handshake {
+public:
+  //----------------------------------------------------------------------------
+  //! Basic interface
+  //----------------------------------------------------------------------------
+  ActivatePushTypesHandshake();
+  virtual ~ActivatePushTypesHandshake();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
+};
+
 }
 
 #endif

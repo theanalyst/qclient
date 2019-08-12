@@ -297,3 +297,48 @@ std::unique_ptr<Handshake> PingHandshake::clone() const {
   return std::unique_ptr<Handshake>(new PingHandshake(pingToSend));
 }
 
+//------------------------------------------------------------------------------
+// Activate push types handshake: Constructor
+//------------------------------------------------------------------------------
+ActivatePushTypesHandshake::ActivatePushTypesHandshake() {}
+
+//------------------------------------------------------------------------------
+// Activate push types handshake: Destructor
+//------------------------------------------------------------------------------
+ActivatePushTypesHandshake::~ActivatePushTypesHandshake() {}
+
+//------------------------------------------------------------------------------
+// Activate push types handshake: Provide handshake
+//------------------------------------------------------------------------------
+std::vector<std::string> ActivatePushTypesHandshake::provideHandshake() {
+  return { "ACTIVATE-PUSH-TYPES" };
+}
+
+//------------------------------------------------------------------------------
+// Activate push types handshake: Validate response, expect OK
+//------------------------------------------------------------------------------
+Handshake::Status ActivatePushTypesHandshake::validateResponse(const redisReplyPtr &reply) {
+  if(reply->type != REDIS_REPLY_STATUS) {
+    std::cerr << "qclient: Received invalid response type in ActivatePushTypesHandshake" << std::endl;
+    return Status::INVALID;
+  }
+
+  if(std::string(reply->str, reply->len) != "OK") {
+    std::cerr << "qclient: ActivatePushTypesHandshake received invalid response - " << std::string(reply->str, reply->len) << std::endl;
+    return Status::INVALID;
+  }
+
+  return Status::VALID_COMPLETE;
+}
+
+//------------------------------------------------------------------------------
+// Activate push types handshake: Restart
+//------------------------------------------------------------------------------
+void ActivatePushTypesHandshake::restart() {}
+
+//------------------------------------------------------------------------------
+// Activate push types handshake: Clone
+//------------------------------------------------------------------------------
+std::unique_ptr<Handshake> ActivatePushTypesHandshake::clone() const {
+  return std::unique_ptr<Handshake>(new ActivatePushTypesHandshake());
+}
