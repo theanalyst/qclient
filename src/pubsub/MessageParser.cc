@@ -23,6 +23,7 @@
 
 #include "MessageParser.hh"
 #include "qclient/pubsub/Message.hh"
+#include <string.h>
 
 namespace qclient {
 
@@ -76,83 +77,109 @@ static bool extractInteger(const redisReply *reply, int &out) {
 bool MessageParser::parse(redisReplyPtr &&reply, Message &out) {
   out.clear();
 
-  //----------------------------------------------------------------------------
-  // Not an array? No way this is a pub/sub message.
-  //----------------------------------------------------------------------------
-  if(!reply || reply->type != REDIS_REPLY_ARRAY || reply->elements < 3) {
+  if(!reply) {
+    //--------------------------------------------------------------------------
+    // Invalid parameter
+    //--------------------------------------------------------------------------
     return false;
   }
+
+  size_t baseIdx = 0;
+
+  if(reply->type == REDIS_REPLY_ARRAY) {
+    //--------------------------------------------------------------------------
+    // Array type, base index starts from 0
+    //--------------------------------------------------------------------------
+    baseIdx = 0;
+  }
+  else if(reply->type == REDIS_REPLY_PUSH) {
+    //--------------------------------------------------------------------------
+    // Push type, ensure first element is pubsub
+    //--------------------------------------------------------------------------
+    if(strncmp(reply->str, "pubsub", reply->len) != 0) {
+      return false;
+    }
+
+    baseIdx = 1;
+  }
+  else {
+    //--------------------------------------------------------------------------
+    // Nope, can't parse
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
 
   //----------------------------------------------------------------------------
   // Is this a kMessage?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "message")) {
-    if(reply->elements != 3) return false;
+  if(doesMatchString(reply->element[baseIdx], "message")) {
+    if(reply->elements != baseIdx+3) return false;
     out.messageType = MessageType::kMessage;
 
-    if(!extractString(reply->element[1], out.channel)) return false;
-    if(!extractString(reply->element[2], out.payload)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.channel)) return false;
+    if(!extractString(reply->element[baseIdx+2], out.payload)) return false;
     return true;
   }
 
   //----------------------------------------------------------------------------
   // Is this a kPatternMessage?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "pmessage")) {
-    if(reply->elements != 4) return false;
+  if(doesMatchString(reply->element[baseIdx], "pmessage")) {
+    if(reply->elements != baseIdx+4) return false;
     out.messageType = MessageType::kPatternMessage;
 
-    if(!extractString(reply->element[1], out.pattern)) return false;
-    if(!extractString(reply->element[2], out.channel)) return false;
-    if(!extractString(reply->element[3], out.payload)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.pattern)) return false;
+    if(!extractString(reply->element[baseIdx+2], out.channel)) return false;
+    if(!extractString(reply->element[baseIdx+3], out.payload)) return false;
     return true;
   }
 
   //----------------------------------------------------------------------------
   // Is this a kSubscribe?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "subscribe")) {
-    if(reply->elements != 3) return false;
+  if(doesMatchString(reply->element[baseIdx], "subscribe")) {
+    if(reply->elements != baseIdx+3) return false;
     out.messageType = MessageType::kSubscribe;
 
-    if(!extractString(reply->element[1], out.channel)) return false;
-    if(!extractInteger(reply->element[2], out.activeSubscriptions)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.channel)) return false;
+    if(!extractInteger(reply->element[baseIdx+2], out.activeSubscriptions)) return false;
     return true;
   }
 
   //----------------------------------------------------------------------------
   // Is this a kPatternSubscribe?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "psubscribe")) {
-    if(reply->elements != 3) return false;
+  if(doesMatchString(reply->element[baseIdx], "psubscribe")) {
+    if(reply->elements != baseIdx+3) return false;
     out.messageType = MessageType::kPatternSubscribe;
 
-    if(!extractString(reply->element[1], out.pattern)) return false;
-    if(!extractInteger(reply->element[2], out.activeSubscriptions)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.pattern)) return false;
+    if(!extractInteger(reply->element[baseIdx+2], out.activeSubscriptions)) return false;
     return true;
   }
 
   //----------------------------------------------------------------------------
   // Is this a kUnsubscribe?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "unsubscribe")) {
+  if(doesMatchString(reply->element[baseIdx], "unsubscribe")) {
     if(reply->elements != 3) return false;
     out.messageType = MessageType::kUnsubscribe;
 
-    if(!extractString(reply->element[1], out.channel)) return false;
-    if(!extractInteger(reply->element[2], out.activeSubscriptions)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.channel)) return false;
+    if(!extractInteger(reply->element[baseIdx+2], out.activeSubscriptions)) return false;
     return true;
   }
 
   //----------------------------------------------------------------------------
   // Is this a kPatternUnsubscribe?
   //----------------------------------------------------------------------------
-  if(doesMatchString(reply->element[0], "punsubscribe")) {
+  if(doesMatchString(reply->element[baseIdx], "punsubscribe")) {
     if(reply->elements != 3) return false;
     out.messageType = MessageType::kPatternUnsubscribe;
 
-    if(!extractString(reply->element[1], out.pattern)) return false;
-    if(!extractInteger(reply->element[2], out.activeSubscriptions)) return false;
+    if(!extractString(reply->element[baseIdx+1], out.pattern)) return false;
+    if(!extractInteger(reply->element[baseIdx+2], out.activeSubscriptions)) return false;
     return true;
   }
 

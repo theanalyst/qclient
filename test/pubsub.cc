@@ -45,10 +45,30 @@ TEST(MessageParser, kMessage) {
   ASSERT_EQ(msg.getPayload(), "test");
 }
 
+
+TEST(MessageParser, kMessagePush) {
+  Message msg;
+  std::vector<std::string> vec = { "pubsub", "message", "mychannel", "test" };
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makePushArray(vec), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(msg.getChannel(), "mychannel");
+  ASSERT_EQ(msg.getPayload(), "test");
+}
+
 TEST(MessageParser, kPatternMessage) {
   Message msg;
   std::vector<std::string> vec = { "pmessage", "pattern*", "channel-name", "aaa" };
   ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeStringArray(vec), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(msg.getPattern(), "pattern*");
+  ASSERT_EQ(msg.getChannel(), "channel-name");
+  ASSERT_EQ(msg.getPayload(), "aaa");
+}
+
+TEST(MessageParser, kPatternMessagePush) {
+  Message msg;
+  std::vector<std::string> vec = { "pubsub", "pmessage", "pattern*", "channel-name", "aaa" };
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makePushArray(vec), msg));
   ASSERT_EQ(msg.getMessageType(), MessageType::kPatternMessage);
   ASSERT_EQ(msg.getPattern(), "pattern*");
   ASSERT_EQ(msg.getChannel(), "channel-name");

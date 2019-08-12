@@ -94,9 +94,13 @@ redisReplyPtr ResponseBuilder::makeStr(const std::string &msg) {
   return ans;
 }
 
-redisReplyPtr ResponseBuilder::makeStringArray(const std::vector<std::string> &msg) {
+redisReplyPtr ResponseBuilder::makePushArray(const std::vector<std::string> &msg) {
+  return makeStringArray(msg, '>');
+}
+
+redisReplyPtr ResponseBuilder::makeStringArray(const std::vector<std::string> &msg, char prefix) {
   ResponseBuilder builder;
-  builder.feed(SSTR("*" << msg.size() << "\r\n"));
+  builder.feed(SSTR(prefix << msg.size() << "\r\n"));
 
   for(size_t i = 0; i < msg.size(); i++) {
     builder.feed(SSTR("$" << msg[i].size() << "\r\n" << msg[i] << "\r\n"));
