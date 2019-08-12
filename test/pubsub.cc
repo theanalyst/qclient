@@ -83,6 +83,14 @@ TEST(MessageParser, kSubscribe) {
   ASSERT_EQ(msg.getActiveSubscriptions(), 4);
 }
 
+TEST(MessageParser, kSubscribePush) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makePushArr("pubsub", "subscribe", "chan", 4), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kSubscribe);
+  ASSERT_EQ(msg.getChannel(), "chan");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 4);
+}
+
 TEST(MessageParser, kPatternSubscribe) {
   Message msg;
   ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("psubscribe", "chan2", 3), msg));
@@ -91,9 +99,25 @@ TEST(MessageParser, kPatternSubscribe) {
   ASSERT_EQ(msg.getActiveSubscriptions(), 3);
 }
 
+TEST(MessageParser, kPatternSubscribePush) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makePushArr("pubsub", "psubscribe", "chan2", 3), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kPatternSubscribe);
+  ASSERT_EQ(msg.getPattern(), "chan2");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 3);
+}
+
 TEST(MessageParser, kUnsubscribe) {
   Message msg;
   ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makeArr("unsubscribe", "mychan", 99), msg));
+  ASSERT_EQ(msg.getMessageType(), MessageType::kUnsubscribe);
+  ASSERT_EQ(msg.getChannel(), "mychan");
+  ASSERT_EQ(msg.getActiveSubscriptions(), 99);
+}
+
+TEST(MessageParser, kUnsubscribePush) {
+  Message msg;
+  ASSERT_TRUE(MessageParser::parse(ResponseBuilder::makePushArr("pubsub", "unsubscribe", "mychan", 99), msg));
   ASSERT_EQ(msg.getMessageType(), MessageType::kUnsubscribe);
   ASSERT_EQ(msg.getChannel(), "mychan");
   ASSERT_EQ(msg.getActiveSubscriptions(), 99);

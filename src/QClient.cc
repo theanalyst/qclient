@@ -157,7 +157,7 @@ void QClient::startEventLoop()
   lastAvailable = std::chrono::steady_clock::now();
 
   connectionCore.reset(new ConnectionCore(options.logger.get(),
-    options.handshake.get(), options.backpressureStrategy, options.retryStrategy, options.messageListener.get()));
+    options.handshake.get(), options.backpressureStrategy, options.retryStrategy, options.messageListener.get(), options.exclusivePubsub));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionCore.get(), shutdownEventFD));
   eventLoopThread.reset(&QClient::eventLoop, this);
 }

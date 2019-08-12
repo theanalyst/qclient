@@ -54,6 +54,7 @@ public:
   static redisReplyPtr makeStringArray(const std::vector<std::string> &msg, char prefix='*');
   static redisReplyPtr makePushArray(const std::vector<std::string> &msg);
   static redisReplyPtr makeArr(const std::string &str1, const std::string &str2, int num);
+  static redisReplyPtr makePushArr(const std::string &str1, const std::string &str2, const std::string &str3, int num);
   static redisReplyPtr makeStatus(const std::string &msg);
 
   // Convenience function to quickly parse a redis-encoded string into redisReplyPtr

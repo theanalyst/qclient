@@ -725,7 +725,7 @@ static void *createIntegerObject(const redisReadTask *task, long long value) {
 
     if (task->parent) {
         parent = (redisReply*) task->parent->obj;
-        assert(parent->type == REDIS_REPLY_ARRAY);
+        assert(parent->type == REDIS_REPLY_ARRAY || parent->type == REDIS_REPLY_PUSH);
         parent->element[task->idx] = r;
     }
     return r;
@@ -740,7 +740,7 @@ static void *createNilObject(const redisReadTask *task) {
 
     if (task->parent) {
         parent = (redisReply*) task->parent->obj;
-        assert(parent->type == REDIS_REPLY_ARRAY);
+        assert(parent->type == REDIS_REPLY_ARRAY || parent->type == REDIS_REPLY_PUSH);
         parent->element[task->idx] = r;
     }
     return r;

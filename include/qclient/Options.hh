@@ -240,10 +240,23 @@ public:
   std::shared_ptr<ReconnectionListener> reconnectionListener;
 
   //----------------------------------------------------------------------------
-  //! Specifies the message listener to use - activates pub-sub mode on this
-  //! qclient object.
+  //! Specifies the message listener to use. Receives all push responses, and
+  //! sets connection to exclusive pub-sub mode if exclusivePubsub is set
+  //! to true.
   //----------------------------------------------------------------------------
   std::shared_ptr<MessageListener> messageListener;
+
+  //----------------------------------------------------------------------------
+  //! If a message listener is set, should we set the connection to exclusive
+  //! pubsub mode, and deliver everything to the listener?
+  //!
+  //! If true: Everything passes through the message listener - do not use
+  //! the QClient object in normal request / response mode.
+  //!
+  //! If false: Only push types go through the listener, and the connection
+  //! can be used normally. (Only makes sense to enable with QDB right now)
+  //----------------------------------------------------------------------------
+  bool exclusivePubsub = true;
 
   //----------------------------------------------------------------------------
   //! Fluent interface: Chain a handshake. Explicit transfer of ownership to

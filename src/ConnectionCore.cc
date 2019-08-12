@@ -31,8 +31,9 @@
 namespace qclient {
 
 ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs,
-  MessageListener *ms)
-: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs), listener(ms) {
+  MessageListener *ms, bool exclpubsub)
+: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs), listener(ms),
+  exclusivePubsub(exclpubsub) {
   reconnection();
 }
 
@@ -191,9 +192,31 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
     qclient_assert("should never happen");
   }
 
-  if(listener) {
+  if(reply->type == REDIS_REPLY_PUSH) {
+    if(listener) {
+      Message msg;
+      if(!MessageParser::parse(std::move(reply), msg)) {
+        //------------------------------------------------------------------------
+        // Parse error, doesn't look like a valid pub/sub message
+        //------------------------------------------------------------------------
+        return false;
+      }
+
+      listener->handleIncomingMessage(std::move(msg));
+      return true;
+    }
+
     //--------------------------------------------------------------------------
-    // We're in pub-sub mode, deliver replies to message listener.
+    // Even if message parsing failed, or there's no listener set, not much
+    // more we can do here, we're done.
+    //--------------------------------------------------------------------------
+    return true;
+  }
+
+  if(listener && exclusivePubsub) {
+    //--------------------------------------------------------------------------
+    // Connection is in exclusive pub-sub mode, deliver all replies to message
+    // listener.
     //--------------------------------------------------------------------------
     Message msg;
     if(!MessageParser::parse(std::move(reply), msg)) {

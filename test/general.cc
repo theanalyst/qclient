@@ -306,6 +306,64 @@ TEST(ConnectionCore, PubSubModeWithHandshakeNoRetries) {
   ASSERT_EQ(fut5.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 }
 
+TEST(ConnectionCore, NonExclusivePubsub) {
+  MessageQueue mq;
+  ConnectionCore core(nullptr, nullptr,
+    BackpressureStrategy::Default(), RetryStrategy::NoRetries(), &mq, false);
+
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("qqqq", "adsf"));
+  std::future<redisReplyPtr> fut3 = core.stage(EncodedRequest::make("qqqq", "adsf"));
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(333)));
+  ASSERT_EQ(mq.size(), 0u);
+
+  ASSERT_EQ(qclient::describeRedisReply(fut1.get()),
+    "(integer) 333");
+
+  std::vector<std::string> tmp { "pubsub", "message", "random-channel-1", "payload-1" };
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makePushArray(tmp)));
+  ASSERT_EQ(mq.size(), 1u);
+
+  Message* item = nullptr;
+  auto it = mq.begin();
+
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kMessage);
+  ASSERT_EQ(item->getChannel(), "random-channel-1");
+  ASSERT_EQ(item->getPayload(), "payload-1");
+
+  mq.pop_front();
+  ASSERT_EQ(mq.size(), 0u);
+
+  ASSERT_EQ(fut2.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("aaaaaaaaaa")));
+  ASSERT_EQ(mq.size(), 0u);
+
+  ASSERT_EQ(qclient::describeRedisReply(fut2.get()),
+    "aaaaaaaaaa");
+
+  tmp = {"pubsub", "pmessage", "pattern-*", "random-channel-2", "payload-2"};
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makePushArray(tmp)));
+  ASSERT_EQ(mq.size(), 1u);
+
+  it = mq.begin();
+  item = it.getItemBlockOrNull();
+  ASSERT_NE(item, nullptr);
+
+  ASSERT_EQ(item->getMessageType(), MessageType::kPatternMessage);
+  ASSERT_EQ(item->getPattern(), "pattern-*");
+  ASSERT_EQ(item->getChannel(), "random-channel-2");
+  ASSERT_EQ(item->getPayload(), "payload-2");
+
+  mq.pop_front();
+  ASSERT_EQ(fut3.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+}
+
 TEST(EndpointDecider, BasicSanity) {
   StandardErrorLogger logger;
   Members members;

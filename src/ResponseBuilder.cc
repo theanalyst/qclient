@@ -111,6 +111,20 @@ redisReplyPtr ResponseBuilder::makeStringArray(const std::vector<std::string> &m
   return ans;
 }
 
+redisReplyPtr ResponseBuilder::makePushArr(const std::string &str1, const std::string &str2, const std::string &str3, int num) {
+  ResponseBuilder builder;
+  builder.feed(">4\r\n");
+
+  builder.feed(SSTR("$" << str1.size() << "\r\n" << str1 << "\r\n"));
+  builder.feed(SSTR("$" << str2.size() << "\r\n" << str2 << "\r\n"));
+  builder.feed(SSTR("$" << str3.size() << "\r\n" << str3 << "\r\n"));
+  builder.feed(SSTR(":" << num << "\r\n"));
+
+  redisReplyPtr ans;
+  builder.pull(ans);
+  return ans;
+}
+
 redisReplyPtr ResponseBuilder::makeArr(const std::string &str1, const std::string &str2, int num) {
   ResponseBuilder builder;
   builder.feed("*3\r\n");

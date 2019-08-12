@@ -163,7 +163,7 @@ bool MessageParser::parse(redisReplyPtr &&reply, Message &out) {
   // Is this a kUnsubscribe?
   //----------------------------------------------------------------------------
   if(doesMatchString(reply->element[baseIdx], "unsubscribe")) {
-    if(reply->elements != 3) return false;
+    if(reply->elements != baseIdx+3) return false;
     out.messageType = MessageType::kUnsubscribe;
 
     if(!extractString(reply->element[baseIdx+1], out.channel)) return false;
@@ -175,7 +175,7 @@ bool MessageParser::parse(redisReplyPtr &&reply, Message &out) {
   // Is this a kPatternUnsubscribe?
   //----------------------------------------------------------------------------
   if(doesMatchString(reply->element[baseIdx], "punsubscribe")) {
-    if(reply->elements != 3) return false;
+    if(reply->elements != baseIdx+3) return false;
     out.messageType = MessageType::kPatternUnsubscribe;
 
     if(!extractString(reply->element[baseIdx+1], out.pattern)) return false;
