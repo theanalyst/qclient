@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "qclient/EncodedRequest.hh"
-#include <hiredis/hiredis.h>
 #include <string.h>
 #include "fmt/format.h"
 #include <iostream>

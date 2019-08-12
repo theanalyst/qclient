@@ -24,7 +24,6 @@
 #ifndef QCLIENT_WRITER_THREAD_H
 #define QCLIENT_WRITER_THREAD_H
 
-#include <hiredis/hiredis.h>
 #include "qclient/AssistedThread.hh"
 #include "qclient/EventFD.hh"
 #include "FutureHandler.hh"

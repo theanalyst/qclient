@@ -27,6 +27,8 @@
 #include "qclient/Reply.hh"
 #include <vector>
 
+struct redisReader;
+
 namespace qclient {
 
 class ResponseBuilder {
@@ -62,7 +64,7 @@ public:
 
 private:
   struct Deleter {
-    void operator()(redisReader *reader) { redisReaderFree(reader); }
+    void operator()(redisReader *reader);
   };
 
   std::unique_ptr<redisReader, Deleter> reader;

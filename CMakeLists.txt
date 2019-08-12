@@ -14,7 +14,6 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 # Search for dependencies
 #-------------------------------------------------------------------------------
 if (NOT PACKAGEONLY)
-  find_package(hiredis REQUIRED)
   find_package(GTest)
   find_package(OpenSSL REQUIRED)
 else ()
@@ -62,7 +61,6 @@ include_directories(
   ./include
   ./src/
   ${FOLLY_INCLUDE_DIRS}
-  ${HIREDIS_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIR}
 )
 
@@ -75,6 +73,9 @@ add_library(qclient STATIC
   src/pubsub/BaseSubscriber.cc
   src/pubsub/MessageParser.cc
   src/pubsub/Subscriber.cc
+
+  src/reader/reader.cc
+  src/reader/sds.cc
 
   src/shared/SharedDeque.cc
   src/shared/SharedHash.cc
@@ -109,7 +110,6 @@ add_library(qclient STATIC
 target_link_libraries(
   qclient
   fmt
-  ${HIREDIS_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${FOLLY_LIBRARIES}
 )

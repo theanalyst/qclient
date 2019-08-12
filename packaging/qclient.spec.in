@@ -13,8 +13,6 @@ Group: Applications/File
 
 Source: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-BuildRequires: hiredis-devel
-Requires: hiredis-devel
 BuildRequires: python
 BuildRequires: cmake
 BuildRequires: gcc-c++

@@ -23,6 +23,7 @@
 
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/QClient.hh"
+#include "reader/reader.hh"
 #include <sstream>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -45,6 +46,10 @@ void ResponseBuilder::feed(const char* buff, size_t len) {
 
 void ResponseBuilder::feed(const std::string &str) {
   feed(str.c_str(), str.size());
+}
+
+void ResponseBuilder::Deleter::operator()(redisReader *reader) {
+  redisReaderFree(reader);
 }
 
 ResponseBuilder::Status ResponseBuilder::pull(redisReplyPtr &out) {

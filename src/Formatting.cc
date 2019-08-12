@@ -23,7 +23,6 @@
 
 #include "qclient/Reply.hh"
 #include "qclient/Formatting.hh"
-#include <hiredis/hiredis.h>
 #include <sstream>
 #include <memory>
 
