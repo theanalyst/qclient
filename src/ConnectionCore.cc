@@ -274,11 +274,11 @@ StagedRequest* ConnectionCore::getNextToWrite() {
 
   StagedRequest *item = nextToWriteIterator.getItemBlockOrNull();
 
-  if (listener) {
+  if (listener && exclusivePubsub ) {
     //--------------------------------------------------------------------------
-    // The connection is in pub-sub mode, which means normal requests are no
-    // longer being acknowledged. The request queue can potentially grow to
-    // infinity - let's trim no-longer-needed items.
+    // The connection is in exclusive pub-sub mode, which means normal requests
+    // are no longer being acknowledged. The request queue can potentially
+    // grow to infinity - let's trim no-longer-needed items.
     //--------------------------------------------------------------------------
     while(nextToWriteIterator.seq() > nextToAcknowledgeIterator.seq()) {
       discardPending();
