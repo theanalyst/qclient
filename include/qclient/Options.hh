@@ -33,7 +33,6 @@ namespace qclient {
 
 class Handshake;
 class Logger;
-class ReconnectionListener;
 class MessageListener;
 
 //------------------------------------------------------------------------------
@@ -232,12 +231,6 @@ public:
   //! writing to stderr will be used, with LogLevel::kInfo.
   //----------------------------------------------------------------------------
   std::shared_ptr<Logger> logger;
-
-  //----------------------------------------------------------------------------
-  //! Specifies the reconnection listener object to use, which will receive
-  //! notifications whenever a connection is established, or lost.
-  //----------------------------------------------------------------------------
-  std::shared_ptr<ReconnectionListener> reconnectionListener;
 
   //----------------------------------------------------------------------------
   //! Specifies the message listener to use. Receives all push responses, and

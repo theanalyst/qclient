@@ -43,6 +43,7 @@
 #include "qclient/ResponseBuilder.hh"
 #include "qclient/AssistedThread.hh"
 #include "qclient/FaultInjector.hh"
+#include "qclient/ReconnectionListener.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -214,6 +215,21 @@ public:
   long long int
   del(const std::string& key);
 
+  //----------------------------------------------------------------------------
+  //! Attach reconnection listener. The underlying object must remain alive
+  //! as long as the reconnection listener is attached!
+  //----------------------------------------------------------------------------
+  void attachListener(ReconnectionListener *listener);
+
+  //----------------------------------------------------------------------------
+  //! Detach reconnection listener. It's now safe to delete the underlying
+  //! object.
+  //!
+  //! Returns true if the given object was found to be registered and was
+  //! removed, false otherwise.
+  //----------------------------------------------------------------------------
+  bool detachListener(ReconnectionListener *listener);
+
 private:
   // The cluster members, as given in the constructor.
   Members members;
@@ -253,6 +269,9 @@ private:
   friend class FaultInjector;
 
   std::unique_ptr<HostResolver> hostResolver;
+
+  std::mutex reconnectionListenersMtx;
+  std::set<ReconnectionListener*> reconnectionListeners;
 
   //----------------------------------------------------------------------------
   // Notify this QClient object that a fault injection has been added

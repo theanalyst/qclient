@@ -47,8 +47,7 @@ private:
 // Make QClient options
 //------------------------------------------------------------------------------
 static Options makeOptions(SubscriptionOptions &&opts,
-  std::shared_ptr<MessageListener> listener,
-  std::shared_ptr<ReconnectionListener> reconnectionListener) {
+  std::shared_ptr<MessageListener> listener) {
 
   qclient::Options options;
   options.tlsconfig = opts.tlsconfig;
@@ -58,7 +57,12 @@ static Options makeOptions(SubscriptionOptions &&opts,
   options.retryStrategy = RetryStrategy::NoRetries();
   options.backpressureStrategy = BackpressureStrategy::Default();
   options.messageListener = listener;
-  options.reconnectionListener = reconnectionListener;
+
+  options.exclusivePubsub = !opts.usePushTypes;
+  if(opts.usePushTypes) {
+    options.chainHandshake(std::unique_ptr<Handshake>(new ActivatePushTypesHandshake()));
+  }
+
   return options;
 }
 
@@ -69,13 +73,15 @@ BaseSubscriber::BaseSubscriber(const Members &memb,
   std::shared_ptr<MessageListener> list, SubscriptionOptions &&opt)
 : reconnectionListener(new BaseSubscriberListener(this)), members(memb),
   listener(list),
-  qcl(members, makeOptions(std::move(opt), list, reconnectionListener)) {
+  qcl(members, makeOptions(std::move(opt), list)) {
 
   // Invalid listener?
   if(!listener) {
     QCLIENT_LOG(options.logger, LogLevel::kFatal, "Attempted to initialize qclient::BaseSubscriber object with nullptr message listener!");
     std::abort();
   }
+
+  qcl.attachListener(reconnectionListener.get());
 }
 
 //------------------------------------------------------------------------------

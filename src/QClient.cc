@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <sstream>
 #include <iterator>
-#include "qclient/ReconnectionListener.hh"
 #include "qclient/Logger.hh"
 #include "WriterThread.hh"
 #include "EndpointDecider.hh"
@@ -379,11 +378,41 @@ void QClient::notifyFaultInjectionsUpdated() {
 }
 
 //------------------------------------------------------------------------------
+// Attach reconnection listener. The underlying object must remain alive
+// as long as the reconnection listener is attached!
+//------------------------------------------------------------------------------
+void QClient::attachListener(ReconnectionListener *listener) {
+  std::unique_lock<std::mutex> lock(reconnectionListenersMtx);
+  reconnectionListeners.insert(listener);
+}
+
+//------------------------------------------------------------------------------
+// Detach reconnection listener. It's now safe to delete the underlying
+// object.
+//
+// Returns true if the given object was found to be registered and was
+// removed, false otherwise.
+//------------------------------------------------------------------------------
+bool QClient::detachListener(ReconnectionListener *listener) {
+  std::unique_lock<std::mutex> lock(reconnectionListenersMtx);
+
+  auto it = reconnectionListeners.find(listener);
+  if(it == reconnectionListeners.end()) {
+    return false;
+  }
+
+  reconnectionListeners.erase(it);
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Notify that a connection has been established
 //------------------------------------------------------------------------------
 void QClient::notifyConnectionEstablished() {
-  if(options.reconnectionListener) {
-    options.reconnectionListener->notifyConnectionEstablished(currentConnectionEpoch);
+  std::unique_lock<std::mutex> lock(reconnectionListenersMtx);
+
+  for(auto it = reconnectionListeners.begin(); it != reconnectionListeners.end(); it++) {
+    (*it)->notifyConnectionEstablished(currentConnectionEpoch);
   }
 }
 
@@ -391,8 +420,10 @@ void QClient::notifyConnectionEstablished() {
 // Notify that a connection has been lost
 //------------------------------------------------------------------------------
 void QClient::notifyConnectionLost(int errc, const std::string &err) {
-  if(options.reconnectionListener) {
-    options.reconnectionListener->notifyConnectionLost(currentConnectionEpoch, errc, err);
+  std::unique_lock<std::mutex> lock(reconnectionListenersMtx);
+
+  for(auto it = reconnectionListeners.begin(); it != reconnectionListeners.end(); it++) {
+    (*it)->notifyConnectionLost(currentConnectionEpoch, errc, err);
   }
 }
 

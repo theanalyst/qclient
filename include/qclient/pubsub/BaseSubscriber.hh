@@ -90,7 +90,7 @@ private:
   //! Notify of a reconnection in the underlying qclient
   //----------------------------------------------------------------------------
   friend class BaseSubscriberListener;
-  std::shared_ptr<ReconnectionListener> reconnectionListener;
+  std::unique_ptr<ReconnectionListener> reconnectionListener;
   void notifyConnectionEstablished(int64_t epoch);
 
   Members members;

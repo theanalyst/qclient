@@ -24,8 +24,14 @@
 #ifndef QCLIENT_RECONNECTION_LISTENER_HH
 #define QCLIENT_RECONNECTION_LISTENER_HH
 
+#include <string>
+
 namespace qclient {
 
+//------------------------------------------------------------------------------
+// Derive from this object to receive notifications whenever QClient loses, or
+// establishes a connection to the backend.
+//------------------------------------------------------------------------------
 class ReconnectionListener {
 public:
   virtual ~ReconnectionListener() {}
