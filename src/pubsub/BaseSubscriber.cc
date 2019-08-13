@@ -195,4 +195,11 @@ void BaseSubscriber::punsubscribe(const std::vector<std::string> &remPatterns) {
   qcl.execute(nullptr, payload);
 }
 
+//------------------------------------------------------------------------------
+// Get underlying QClient object - lifetime tied to this object
+//------------------------------------------------------------------------------
+qclient::QClient* BaseSubscriber::getQcl() {
+  return &qcl;
+}
+
 }

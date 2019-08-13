@@ -24,7 +24,8 @@
 #ifndef QCLIENT_SHARED_DEQUE_HH
 #define QCLIENT_SHARED_DEQUE_HH
 
-#include <qclient/Status.hh>
+#include "qclient/Status.hh"
+#include "qclient/ReconnectionListener.hh"
 #include <string>
 #include <mutex>
 #include <memory>
@@ -36,7 +37,7 @@ class QClient;
 class Subscription;
 class Message;
 
-class SharedDeque {
+class SharedDeque final : public ReconnectionListener {
 public:
 
   //----------------------------------------------------------------------------
@@ -47,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SharedDeque();
+  virtual ~SharedDeque();
 
   //----------------------------------------------------------------------------
   //! Push an element into the back of the deque
@@ -74,6 +75,13 @@ public:
   //! Invalidate cached size
   //----------------------------------------------------------------------------
   void invalidateCachedSize();
+
+  //----------------------------------------------------------------------------
+  //! Receive notifications from QClient
+  //----------------------------------------------------------------------------
+  virtual void notifyConnectionLost(int64_t epoch, int errc, const std::string &msg) override final;
+  virtual void notifyConnectionEstablished(int64_t epoch) override final;
+
 
 private:
   SharedManager *mSharedManager;

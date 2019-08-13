@@ -312,6 +312,13 @@ public:
   //! writing to stderr will be used, with LogLevel::kInfo.
   //----------------------------------------------------------------------------
   std::shared_ptr<Logger> logger;
+
+  //----------------------------------------------------------------------------
+  //! Use push types? (QDB only for now, but official redis should work as well
+  //! once RESP3 is released)
+  //----------------------------------------------------------------------------
+  bool usePushTypes = false;
+
 };
 
 }

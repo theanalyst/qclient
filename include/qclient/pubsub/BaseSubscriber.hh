@@ -85,6 +85,11 @@ public:
   //----------------------------------------------------------------------------
   void punsubscribe(const std::vector<std::string> &patterns);
 
+  //----------------------------------------------------------------------------
+  //! Get underlying QClient object - lifetime tied to this object
+  //----------------------------------------------------------------------------
+  qclient::QClient* getQcl();
+
 private:
   //----------------------------------------------------------------------------
   //! Notify of a reconnection in the underlying qclient
@@ -101,7 +106,6 @@ private:
   std::set<std::string> channels;
   std::set<std::string> patterns;
   qclient::QClient qcl;
-
 };
 
 }

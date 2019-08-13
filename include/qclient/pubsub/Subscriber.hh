@@ -137,6 +137,10 @@ public:
   //----------------------------------------------------------------------------
   std::unique_ptr<Subscription> subscribe(const std::string &channel);
 
+  //----------------------------------------------------------------------------
+  // Get underlying QClient - lifetime tied to this object
+  //----------------------------------------------------------------------------
+  qclient::QClient* getQcl();
 
 private:
   // Logger *logger;

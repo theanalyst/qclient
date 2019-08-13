@@ -38,6 +38,7 @@ SharedDeque::SharedDeque(SharedManager *sm, const std::string &key)
 : mSharedManager(sm), mKey(key), mQcl(sm->getQClient()) {
 
   mSubscription = sm->getSubscriber()->subscribe(mKey);
+  mSharedManager->getSubscriber()->getQcl()->attachListener(this);
 
   using namespace std::placeholders;
   mSubscription->attachCallback(std::bind(&SharedDeque::processIncoming, this, _1));
@@ -47,7 +48,9 @@ SharedDeque::SharedDeque(SharedManager *sm, const std::string &key)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SharedDeque::~SharedDeque() {}
+SharedDeque::~SharedDeque() {
+  mSharedManager->getSubscriber()->getQcl()->detachListener(this);
+}
 
 //------------------------------------------------------------------------------
 // Push an element into the back of the deque
@@ -140,6 +143,17 @@ void SharedDeque::invalidateCachedSize() {
 //! Process incoming message
 //------------------------------------------------------------------------------
 void SharedDeque::processIncoming(Message &&msg) {
+  invalidateCachedSize();
+}
+
+//------------------------------------------------------------------------------
+//! Receive notifications from QClient
+//------------------------------------------------------------------------------
+void SharedDeque::notifyConnectionLost(int64_t epoch, int errc, const std::string &msg) {
+  invalidateCachedSize();
+}
+
+void SharedDeque::notifyConnectionEstablished(int64_t epoch) {
   invalidateCachedSize();
 }
 
