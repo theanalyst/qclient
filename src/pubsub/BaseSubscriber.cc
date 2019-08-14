@@ -54,6 +54,7 @@ static Options makeOptions(SubscriptionOptions &&opts,
   options.handshake = std::move(opts.handshake);
   options.logger = opts.logger;
   options.ensureConnectionIsPrimed = true;
+  options.transparentRedirects = true;
   options.retryStrategy = RetryStrategy::NoRetries();
   options.backpressureStrategy = BackpressureStrategy::Default();
   options.messageListener = listener;
