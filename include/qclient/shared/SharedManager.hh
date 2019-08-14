@@ -86,6 +86,11 @@ public:
   //----------------------------------------------------------------------------
   qclient::Subscriber* getSubscriber();
 
+  //----------------------------------------------------------------------------
+  //! Get logger object
+  //----------------------------------------------------------------------------
+  std::shared_ptr<Logger> getLogger();
+
 private:
   std::shared_ptr<Logger> logger;
   qclient::QClient *qcl = nullptr;

@@ -24,6 +24,12 @@
 #include "qclient/shared/SharedHash.hh"
 #include "qclient/Logger.hh"
 #include "qclient/utils/Macros.hh"
+#include "qclient/MultiBuilder.hh"
+#include "qclient/shared/SharedManager.hh"
+#include "qclient/QClient.hh"
+#include "qclient/SSTR.hh"
+#include "qclient/pubsub/Subscriber.hh"
+#include "qclient/pubsub/Message.hh"
 #include <sstream>
 
 namespace qclient {
@@ -32,8 +38,23 @@ namespace qclient {
 // Constructor - supply a SharedManager object. I'll keep a reference to it
 // throughout my lifetime - don't destroy it before me!
 //------------------------------------------------------------------------------
-SharedHash::SharedHash(SharedManager *sm_, const std::string &key_, Logger *lg)
-: sm(sm_), key(key_), logger(lg), currentVersion(0u) {}
+SharedHash::SharedHash(SharedManager *sm_, const std::string &key_)
+: sm(sm_), key(key_), currentVersion(0u) {
+
+  logger = sm->getLogger();
+  qcl = sm->getQClient();
+  qcl->attachListener(this);
+  subscription = sm->getSubscriber()->subscribe(SSTR("__vhash@" << key));
+
+  triggerResilvering();
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+SharedHash::~SharedHash() {
+  qcl->detachListener(this);
+}
 
 //------------------------------------------------------------------------------
 // Read contents of the specified field.
@@ -45,7 +66,9 @@ SharedHash::SharedHash(SharedManager *sm_, const std::string &key_, Logger *lg)
 //
 // Returns true if found, false otherwise.
 //------------------------------------------------------------------------------
-bool SharedHash::get(const std::string &field, std::string& value) const {
+bool SharedHash::get(const std::string &field, std::string& value) {
+  checkFuture();
+
   std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
 
   auto it = contents.find(field);
@@ -58,11 +81,132 @@ bool SharedHash::get(const std::string &field, std::string& value) const {
 }
 
 //------------------------------------------------------------------------------
+// Set contents of the specified field, or batch of values.
+// Not guaranteed to succeed in case of network instabilities.
+//------------------------------------------------------------------------------
+void SharedHash::set(const std::string &field, const std::string &value) {
+  std::map<std::string, std::string> batch;
+  batch[field] = value;
+  return this->set(batch);
+}
+
+void SharedHash::set(const std::map<std::string, std::string> &batch) {
+  qclient::MultiBuilder multi;
+  for(auto it = batch.begin(); it != batch.end(); it++) {
+    if(it->second.empty()) {
+      multi.emplace_back("VHDEL", it->first);
+    }
+    else {
+      multi.emplace_back("VHSET", it->first, it->second);
+    }
+  }
+
+  sm->getQClient()->execute(multi.getDeque());
+}
+
+//------------------------------------------------------------------------------
+// Delete the specified field.
+// Not guaranteed to succeed in case of network instabilities.
+//------------------------------------------------------------------------------
+void SharedHash::del(const std::string &field) {
+  std::map<std::string, std::string> batch;
+  batch[field] = "";
+  return this->set(batch);
+}
+
+//------------------------------------------------------------------------------
 // Get current version
 //------------------------------------------------------------------------------
-uint64_t SharedHash::getCurrentVersion() const {
+uint64_t SharedHash::getCurrentVersion() {
+  checkFuture();
+
   std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
   return currentVersion;
+}
+
+//------------------------------------------------------------------------------
+// Listen for reconnection events
+//------------------------------------------------------------------------------
+void SharedHash::notifyConnectionLost(int64_t epoch, int errc, const std::string &msg) {}
+
+void SharedHash::notifyConnectionEstablished(int64_t epoch) {
+  triggerResilvering();
+  checkFuture();
+}
+
+//------------------------------------------------------------------------------
+// Asynchronously trigger resilvering
+//------------------------------------------------------------------------------
+void SharedHash::triggerResilvering() {
+  std::lock_guard<std::mutex> lock(futureReplyMtx);
+  futureReply = qcl->exec("VHGETALL", key);
+}
+
+//------------------------------------------------------------------------------
+// Check future
+//------------------------------------------------------------------------------
+void SharedHash::checkFuture() {
+  std::lock_guard<std::mutex> lock(futureReplyMtx);
+  if(futureReply.valid() && futureReply.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    handleResponse(futureReply.get());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Signal parse error regarding the given redisReplyPtr
+//------------------------------------------------------------------------------
+void SharedHash::parseError(const redisReplyPtr &reply) {
+  QCLIENT_LOG(logger, LogLevel::kWarn, "SharedHash could not parse incoming resilvering message: " <<
+    qclient::describeRedisReply(reply));
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Listen for resilvering responses
+//------------------------------------------------------------------------------
+void SharedHash::handleResponse(redisReplyPtr &&reply) {
+  if(reply == nullptr || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2) {
+    return parseError(reply);
+  }
+
+  if(reply->element[0]->type != REDIS_REPLY_INTEGER) {
+    return parseError(reply);
+  }
+
+  uint64_t revision = reply->element[0]->integer;
+
+  redisReply *contentArray = reply->element[1];
+
+  if(!contentArray || contentArray->type != REDIS_REPLY_ARRAY || contentArray->elements % 2 != 0) {
+    return parseError(reply);
+  }
+
+  std::map<std::string, std::string> contents;
+  for(size_t i = 0; i < contentArray->elements; i += 2) {
+    if(contentArray->element[i]->type != REDIS_REPLY_STRING || contentArray->element[i+1]->type != REDIS_REPLY_STRING) {
+      return parseError(reply);
+    }
+
+    std::string key;
+    std::string value;
+
+    key = std::string(contentArray->element[i]->str, contentArray->element[i]->len);
+    value = std::string(contentArray->element[i+1]->str, contentArray->element[i+1]->len);
+
+    contents[key] = value;
+  }
+
+  //----------------------------------------------------------------------------
+  // VHGETALL parsed successfully, apply
+  //----------------------------------------------------------------------------
+  return resilver(revision, std::move(contents));
+}
+
+//------------------------------------------------------------------------------
+// Process incoming message
+//------------------------------------------------------------------------------
+void SharedHash::processIncoming(Message &&msg) {
+  checkFuture();
 }
 
 //------------------------------------------------------------------------------

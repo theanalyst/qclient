@@ -25,10 +25,13 @@
 #define QCLIENT_SHARED_HASH_HH
 
 #include "qclient/utils/Macros.hh"
+#include "qclient/ReconnectionListener.hh"
+#include "qclient/Reply.hh"
 #include <map>
 #include <shared_mutex>
 #include <vector>
 #include <string>
+#include <future>
 
 namespace qclient {
 
@@ -48,14 +51,21 @@ namespace qclient {
 //!   network instabilities.
 //------------------------------------------------------------------------------
 class SharedManager; class Logger;
+class Subscription; class QClient;
+class Message;
 
-class SharedHash {
+class SharedHash final : public ReconnectionListener {
 public:
   //----------------------------------------------------------------------------
   //! Constructor - supply a SharedManager object. I'll keep a reference to it
   //! throughout my lifetime - don't destroy it before me!
   //----------------------------------------------------------------------------
-  SharedHash(SharedManager *sm, const std::string &key, Logger *logger);
+  SharedHash(SharedManager *sm, const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~SharedHash();
 
   //----------------------------------------------------------------------------
   //! Read contents of the specified field.
@@ -67,13 +77,14 @@ public:
   //!
   //! Returns true if found, false otherwise.
   //----------------------------------------------------------------------------
-  bool get(const std::string &field, std::string& value) const;
+  bool get(const std::string &field, std::string& value);
 
   //----------------------------------------------------------------------------
-  //! Set contents of the specified field.
+  //! Set contents of the specified field, or batch of values.
   //! Not guaranteed to succeed in case of network instabilities.
   //----------------------------------------------------------------------------
   void set(const std::string &field, const std::string &value);
+  void set(const std::map<std::string, std::string> &values);
 
   //----------------------------------------------------------------------------
   //! Delete the specified field.
@@ -84,8 +95,18 @@ public:
   //----------------------------------------------------------------------------
   //! Get current version
   //----------------------------------------------------------------------------
-  uint64_t getCurrentVersion() const;
+  uint64_t getCurrentVersion();
 
+  //----------------------------------------------------------------------------
+  //! Listen for reconnection events
+  //----------------------------------------------------------------------------
+  virtual void notifyConnectionLost(int64_t epoch, int errc, const std::string &msg) override final;
+  virtual void notifyConnectionEstablished(int64_t epoch) override final;
+
+  //----------------------------------------------------------------------------
+  //! Listen for resilvering responses
+  //----------------------------------------------------------------------------
+  void handleResponse(redisReplyPtr &&reply);
 
 PUBLIC_FOR_TESTS_ONLY:
 
@@ -115,16 +136,43 @@ private:
 
   SharedManager *sm;
   std::string key;
-  Logger *logger;
+  std::shared_ptr<Logger> logger;
 
   mutable std::shared_timed_mutex contentsMutex;
   std::map<std::string, std::string> contents;
   uint64_t currentVersion;
 
+  std::unique_ptr<qclient::Subscription> subscription;
+  qclient::QClient *qcl = nullptr;
+
+  std::mutex futureReplyMtx;
+  std::future<redisReplyPtr> futureReply;
+
   //----------------------------------------------------------------------------
   // Feed a single key-value update. Assumes lock is taken.
   //----------------------------------------------------------------------------
   void feedSingleKeyValue(const std::string &key, const std::string &value);
+
+  //----------------------------------------------------------------------------
+  // Asynchronously trigger resilvering
+  //----------------------------------------------------------------------------
+  void triggerResilvering();
+
+  //----------------------------------------------------------------------------
+  //! Process incoming message
+  //----------------------------------------------------------------------------
+  void processIncoming(Message &&msg);
+
+  //----------------------------------------------------------------------------
+  //! Signal parse error regarding the given redisReplyPtr
+  //----------------------------------------------------------------------------
+  void parseError(const redisReplyPtr &reply);
+
+  //----------------------------------------------------------------------------
+  //! Check future
+  //----------------------------------------------------------------------------
+  void checkFuture();
+
 };
 
 }

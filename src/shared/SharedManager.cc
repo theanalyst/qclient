@@ -32,9 +32,9 @@ namespace qclient {
 //------------------------------------------------------------------------------
 // Constructor - supply necessary information for connecting to a QDB
 // instance.
-// "Options" will be used in a connection publishing information, and
-// "SubscriptionOptions" in a connection subscribing to the necessary
-// channels.
+//
+// We will always use RESP3 push types, which means this class is currently
+// only compatible with QuarkDB, not official redis!
 //------------------------------------------------------------------------------
 SharedManager::SharedManager(const qclient::Members &members,
   qclient::SubscriptionOptions &&subscriptionOptions) {
@@ -98,6 +98,13 @@ qclient::QClient* SharedManager::getQClient() {
 //------------------------------------------------------------------------------
 qclient::Subscriber* SharedManager::getSubscriber() {
   return subscriber.get();
+}
+
+//------------------------------------------------------------------------------
+// Get logger object
+//------------------------------------------------------------------------------
+std::shared_ptr<Logger> SharedManager::getLogger() {
+  return logger;
 }
 
 }
