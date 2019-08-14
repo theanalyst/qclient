@@ -30,6 +30,7 @@
 #include "qclient/SSTR.hh"
 #include "qclient/pubsub/Subscriber.hh"
 #include "qclient/pubsub/Message.hh"
+#include "qclient/ResponseBuilder.hh"
 #include <sstream>
 
 namespace qclient {
@@ -45,6 +46,9 @@ SharedHash::SharedHash(SharedManager *sm_, const std::string &key_)
   qcl = sm->getQClient();
   qcl->attachListener(this);
   subscription = sm->getSubscriber()->subscribe(SSTR("__vhash@" << key));
+
+  using namespace std::placeholders;
+  subscription->attachCallback(std::bind(&SharedHash::processIncoming, this, _1));
 
   triggerResilvering();
 }
@@ -94,10 +98,10 @@ void SharedHash::set(const std::map<std::string, std::string> &batch) {
   qclient::MultiBuilder multi;
   for(auto it = batch.begin(); it != batch.end(); it++) {
     if(it->second.empty()) {
-      multi.emplace_back("VHDEL", it->first);
+      multi.emplace_back("VHDEL", key, it->first);
     }
     else {
-      multi.emplace_back("VHSET", it->first, it->second);
+      multi.emplace_back("VHSET", key, it->first, it->second);
     }
   }
 
@@ -153,38 +157,29 @@ void SharedHash::checkFuture() {
 }
 
 //------------------------------------------------------------------------------
-// Signal parse error regarding the given redisReplyPtr
+// Parse serialized version + string map
 //------------------------------------------------------------------------------
-void SharedHash::parseError(const redisReplyPtr &reply) {
-  QCLIENT_LOG(logger, LogLevel::kWarn, "SharedHash could not parse incoming resilvering message: " <<
-    qclient::describeRedisReply(reply));
-  return;
-}
+bool SharedHash::parseReply(redisReplyPtr &reply, uint64_t &revision, std::map<std::string, std::string> &contents) {
+  contents.clear();
 
-//------------------------------------------------------------------------------
-// Listen for resilvering responses
-//------------------------------------------------------------------------------
-void SharedHash::handleResponse(redisReplyPtr &&reply) {
   if(reply == nullptr || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2) {
-    return parseError(reply);
+    return false;
   }
 
   if(reply->element[0]->type != REDIS_REPLY_INTEGER) {
-    return parseError(reply);
+    return false;
   }
 
-  uint64_t revision = reply->element[0]->integer;
+  revision = reply->element[0]->integer;
 
   redisReply *contentArray = reply->element[1];
-
   if(!contentArray || contentArray->type != REDIS_REPLY_ARRAY || contentArray->elements % 2 != 0) {
-    return parseError(reply);
+    return false;
   }
 
-  std::map<std::string, std::string> contents;
   for(size_t i = 0; i < contentArray->elements; i += 2) {
     if(contentArray->element[i]->type != REDIS_REPLY_STRING || contentArray->element[i+1]->type != REDIS_REPLY_STRING) {
-      return parseError(reply);
+      return false;
     }
 
     std::string key;
@@ -194,6 +189,22 @@ void SharedHash::handleResponse(redisReplyPtr &&reply) {
     value = std::string(contentArray->element[i+1]->str, contentArray->element[i+1]->len);
 
     contents[key] = value;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Listen for resilvering responses
+//------------------------------------------------------------------------------
+void SharedHash::handleResponse(redisReplyPtr &&reply) {
+  uint64_t revision;
+  std::map<std::string, std::string> contents;
+
+  if(!parseReply(reply, revision, contents)) {
+    QCLIENT_LOG(logger, LogLevel::kWarn, "SharedHash could not parse incoming resilvering message: " <<
+      qclient::describeRedisReply(reply));
+    return;
   }
 
   //----------------------------------------------------------------------------
@@ -207,6 +218,27 @@ void SharedHash::handleResponse(redisReplyPtr &&reply) {
 //------------------------------------------------------------------------------
 void SharedHash::processIncoming(Message &&msg) {
   checkFuture();
+
+  if(msg.getMessageType() != MessageType::kMessage) return;
+
+  redisReplyPtr payload = ResponseBuilder::parseRedisEncodedString(msg.getPayload());
+  if(!payload) return;
+
+  uint64_t revision;
+  std::map<std::string, std::string> update;
+
+  if(!parseReply(payload, revision, update)) {
+    QCLIENT_LOG(logger, LogLevel::kWarn, "SharedHash could not parse incoming revision update: " <<
+      qclient::describeRedisReply(payload));
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Payload parsed successfully, apply
+  //----------------------------------------------------------------------------
+  if(!feedRevision(revision, update)) {
+    triggerResilvering();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -231,17 +263,12 @@ void SharedHash::feedSingleKeyValue(const std::string &key, const std::string &v
 //   contents. The change is not applied - a return value of false means
 //   "please bring me up-to-date by calling resilver function"
 //------------------------------------------------------------------------------
-bool SharedHash::feedRevision(uint64_t revision, const std::vector<std::pair<std::string, std::string>> &updates) {
+bool SharedHash::feedRevision(uint64_t revision, const std::map<std::string, std::string> &updates) {
   std::unique_lock<std::shared_timed_mutex> lock(contentsMutex);
 
   if(revision <= currentVersion) {
-    // not good.. my current version is newer than what QDB has ?!
-    // Let's be conservative and ask for a revision, just in case
-    QCLIENT_LOG(logger, LogLevel::kError, "SharedHash with key " << key <<
-      " appears to have newer revision than server; was fed revision " <<
-      revision << ", but current version is " << currentVersion <<
-      ", should not happen, asking for resilvering");
-    return false;
+    // I have a newer version than current revision, nothing to do
+    return true;
   }
 
   if(revision >= currentVersion+2) {
@@ -255,8 +282,8 @@ bool SharedHash::feedRevision(uint64_t revision, const std::vector<std::pair<std
 
   qclient_assert(revision == currentVersion+1);
 
-  for(size_t i = 0; i < updates.size(); i++) {
-    feedSingleKeyValue(updates[i].first, updates[i].second);
+  for(auto it = updates.begin(); it != updates.end(); it++) {
+    feedSingleKeyValue(it->first, it->second);
   }
 
   currentVersion = revision;
@@ -268,9 +295,9 @@ bool SharedHash::feedRevision(uint64_t revision, const std::vector<std::pair<std
 // key-value pair
 //------------------------------------------------------------------------------
 bool SharedHash::feedRevision(uint64_t revision, const std::string &key, const std::string &value) {
-  std::vector<std::pair<std::string, std::string>> updates;
-  updates.emplace_back(key, value);
-  return feedRevision(revision, updates);
+  std::map<std::string, std::string> batch;
+  batch[key] = value;
+  return feedRevision(revision, batch);
 }
 
 //------------------------------------------------------------------------------

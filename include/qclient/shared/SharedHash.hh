@@ -118,7 +118,7 @@ PUBLIC_FOR_TESTS_ONLY:
   //!   contents. The change is not applied - a return value of false means
   //!   "please bring me up-to-date by calling resilver function"
   //----------------------------------------------------------------------------
-  bool feedRevision(uint64_t revision, const std::vector<std::pair<std::string, std::string>> &updates);
+  bool feedRevision(uint64_t revision, const std::map<std::string, std::string>  &updates);
 
   //----------------------------------------------------------------------------
   //! Same as above, but the given revision updates only a single
@@ -164,14 +164,14 @@ private:
   void processIncoming(Message &&msg);
 
   //----------------------------------------------------------------------------
-  //! Signal parse error regarding the given redisReplyPtr
-  //----------------------------------------------------------------------------
-  void parseError(const redisReplyPtr &reply);
-
-  //----------------------------------------------------------------------------
   //! Check future
   //----------------------------------------------------------------------------
   void checkFuture();
+
+  //----------------------------------------------------------------------------
+  //! Parse serialized version + string map
+  //----------------------------------------------------------------------------
+  bool parseReply(redisReplyPtr &reply, uint64_t &revision, std::map<std::string, std::string> &contents);
 
 };
 
