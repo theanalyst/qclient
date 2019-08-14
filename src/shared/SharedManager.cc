@@ -36,12 +36,13 @@ namespace qclient {
 // "SubscriptionOptions" in a connection subscribing to the necessary
 // channels.
 //------------------------------------------------------------------------------
-SharedManager::SharedManager(const qclient::Members &members, qclient::Options &&options,
+SharedManager::SharedManager(const qclient::Members &members,
   qclient::SubscriptionOptions &&subscriptionOptions) {
 
-  logger = options.logger;
-  qclient.reset(new QClient(members, std::move(options)));
+  subscriptionOptions.usePushTypes = true;
+  logger = subscriptionOptions.logger;
   subscriber.reset(new Subscriber(members, std::move(subscriptionOptions)));
+  qcl = subscriber->getQcl();
 }
 
 //------------------------------------------------------------------------------
@@ -57,11 +58,11 @@ SharedManager::SharedManager() {
 // modifications.
 //------------------------------------------------------------------------------
 void SharedManager::publish(const std::string &channel, const std::string &payload) {
-  if(qclient) {
+  if(qcl) {
     //--------------------------------------------------------------------------
     // Real mode
     //--------------------------------------------------------------------------
-    qclient->exec("PUBLISH", channel, payload);
+    qcl->exec("PUBLISH", channel, payload);
   }
   else {
     //--------------------------------------------------------------------------
@@ -88,13 +89,13 @@ SharedManager::~SharedManager() {}
 // SharedManager.
 //------------------------------------------------------------------------------
 qclient::QClient* SharedManager::getQClient() {
-  return qclient.get();
+  return qcl;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get pointer to underlying Subscriber object - lifetime is tied to this
 // SharedManager.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 qclient::Subscriber* SharedManager::getSubscriber() {
   return subscriber.get();
 }

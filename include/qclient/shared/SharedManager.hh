@@ -54,11 +54,11 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor - supply necessary information for connecting to a QDB
   //! instance.
-  //! "Options" will be used in a connection publishing information, and
-  //! "SubscriptionOptions" in a connection subscribing to the necessary
-  //! channels.
+  //!
+  //! We will always use RESP3 push types, which means this class is currently
+  //! only compatible with QuarkDB, not official redis!
   //----------------------------------------------------------------------------
-  SharedManager(const qclient::Members &members, qclient::Options &&options,
+  SharedManager(const qclient::Members &members,
     qclient::SubscriptionOptions &&subscriptionOptions);
 
   //----------------------------------------------------------------------------
@@ -88,7 +88,7 @@ public:
 
 private:
   std::shared_ptr<Logger> logger;
-  std::unique_ptr<QClient> qclient;
+  qclient::QClient *qcl = nullptr;
   std::unique_ptr<Subscriber> subscriber;
 };
 
