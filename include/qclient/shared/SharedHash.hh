@@ -28,6 +28,7 @@
 #include <map>
 #include <shared_mutex>
 #include <vector>
+#include <string>
 
 namespace qclient {
 

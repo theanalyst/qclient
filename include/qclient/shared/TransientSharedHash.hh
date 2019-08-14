@@ -27,6 +27,7 @@
 #include "qclient/utils/Macros.hh"
 #include <map>
 #include <shared_mutex>
+#include <string>
 
 namespace qclient {
 
