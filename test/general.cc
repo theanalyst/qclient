@@ -30,6 +30,7 @@
 #include "qclient/network/HostResolver.hh"
 #include "qclient/pubsub/MessageQueue.hh"
 #include "qclient/Status.hh"
+#include "qclient/QuarkDBVersion.hh"
 #include "ConnectionCore.hh"
 #include "ReplyMacros.hh"
 
@@ -548,4 +549,80 @@ TEST(EndpointDecider, MadeFullCircleAfterAllServiceEndpoints) {
   ASSERT_TRUE(decider.getNextEndpoint(ep));
   ASSERT_EQ(ep, endpoints[1]);
   ASSERT_TRUE(decider.madeFullCircle());
+}
+
+TEST(QuarkDBVersion, BasicSanity) {
+  QuarkDBVersion v038(0, 3, 8, "");
+  ASSERT_EQ(v038.getMajor(), 0u);
+  ASSERT_EQ(v038.getMinor(), 3u);
+  ASSERT_EQ(v038.getPatch(), 8u);
+  ASSERT_EQ(v038.getDev(), "");
+
+  QuarkDBVersion v039(0, 3, 9, "");
+  ASSERT_NE(v039, v038);
+  ASSERT_EQ(v038, v038);
+
+  ASSERT_TRUE(v038 < v039);
+  ASSERT_TRUE(v038 <= v039);
+
+  ASSERT_FALSE(v039 < v038);
+  ASSERT_FALSE(v039 <= v038);
+
+  ASSERT_FALSE(v038 > v039);
+  ASSERT_FALSE(v038 >= v039);
+
+  ASSERT_TRUE(v039 > v038);
+  ASSERT_TRUE(v039 >= v038);
+}
+
+TEST(QuarkDBVersion, Sorting) {
+  std::vector<QuarkDBVersion> versions;
+  versions.emplace_back(0, 4, 0, "");
+  versions.emplace_back(0, 4, 0, "1234");
+  versions.emplace_back(0, 3, 9, "");
+  versions.emplace_back(0, 2, 4, "");
+  versions.emplace_back(0, 5, 3, "aaa");
+  versions.emplace_back(9, 2, 1, "");
+  versions.emplace_back(0, 0, 1, "");
+
+  std::sort(versions.begin(), versions.end());
+
+  std::cout << "Sorted versions:" << std::endl;
+  for(size_t i = 0; i < versions.size(); i++) {
+    std::cout << versions[i].toString() << std::endl;
+  }
+
+  ASSERT_EQ(versions[0], QuarkDBVersion(0, 0, 1, ""));
+  ASSERT_EQ(versions[1], QuarkDBVersion(0, 2, 4, ""));
+  ASSERT_EQ(versions[2], QuarkDBVersion(0, 3, 9, ""));
+  ASSERT_EQ(versions[3], QuarkDBVersion(0, 4, 0, ""));
+  ASSERT_EQ(versions[4], QuarkDBVersion(0, 4, 0, "1234"));
+  ASSERT_EQ(versions[5], QuarkDBVersion(0, 5, 3, "aaa"));
+  ASSERT_EQ(versions[6], QuarkDBVersion(9, 2, 1, ""));
+}
+
+TEST(QuarkDBVersion, Parsing) {
+  std::vector<std::string> goodVersions;
+  goodVersions.emplace_back("0.3.9.aaaa");
+  goodVersions.emplace_back("0.3.9.32.aaaaaa");
+  goodVersions.emplace_back("0.3.9.11.c60ff8c");
+  goodVersions.emplace_back("0.3.9.11.c60ff8c.aaaaaaaaa");
+  goodVersions.emplace_back("0.3.9");
+  goodVersions.emplace_back("1.1.1");
+
+  for(size_t i = 0; i < goodVersions.size(); i++) {
+    QuarkDBVersion ver;
+    ASSERT_TRUE(QuarkDBVersion::fromString(goodVersions[i], ver));
+    ASSERT_EQ(ver.toString(), goodVersions[i]);
+  }
+
+  std::vector<std::string> badVersions;
+  badVersions.emplace_back("1.1.aaaa");
+  badVersions.emplace_back("0.aaaaa");
+
+  for(size_t i = 0; i < badVersions.size(); i++) {
+    QuarkDBVersion ver;
+    ASSERT_FALSE(QuarkDBVersion::fromString(badVersions[i], ver));
+  }
+
 }

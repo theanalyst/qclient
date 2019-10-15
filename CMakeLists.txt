@@ -101,6 +101,7 @@ add_library(qclient STATIC
   src/Handshake.cc
   src/Options.cc
   src/QClient.cc
+  src/QuarkDBVersion.cc
   src/ResponseBuilder.cc
   src/ResponseParsing.cc
   src/TlsFilter.cc
