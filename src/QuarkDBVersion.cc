@@ -34,17 +34,17 @@ bool QuarkDBVersion::fromString(const std::string &version, QuarkDBVersion &out)
     return false;
   }
 
-  uint32_t major;
+  unsigned long major;
   if(!parseUInt32(chunks[0], major)) {
     return false;
   }
 
-  uint32_t minor;
+  unsigned long minor;
   if(!parseUInt32(chunks[1], minor)) {
     return false;
   }
 
-  uint32_t patch;
+  unsigned long patch;
   if(!parseUInt32(chunks[2], patch)) {
     return false;
   }

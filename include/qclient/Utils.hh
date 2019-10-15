@@ -31,7 +31,7 @@
 
 namespace qclient {
 
-inline bool parseUInt32(const std::string &str, uint32_t &ret) {
+inline bool parseUInt32(const std::string &str, unsigned long &ret) {
   char *endptr = NULL;
   ret = strtoul(str.c_str(), &endptr, 10);
   if(endptr != str.c_str() + str.size() || ret == ULONG_MAX) {
