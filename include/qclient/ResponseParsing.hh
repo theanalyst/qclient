@@ -63,6 +63,8 @@ private:
 
 class StringParser {
 public:
+
+  StringParser(const redisReply *reply);
   StringParser(const redisReplyPtr reply);
 
   bool ok() const;

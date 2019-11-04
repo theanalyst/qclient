@@ -91,7 +91,7 @@ long long IntegerParser::value() const {
   return val;
 }
 
-StringParser::StringParser(const redisReplyPtr reply) {
+StringParser::StringParser(const redisReply *reply) {
   if(reply == nullptr) {
     error = "Received null redisReply";
     isOk = false;
@@ -99,7 +99,7 @@ StringParser::StringParser(const redisReplyPtr reply) {
   }
 
   if(reply->type != REDIS_REPLY_STRING) {
-    error = SSTR("Unexpected reply type; was expecting STRING, received " << qclient::describeRedisReply(reply.get()));
+    error = SSTR("Unexpected reply type; was expecting STRING, received " << qclient::describeRedisReply(reply));
     isOk = false;
     return;
   }
@@ -107,6 +107,8 @@ StringParser::StringParser(const redisReplyPtr reply) {
   isOk = true;
   val = std::string(reply->str, reply->len);
 }
+
+StringParser::StringParser(const redisReplyPtr reply) : StringParser(reply.get()) { }
 
 bool StringParser::ok() const {
   return isOk;
