@@ -36,6 +36,7 @@ add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -fPIC -Wno-implicit-
 # FOLLY_INCLUDE_DIRS and FOLLY_LIBRARIES.
 #-------------------------------------------------------------------------------
 if(FOLLY_FOUND)
+  include_directories(${FOLLY_INCLUDE_DIRS})
   message("Building QClient with Folly support.")
   add_definitions(-DHAVE_FOLLY=1)
 else()
