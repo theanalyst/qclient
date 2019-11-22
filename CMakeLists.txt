@@ -37,10 +37,10 @@ add_definitions(-Wall -Wextra -Werror -Wno-unused-parameter -fPIC -Wno-implicit-
 #-------------------------------------------------------------------------------
 if(FOLLY_FOUND)
   include_directories(${FOLLY_INCLUDE_DIRS})
-  message("Building QClient with Folly support.")
+  message(STATUS "Building QClient with Folly support.")
   add_definitions(-DHAVE_FOLLY=1)
 else()
-  message("Building QClient without Folly support.")
+  message(STATUS "Building QClient without Folly support.")
 endif()
 
 #-------------------------------------------------------------------------------
@@ -109,12 +109,20 @@ add_library(qclient STATIC
   src/WriterThread.cc
 )
 
-target_link_libraries(
-  qclient
+
+if (ATOMIC_FOUND)
+  target_link_libraries(qclient PUBLIC
+    fmt
+    ATOMIC::ATOMIC
+    ${OPENSSL_LIBRARIES}
+    ${FOLLY_LIBRARIES})
+
+else ()
+target_link_libraries(qclient PUBLIC 
   fmt
   ${OPENSSL_LIBRARIES}
-  ${FOLLY_LIBRARIES}
-)
+  ${FOLLY_LIBRARIES})
+endif()
 
 set_target_properties(
   qclient PROPERTIES
