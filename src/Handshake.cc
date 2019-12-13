@@ -342,3 +342,43 @@ void ActivatePushTypesHandshake::restart() {}
 std::unique_ptr<Handshake> ActivatePushTypesHandshake::clone() const {
   return std::unique_ptr<Handshake>(new ActivatePushTypesHandshake());
 }
+
+//------------------------------------------------------------------------------
+// Set client name handshake: Constructor
+//------------------------------------------------------------------------------
+SetClientNameHandshake::SetClientNameHandshake(const std::string &name, bool ignorefail)
+: clientName(name), ignoreFailures(ignorefail) {}
+
+//------------------------------------------------------------------------------
+// Set client name handshake: Destructor
+//------------------------------------------------------------------------------
+SetClientNameHandshake::~SetClientNameHandshake() {}
+
+//------------------------------------------------------------------------------
+// Set client name handshake: Provide handshake
+//------------------------------------------------------------------------------
+std::vector<std::string> SetClientNameHandshake::provideHandshake() {
+  return {"CLIENT", "SETNAME", clientName };
+}
+
+//------------------------------------------------------------------------------
+// Set client name handshake: Validate response
+//------------------------------------------------------------------------------
+Handshake::Status SetClientNameHandshake::validateResponse(const redisReplyPtr &reply) {
+  if(ignoreFailures) {
+    return Status::VALID_COMPLETE;
+  }
+
+  if(!reply || reply->type != REDIS_REPLY_STATUS || std::string(reply->str, reply->len) != "OK") {
+    return Status::INVALID;
+  }
+
+  return Status::VALID_COMPLETE;
+}
+
+void SetClientNameHandshake::restart() {}
+
+std::unique_ptr<Handshake> SetClientNameHandshake::clone() const {
+  return std::unique_ptr<Handshake>(new SetClientNameHandshake(clientName, ignoreFailures));
+}
+

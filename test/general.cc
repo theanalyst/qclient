@@ -624,5 +624,4 @@ TEST(QuarkDBVersion, Parsing) {
     QuarkDBVersion ver;
     ASSERT_FALSE(QuarkDBVersion::fromString(badVersions[i], ver));
   }
-
 }

@@ -161,6 +161,27 @@ public:
   virtual std::unique_ptr<Handshake> clone() const override final;
 };
 
+//------------------------------------------------------------------------------
+//! SetClientName handshake - send 'CLIENT SETNAME', expect OK
+//------------------------------------------------------------------------------
+class SetClientNameHandshake : public Handshake {
+public:
+  //----------------------------------------------------------------------------
+  //! Basic interface
+  //----------------------------------------------------------------------------
+  SetClientNameHandshake(const std::string &name, bool ignoreFailure = true);
+  virtual ~SetClientNameHandshake();
+  virtual std::vector<std::string> provideHandshake() override final;
+  virtual Status validateResponse(const redisReplyPtr &reply) override final;
+  virtual void restart() override final;
+  virtual std::unique_ptr<Handshake> clone() const override final;
+
+private:
+  std::string clientName;
+  bool ignoreFailures;
+};
+
+
 }
 
 #endif
