@@ -182,12 +182,35 @@ TEST(ConnectionCore, Overflow) {
   ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeInt(7))); // server sent an extra response, not good
 }
 
+TEST(ConnectionCore, BreakWhenMultiReceivesNonQueued) {
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+
+  std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "1234"), 3);
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeInt(8)));
+
+  core.reconnection();
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("OK")));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("QUEUED")));
+  ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeStatus("QQUEUED")));
+
+  core.reconnection();
+
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("OK")));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("QUEUED")));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("QUEUED")));
+
+  ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_REPLY(fut1, 8);
+}
+
 TEST(ConnectionCore, IgnoredResponses) {
   ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "1234"), 1);
 
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("OK")));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
   ASSERT_REPLY(fut1, 8);
@@ -198,17 +221,17 @@ TEST(ConnectionCore, IgnoredResponsesWithReconnect) {
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "789"), 2);
 
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(7)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("OK")));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("QUEUED")));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
   core.reconnection();
 
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(8)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("OK")));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
-  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(9)));
+  ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStatus("QUEUED")));
   ASSERT_EQ(fut1.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
 
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeInt(3)));

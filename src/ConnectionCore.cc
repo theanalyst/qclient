@@ -25,6 +25,7 @@
 #include "pubsub/MessageParser.hh"
 #include "qclient/Handshake.hh"
 #include "qclient/pubsub/MessageListener.hh"
+#include "qclient/QClient.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl;
 
@@ -158,6 +159,38 @@ void ConnectionCore::discardPending() {
   backpressure.release();
 }
 
+static bool isOK(const redisReplyPtr &reply) {
+  if(reply->type != REDIS_REPLY_STATUS) {
+    return false;
+  }
+
+  if(reply->len != 2) {
+    return false;
+  }
+
+  if(strncasecmp(reply->str, "OK", 2) != 0) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool isQueued(const redisReplyPtr &reply) {
+  if(reply->type != REDIS_REPLY_STATUS) {
+    return false;
+  }
+
+  if(reply->len != 6) {
+    return false;
+  }
+
+  if(strncasecmp(reply->str, "QUEUED", 6) != 0) {
+    return false;
+  }
+
+  return true;
+}
+
 bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
   // Is this a transient "unavailable" error? Specific to QDB.
   if(retryStrategy.active() && isUnavailable(reply.get())) {
@@ -242,10 +275,29 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
   if(nextToAcknowledgeIterator.item().getMultiSize() != 0u) {
     ignoredResponses++;
 
+    if(ignoredResponses == 1u && nextToAcknowledgeIterator.item().getMultiSize() != 0u) {
+      //------------------------------------------------------------------------
+      // This has to be an OK response, is it?
+      //------------------------------------------------------------------------
+      if(!isOK(reply)) {
+        QCLIENT_LOG(logger, LogLevel::kError, "Expected OK response for MULTI, received: " << describeRedisReply(reply));
+        return false;
+      }
+
+      return true;
+    }
+
     if(ignoredResponses <= nextToAcknowledgeIterator.item().getMultiSize()) {
       //------------------------------------------------------------------------
-      // This is a QUEUED response, send it into a black hole
-      // TODO: verify this is indeed QUEUED, lol
+      // This has to be a QUEUED response, is it?
+      //------------------------------------------------------------------------
+      if(!isQueued(reply)) {
+        QCLIENT_LOG(logger, LogLevel::kError, "Expected QUEUED response, received: " << describeRedisReply(reply));
+        return false;
+      }
+
+      //------------------------------------------------------------------------
+      // Yes, ignore
       //------------------------------------------------------------------------
       return true;
     }
