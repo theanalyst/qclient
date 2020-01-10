@@ -280,7 +280,7 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
       // This has to be an OK response, is it?
       //------------------------------------------------------------------------
       if(!isOK(reply)) {
-        QCLIENT_LOG(logger, LogLevel::kError, "Expected OK response for MULTI, received: " << describeRedisReply(reply));
+        QCLIENT_LOG(logger, LogLevel::kError, "Expected OK response at start of MULTI block (multi-size=" << nextToAcknowledgeIterator.item().getMultiSize() << ", current response number=" << ignoredResponses << "), received: " << describeRedisReply(reply));
         return false;
       }
 
@@ -292,7 +292,7 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
       // This has to be a QUEUED response, is it?
       //------------------------------------------------------------------------
       if(!isQueued(reply)) {
-        QCLIENT_LOG(logger, LogLevel::kError, "Expected QUEUED response, received: " << describeRedisReply(reply));
+        QCLIENT_LOG(logger, LogLevel::kError, "Expected QUEUED response within MULTI block (multi-size=" << nextToAcknowledgeIterator.item().getMultiSize() << ", current response number=" << ignoredResponses << "), received: " << describeRedisReply(reply));
         return false;
       }
 
