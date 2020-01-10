@@ -25,6 +25,7 @@
 #include <string.h>
 #include "fmt/format.h"
 #include <iostream>
+#include <sstream>
 
 namespace qclient {
 
@@ -106,6 +107,35 @@ EncodedRequest EncodedRequest::fuseIntoBlockAndSurround(std::deque<EncodedReques
   block.emplace_front(EncodedRequest::make("MULTI"));
   block.emplace_back(EncodedRequest::make("EXEC"));
   return EncodedRequest::fuseIntoBlock(block);
+}
+
+namespace {
+std::string escapeNonPrintable(const std::string &str) {
+  std::stringstream ss;
+
+  for(size_t i = 0; i < str.size(); i++) {
+    if(isprint(str[i])) {
+      ss << str[i];
+    }
+    else if(str[i] == '\0') {
+      ss << "\\x00";
+    }
+    else {
+      char buff[16];
+      snprintf(buff, 16, "\\x%02X", (unsigned char) str[i]);
+      ss << buff;
+    }
+  }
+  return ss.str();
+}
+}
+
+std::string EncodedRequest::toPrintableString() const {
+  if(!buffer) {
+    return "!!!uninitialized!!!";
+  }
+
+  return escapeNonPrintable(std::string(buffer.get(), length));
 }
 
 }

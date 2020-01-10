@@ -57,6 +57,7 @@ TEST(EncodedRequest, BasicSanity) {
   std::vector<std::string> req { "set", "1234", "abc" };
   EncodedRequest encoded(req);
   ASSERT_EQ("*3\r\n$3\r\nset\r\n$4\r\n1234\r\n$3\r\nabc\r\n", std::string(encoded.getBuffer(), encoded.getLen()));
+  ASSERT_EQ("*3\\x0D\\x0A$3\\x0D\\x0Aset\\x0D\\x0A$4\\x0D\\x0A1234\\x0D\\x0A$3\\x0D\\x0Aabc\\x0D\\x0A", encoded.toPrintableString());
 }
 
 TEST(EncodedRequest, FusedEncodedRequest) {

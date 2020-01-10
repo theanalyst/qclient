@@ -113,6 +113,8 @@ public:
     return true;
   }
 
+  std::string toPrintableString() const;
+
 private:
   void initFromChunks(size_t nchunks, const char** chunks, const size_t* sizes);
 
