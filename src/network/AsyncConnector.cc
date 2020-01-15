@@ -29,6 +29,10 @@
 #include <unistd.h>
 #include <poll.h>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 namespace qclient {
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -47,6 +51,15 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
     localerrno = errno;
     error = SSTR("Unable to create a socket: " << strerror(localerrno));
     return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Set TCP timeout to 30 sec..
+  //----------------------------------------------------------------------------
+  int timeout = 30 * 1000;
+  if(setsockopt(fd.get(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0) {
+    localerrno = errno;
+    std::cout << "qclient: could not set TCP_USER_TIMEOUT: " << strerror(localerrno) << std::endl;
   }
 
   //----------------------------------------------------------------------------
