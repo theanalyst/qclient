@@ -54,13 +54,13 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
   }
 
 #ifndef __APPLE__
+#define CUSTOM_TCP_USER_TIMEOUT 18
   //----------------------------------------------------------------------------
-  // Set TCP timeout to 30 sec..
+  // Set TCP timeout to 30 sec. Allow failure, as it's not supported on SLC6.
   //----------------------------------------------------------------------------
   int timeout = 30 * 1000;
-  if(setsockopt(fd.get(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0) {
-    localerrno = errno;
-    std::cout << "qclient: could not set TCP_USER_TIMEOUT: " << strerror(localerrno) << std::endl;
+  if(setsockopt(fd.get(), IPPROTO_TCP, CUSTOM_TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != 0) {
+    std::cerr << "qclient: could not set TCP_USER_TIMEOUT: " << strerror(localerrno) << std::endl;
   }
 #endif
 
