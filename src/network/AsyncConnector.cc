@@ -53,6 +53,7 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
     return;
   }
 
+#ifndef __APPLE__
   //----------------------------------------------------------------------------
   // Set TCP timeout to 30 sec..
   //----------------------------------------------------------------------------
@@ -61,6 +62,7 @@ AsyncConnector::AsyncConnector(const ServiceEndpoint &endpoint) {
     localerrno = errno;
     std::cout << "qclient: could not set TCP_USER_TIMEOUT: " << strerror(localerrno) << std::endl;
   }
+#endif
 
   //----------------------------------------------------------------------------
   // Make non-blocking..
