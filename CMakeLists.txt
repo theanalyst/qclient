@@ -78,6 +78,7 @@ add_library(qclient STATIC
   src/reader/reader.cc
   src/reader/sds.cc
 
+  src/shared/Communicator.cc
   src/shared/SharedDeque.cc
   src/shared/SharedHash.cc
   src/shared/SharedManager.cc
@@ -118,7 +119,7 @@ if (ATOMIC_FOUND)
     ${FOLLY_LIBRARIES})
 
 else ()
-target_link_libraries(qclient PUBLIC 
+target_link_libraries(qclient PUBLIC
   fmt
   ${OPENSSL_LIBRARIES}
   ${FOLLY_LIBRARIES})
