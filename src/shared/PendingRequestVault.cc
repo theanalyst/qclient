@@ -43,7 +43,7 @@ PendingRequestVault::~PendingRequestVault() {}
 PendingRequestVault::InsertOutcome PendingRequestVault::insert(const std::string &channel, const std::string &contents,
     std::chrono::steady_clock::time_point timepoint) {
 
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   InsertOutcome outcome;
   outcome.id = generateUuid();
@@ -59,6 +59,7 @@ PendingRequestVault::InsertOutcome PendingRequestVault::insert(const std::string
   mapIter->second.listIter = mNextToRetry.end();
   --mapIter->second.listIter;
 
+  mCV.notify_all();
   return outcome;
 }
 
@@ -66,7 +67,7 @@ PendingRequestVault::InsertOutcome PendingRequestVault::insert(const std::string
 // Satisfy pending request
 //------------------------------------------------------------------------------
 bool PendingRequestVault::satisfy(const RequestID &id, CommunicatorReply &&reply) {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   auto mapIter = mPendingRequests.find(id);
   if(mapIter == mPendingRequests.end()) {
@@ -82,10 +83,69 @@ bool PendingRequestVault::satisfy(const RequestID &id, CommunicatorReply &&reply
 //------------------------------------------------------------------------------
 // Get current pending requests
 //------------------------------------------------------------------------------
-bool PendingRequestVault::size() const {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+size_t PendingRequestVault::size() const {
+  std::unique_lock<std::mutex> lock(mMutex);
   return mPendingRequests.size();
 }
+
+//------------------------------------------------------------------------------
+// Get earliest retry
+// - Return value False: Vault is empty
+// - Return value True: tp is filled with earliest lastRetry time_point
+//------------------------------------------------------------------------------
+bool PendingRequestVault::getEarliestRetry(std::chrono::steady_clock::time_point &tp) {
+  std::unique_lock<std::mutex> lock(mMutex);
+  if(mPendingRequests.empty()) {
+    return false;
+  }
+
+  tp = mPendingRequests[mNextToRetry.front()].lastRetry;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Retry front item, if it exists
+//------------------------------------------------------------------------------
+bool PendingRequestVault::retryFrontItem(std::chrono::steady_clock::time_point now,
+  std::string &channel, std::string &contents, std::string &id) {
+
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  if(mPendingRequests.empty()) {
+    return false;
+  }
+
+  Item& item = mPendingRequests[mNextToRetry.front()];
+  channel = item.channel;
+  contents = item.contents;
+  id = item.id;
+  item.lastRetry = now;
+
+  mNextToRetry.pop_front();
+  mNextToRetry.emplace_back(item.id);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Set blocking mode
+//------------------------------------------------------------------------------
+void PendingRequestVault::setBlockingMode(bool val) {
+  std::unique_lock<std::mutex> lock(mMutex);
+  mBlockingMode = val;
+  mCV.notify_all();
+}
+
+//------------------------------------------------------------------------------
+// Block until there's an item in the queue
+//------------------------------------------------------------------------------
+void PendingRequestVault::blockUntilNonEmpty() {
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  while(mBlockingMode && mPendingRequests.empty()) {
+    mCV.wait(lock);
+  }
+}
+
 
 
 }

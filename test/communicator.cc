@@ -30,6 +30,9 @@ TEST(PendingRequestVault, BasicSanity) {
   PendingRequestVault requestVault;
   ASSERT_EQ(requestVault.size(), 0u);
 
+  std::chrono::steady_clock::time_point tp2;
+  ASSERT_FALSE(requestVault.getEarliestRetry(tp2));
+
   std::chrono::steady_clock::time_point tp;
   tp += std::chrono::seconds(1);
 
@@ -38,6 +41,9 @@ TEST(PendingRequestVault, BasicSanity) {
 
   ASSERT_EQ(requestVault.size(), 1u);
   ASSERT_EQ(outcome.fut.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  ASSERT_TRUE(requestVault.getEarliestRetry(tp2));
+  ASSERT_EQ(tp, tp2);
+  requestVault.blockUntilNonEmpty();
 
   CommunicatorReply reply;
   reply.status = 123;
@@ -45,10 +51,45 @@ TEST(PendingRequestVault, BasicSanity) {
 
   ASSERT_FALSE(requestVault.satisfy("123", std::move(reply)));
   ASSERT_TRUE(requestVault.satisfy(outcome.id, std::move(reply)));
+
   ASSERT_EQ(requestVault.size(), 0u);
+  ASSERT_FALSE(requestVault.getEarliestRetry(tp2));
 
   CommunicatorReply rep = outcome.fut.get();
   ASSERT_EQ(rep.status, 123);
   ASSERT_EQ(rep.contents, "aaa");
+}
+
+TEST(PendingRequestVault, WithRetries) {
+  PendingRequestVault requestVault;
+  std::chrono::steady_clock::time_point start;
+
+  requestVault.insert("ch1", "123", start+std::chrono::seconds(1));
+  requestVault.insert("ch1", "1234", start+std::chrono::seconds(2));
+
+  ASSERT_EQ(requestVault.size(), 2u);
+  std::chrono::steady_clock::time_point tp;
+  std::string channel, contents, id;
+
+  ASSERT_TRUE(requestVault.getEarliestRetry(tp));
+  ASSERT_EQ(start+std::chrono::seconds(1), tp);
+  ASSERT_TRUE(requestVault.retryFrontItem(start+std::chrono::seconds(3),
+    channel, contents, id));
+  ASSERT_EQ(channel, "ch1");
+  ASSERT_EQ(contents, "123");
+
+  ASSERT_TRUE(requestVault.getEarliestRetry(tp));
+  ASSERT_EQ(start+std::chrono::seconds(2), tp);
+  ASSERT_TRUE(requestVault.retryFrontItem(start+std::chrono::seconds(4),
+    channel, contents, id));
+  ASSERT_EQ(channel, "ch1");
+  ASSERT_EQ(contents, "1234");
+
+  ASSERT_TRUE(requestVault.getEarliestRetry(tp));
+  ASSERT_EQ(start+std::chrono::seconds(3), tp);
+  ASSERT_TRUE(requestVault.retryFrontItem(start+std::chrono::seconds(5),
+    channel, contents, id));
+  ASSERT_EQ(channel, "ch1");
+  ASSERT_EQ(contents, "123");
 }
 

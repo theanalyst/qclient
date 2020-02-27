@@ -30,7 +30,7 @@
 #include <chrono>
 #include <list>
 #include <shared_mutex>
-#include "qclient/queueing/WaitableQueue.hh"
+#include <condition_variable>
 
 namespace qclient {
 
@@ -49,6 +49,22 @@ struct CommunicatorReply {
 class PendingRequestVault {
 public:
   using RequestID = std::string;
+
+  struct Item {
+    Item() {}
+    Item(const RequestID &reqid) : id(reqid) {}
+
+    std::chrono::steady_clock::time_point start;
+    std::chrono::steady_clock::time_point lastRetry;
+
+    RequestID id;
+
+    std::string channel;
+    std::string contents;
+    std::promise<CommunicatorReply> promise;
+
+    std::list<RequestID>::iterator listIter;
+  };
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -79,30 +95,40 @@ public:
   //----------------------------------------------------------------------------
   // Get current pending requests
   //----------------------------------------------------------------------------
-  bool size() const;
+  size_t size() const;
 
+  //----------------------------------------------------------------------------
+  // Get earliest retry
+  // - Return value False: Vault is empty
+  // - Return value True: tp is filled with earliest lastRetry time_point
+  //----------------------------------------------------------------------------
+  bool getEarliestRetry(std::chrono::steady_clock::time_point &tp);
+
+  //----------------------------------------------------------------------------
+  // Block until there's an item in the queue
+  //----------------------------------------------------------------------------
+  void blockUntilNonEmpty();
+
+  //----------------------------------------------------------------------------
+  // Set blocking mode
+  //----------------------------------------------------------------------------
+  void setBlockingMode(bool val);
+
+  //----------------------------------------------------------------------------
+  // Retry front item, if it exists
+  //----------------------------------------------------------------------------
+  bool retryFrontItem(std::chrono::steady_clock::time_point now,
+    std::string &channel, std::string &contents, std::string &id);
 
 private:
-  struct Item {
-    Item(const RequestID &reqid) : id(reqid) {}
-
-    std::chrono::steady_clock::time_point start;
-    std::chrono::steady_clock::time_point lastRetry;
-
-    RequestID id;
-
-    std::string channel;
-    std::string contents;
-    std::promise<CommunicatorReply> promise;
-
-    std::list<RequestID>::iterator listIter;
-  };
-
   using PendingRequestMap = std::map<RequestID, Item>;
 
   PendingRequestMap mPendingRequests;
   std::list<RequestID> mNextToRetry;
-  mutable std::shared_timed_mutex mMutex;
+  bool mBlockingMode {true};
+
+  mutable std::mutex mMutex;
+  std::condition_variable mCV;
 
 };
 
