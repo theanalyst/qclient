@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: Communicator.hh
+// File: PendingRequestVault.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,61 +21,88 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_SHARED_COMMUNICATOR_HH
-#define QCLIENT_SHARED_COMMUNICATOR_HH
+#ifndef QCLIENT_SHARED_PENDING_REQUEST_VAULT_HH
+#define QCLIENT_SHARED_PENDING_REQUEST_VAULT_HH
 
-#include "qclient/shared/PendingRequestVault.hh"
+#include <string>
+#include <future>
+#include <map>
+#include <chrono>
+#include <list>
+#include <shared_mutex>
+#include "qclient/queueing/WaitableQueue.hh"
 
 namespace qclient {
 
-class Subscriber;
-class QClient;
+struct CommunicatorReply {
+  int status;
+  std::string contents;
+};
 
 //------------------------------------------------------------------------------
-// Convenience class for point-to-point request / response messaging between
-// two clients with QuarkDB acting as the middleman.
+// Structure to keep track of current pending requests, and provide easy access
+// to ones that need to be retried.
 //
-// Implements proper retries, backoff, and timeouts. Requires an ACK from
-// the other side, which can optionally send a status code and a message.
-//
-// We need this for legacy reasons, if you're designing a system from scratch
-// I'm not sure how reasonable doing this would be. It could be useful for
-// very infrequent messages.
-//
-// For high volume messages, direct point-to-point with a TCP connection would
-// always be better than this contraption.
-//
-// The Communicator class is used for sending messages only. To receive them
-// from the other side, use CommunicatorListener.
+// Operations:
+// - Insert a new request, provide a UUID and std::future<Reply>
 //------------------------------------------------------------------------------
-class Communicator {
+class PendingRequestVault {
 public:
-  //----------------------------------------------------------------------------
-  // Convenience class for point-to-point request / response messaging
-  //----------------------------------------------------------------------------
-  Communicator(Subscriber* subscriber);
+  using RequestID = std::string;
 
   //----------------------------------------------------------------------------
-  // Issue a request on the given channel
+  // Constructor
   //----------------------------------------------------------------------------
-  std::future<CommunicatorReply> issue(const std::string &channel,
-    const std::string &contents);
+  PendingRequestVault();
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  ~PendingRequestVault();
+
+  //----------------------------------------------------------------------------
+  // Insert pending request
+  //----------------------------------------------------------------------------
+  struct InsertOutcome {
+    RequestID id;
+    std::future<CommunicatorReply> fut;
+  };
+
+  InsertOutcome insert(const std::string &channel, const std::string &contents,
+    std::chrono::steady_clock::time_point timepoint);
+
+  //----------------------------------------------------------------------------
+  // Satisfy pending request
+  //----------------------------------------------------------------------------
+  bool satisfy(const RequestID &id, CommunicatorReply &&reply);
+
+  //----------------------------------------------------------------------------
+  // Get current pending requests
+  //----------------------------------------------------------------------------
+  bool size() const;
+
 
 private:
-  using UniqueID = std::string;
+  struct Item {
+    Item(const RequestID &reqid) : id(reqid) {}
 
-  struct PendingRequest {
     std::chrono::steady_clock::time_point start;
     std::chrono::steady_clock::time_point lastRetry;
+
+    RequestID id;
 
     std::string channel;
     std::string contents;
     std::promise<CommunicatorReply> promise;
+
+    std::list<RequestID>::iterator listIter;
   };
 
-  Subscriber* mSubscriber;
-  QClient* mQcl;
-  std::map<UniqueID, std::unique_ptr<PendingRequest>> mPendingRequests;
+  using PendingRequestMap = std::map<RequestID, Item>;
+
+  PendingRequestMap mPendingRequests;
+  std::list<RequestID> mNextToRetry;
+  mutable std::shared_timed_mutex mMutex;
 
 };
 

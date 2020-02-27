@@ -1,7 +1,7 @@
-//------------------------------------------------------------------------------
-// File: Communicator.cc
+// ----------------------------------------------------------------------
+// File: communicator.cc
 // Author: Georgios Bitzes - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
@@ -21,22 +21,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/shared/Communicator.hh"
-#include "qclient/pubsub/Subscriber.hh"
+#include "qclient/shared/PendingRequestVault.hh"
+#include <gtest/gtest.h>
 
-namespace qclient {
+using namespace qclient;
 
-//------------------------------------------------------------------------------
-// Convenience class for point-to-point request / response messaging
-//------------------------------------------------------------------------------
-Communicator::Communicator(Subscriber* subscriber) : mSubscriber(subscriber),
-  mQcl(mSubscriber->getQcl()) {}
+TEST(PendingRequestVault, BasicSanity) {
+  PendingRequestVault requestVault;
+  ASSERT_EQ(requestVault.size(), 0u);
 
-//------------------------------------------------------------------------------
-// Issue a request on the given channel
-//------------------------------------------------------------------------------
-// std::future<qclient::CommunicatorReply> Communicator::issue(const std::string &channel,
-//     const std::string &contents) {
-// }
+  std::chrono::steady_clock::time_point tp;
+  tp += std::chrono::seconds(1);
 
+  PendingRequestVault::InsertOutcome outcome = requestVault.insert("ch1", "123", tp);
+  std::cerr << "RequestID: " << outcome.id << std::endl;
+
+  ASSERT_EQ(requestVault.size(), 1u);
+  ASSERT_EQ(outcome.fut.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+  CommunicatorReply reply;
+  reply.status = 123;
+  reply.contents = "aaa";
+
+  ASSERT_FALSE(requestVault.satisfy("123", std::move(reply)));
+  ASSERT_TRUE(requestVault.satisfy(outcome.id, std::move(reply)));
+  ASSERT_EQ(requestVault.size(), 0u);
+
+  CommunicatorReply rep = outcome.fut.get();
+  ASSERT_EQ(rep.status, 123);
+  ASSERT_EQ(rep.contents, "aaa");
 }
+

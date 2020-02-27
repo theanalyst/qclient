@@ -16,6 +16,7 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 if (NOT PACKAGEONLY)
   find_package(GTest)
   find_package(OpenSSL REQUIRED)
+  find_package(uuid REQUIRED)
 else ()
   message(STATUS "Runing CMake in package only mode.")
 endif()
@@ -79,6 +80,7 @@ add_library(qclient STATIC
   src/reader/sds.cc
 
   src/shared/Communicator.cc
+  src/shared/PendingRequestVault.cc
   src/shared/SharedDeque.cc
   src/shared/SharedHash.cc
   src/shared/SharedManager.cc
@@ -115,12 +117,14 @@ if (ATOMIC_FOUND)
   target_link_libraries(qclient PUBLIC
     fmt
     ATOMIC::ATOMIC
+    ${UUID_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${FOLLY_LIBRARIES})
 
 else ()
 target_link_libraries(qclient PUBLIC
   fmt
+  ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${FOLLY_LIBRARIES})
 endif()

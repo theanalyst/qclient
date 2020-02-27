@@ -1,7 +1,7 @@
-//------------------------------------------------------------------------------
-// File: Communicator.cc
+// ----------------------------------------------------------------------
+// File: Uuid.hh
 // Author: Georgios Bitzes - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * qclient - A simple redis C++ client with support for redirects       *
@@ -21,22 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/shared/Communicator.hh"
-#include "qclient/pubsub/Subscriber.hh"
+#ifndef QCLIENT_UUID_HH
+#define QCLIENT_UUID_HH
+
+#include <uuid/uuid.h>
 
 namespace qclient {
 
-//------------------------------------------------------------------------------
-// Convenience class for point-to-point request / response messaging
-//------------------------------------------------------------------------------
-Communicator::Communicator(Subscriber* subscriber) : mSubscriber(subscriber),
-  mQcl(mSubscriber->getQcl()) {}
+inline std::string generateUuid() {
+  char buffer[64];
 
-//------------------------------------------------------------------------------
-// Issue a request on the given channel
-//------------------------------------------------------------------------------
-// std::future<qclient::CommunicatorReply> Communicator::issue(const std::string &channel,
-//     const std::string &contents) {
-// }
+  uuid_t uuid;
+  uuid_generate_random(uuid);
+  uuid_unparse(uuid, buffer);
+
+  return std::string(buffer);
+}
 
 }
+
+#endif
