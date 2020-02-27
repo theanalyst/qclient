@@ -115,12 +115,23 @@ public:
   void setBlockingMode(bool val);
 
   //----------------------------------------------------------------------------
+  // Expire any items which were submitted past the deadline.
+  // Only the original submission time counts here, not the retries.
+  //----------------------------------------------------------------------------
+  size_t expire(std::chrono::steady_clock::time_point deadline);
+
+  //----------------------------------------------------------------------------
   // Retry front item, if it exists
   //----------------------------------------------------------------------------
   bool retryFrontItem(std::chrono::steady_clock::time_point now,
     std::string &channel, std::string &contents, std::string &id);
 
 private:
+  //----------------------------------------------------------------------------
+  // Drop front item
+  //----------------------------------------------------------------------------
+  void dropFront();
+
   using PendingRequestMap = std::map<RequestID, Item>;
 
   PendingRequestMap mPendingRequests;

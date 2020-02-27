@@ -104,6 +104,35 @@ bool PendingRequestVault::getEarliestRetry(std::chrono::steady_clock::time_point
 }
 
 //------------------------------------------------------------------------------
+// Drop front item
+//------------------------------------------------------------------------------
+void PendingRequestVault::dropFront() {
+  mPendingRequests.erase(mNextToRetry.front());
+  mNextToRetry.pop_front();
+}
+
+//------------------------------------------------------------------------------
+// Expire any items which were submitted past the deadline.
+// Only the original submission time counts here, not the retries.
+//------------------------------------------------------------------------------
+size_t PendingRequestVault::expire(std::chrono::steady_clock::time_point deadline) {
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  size_t expired = 0;
+  while(!mPendingRequests.empty()) {
+    if(mPendingRequests[mNextToRetry.front()].start <= deadline) {
+      dropFront();
+      expired++;
+    }
+    else {
+      break;
+    }
+  }
+
+  return expired;
+}
+
+//------------------------------------------------------------------------------
 // Retry front item, if it exists
 //------------------------------------------------------------------------------
 bool PendingRequestVault::retryFrontItem(std::chrono::steady_clock::time_point now,

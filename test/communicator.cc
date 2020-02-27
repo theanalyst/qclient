@@ -91,5 +91,19 @@ TEST(PendingRequestVault, WithRetries) {
     channel, contents, id));
   ASSERT_EQ(channel, "ch1");
   ASSERT_EQ(contents, "123");
-}
 
+  ASSERT_TRUE(requestVault.getEarliestRetry(tp));
+  ASSERT_EQ(start+std::chrono::seconds(4), tp);
+  ASSERT_TRUE(requestVault.retryFrontItem(start+std::chrono::seconds(6),
+    channel, contents, id));
+  ASSERT_EQ(channel, "ch1");
+  ASSERT_EQ(contents, "1234");
+
+
+  ASSERT_EQ(requestVault.expire(start), 0u);
+  ASSERT_EQ(requestVault.expire(start+std::chrono::seconds(1)), 1u);
+  ASSERT_EQ(requestVault.size(), 1u);
+  ASSERT_EQ(requestVault.expire(start+std::chrono::seconds(1)), 0u);
+  ASSERT_EQ(requestVault.expire(start+std::chrono::seconds(2)), 1u);
+  ASSERT_EQ(requestVault.size(), 0u);
+}
