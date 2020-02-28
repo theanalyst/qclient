@@ -81,6 +81,7 @@ add_library(qclient STATIC
 
   src/shared/BinarySerializer.cc
   src/shared/Communicator.cc
+  src/shared/CommunicatorListener.cc
   src/shared/PendingRequestVault.cc
   src/shared/SharedDeque.cc
   src/shared/SharedHash.cc
