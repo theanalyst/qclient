@@ -15,6 +15,7 @@ include_directories(
 add_executable(
   qclient-tests
 
+  binary-serializer.cc
   communicator.cc
   formatting.cc
   general.cc

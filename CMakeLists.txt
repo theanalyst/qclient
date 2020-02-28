@@ -79,6 +79,7 @@ add_library(qclient STATIC
   src/reader/reader.cc
   src/reader/sds.cc
 
+  src/shared/BinarySerializer.cc
   src/shared/Communicator.cc
   src/shared/PendingRequestVault.cc
   src/shared/SharedDeque.cc
