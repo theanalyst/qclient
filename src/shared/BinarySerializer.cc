@@ -23,6 +23,7 @@
 
 #include "BinarySerializer.hh"
 #include <string.h>
+#include <iostream>
 
 #ifdef __APPLE__
 
@@ -51,6 +52,13 @@ static void intToBinaryString(int64_t num, char* buff) {
   int64_t be = htobe64(num);
   memcpy(buff, &be, sizeof(be));
 }
+
+static int64_t binaryStringToInt(const char* buff) {
+  int64_t result;
+  memcpy(&result, buff, sizeof(result));
+  return be64toh(result);
+}
+
 
 //------------------------------------------------------------------------------
 //! Constructor
@@ -81,7 +89,7 @@ void BinarySerializer::appendBytes(const char* source, size_t len) {
 //------------------------------------------------------------------------------
 // Append string, including the length
 //------------------------------------------------------------------------------
-void BinarySerializer::appendStringWithLength(const std::string &str) {
+void BinarySerializer::appendString(const std::string &str) {
   appendInt64(str.size());
   appendBytes(str.data(), str.size());
 }
@@ -92,18 +100,63 @@ void BinarySerializer::appendStringWithLength(const std::string &str) {
 int64_t BinarySerializer::getRemaining() const {
   return target.size() - currentPosition;
 }
-
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
 BinaryDeserializer::BinaryDeserializer(const std::string &src)
 : source(src), currentPosition(0) {}
 
-//----------------------------------------------------------------------------
-//! Check if there's enough space to extract N bytes
-//----------------------------------------------------------------------------
-bool BinaryDeserializer::canExtract(size_t b) const {
-  return (source.size() - currentPosition) > b;
+//------------------------------------------------------------------------------
+//! Fetch int64_t
+//------------------------------------------------------------------------------
+bool BinaryDeserializer::consumeInt64(int64_t &out) {
+  if(!canConsume(8)) {
+    return false;
+  }
+
+  out = binaryStringToInt(source.data()+currentPosition);
+  currentPosition += 8;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+//! Consume that many raw bytes
+//------------------------------------------------------------------------------
+bool BinaryDeserializer::consumeRawBytes(std::string &str, size_t sz) {
+  if(!canConsume(sz)) {
+    return false;
+  }
+
+  str.resize(sz);
+  memcpy(str.data(), source.data()+currentPosition, sz);
+  currentPosition += sz;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+//! Fetch string
+//------------------------------------------------------------------------------
+bool BinaryDeserializer::consumeString(std::string &str) {
+  int64_t sz = 0;
+  if(!consumeInt64(sz)) {
+    return false;
+  }
+
+  return consumeRawBytes(str, sz);
+}
+
+//------------------------------------------------------------------------------
+//! Get number of bytes left
+//------------------------------------------------------------------------------
+size_t BinaryDeserializer::bytesLeft() const {
+  return (source.size() - currentPosition);
+}
+
+//------------------------------------------------------------------------------
+//! Check if it's possible to consume N bytes
+//------------------------------------------------------------------------------
+bool BinaryDeserializer::canConsume(size_t b) const {
+  return (source.size() - currentPosition) >= b;
 }
 
 }

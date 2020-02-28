@@ -33,8 +33,17 @@ TEST(BinarySerializer, BasicSanity) {
   BinarySerializer serializer(target, length);
   ASSERT_EQ( (size_t) serializer.getRemaining(), length);
 
-  serializer.appendStringWithLength("abc");
-  serializer.appendStringWithLength("12345");
+  serializer.appendString("abc");
+  serializer.appendString("12345");
 
   ASSERT_EQ(serializer.getRemaining(), 0);
+
+  BinaryDeserializer deserializer(target);
+
+  std::string tmp;
+  ASSERT_TRUE(deserializer.consumeString(tmp));
+  ASSERT_EQ(tmp, "abc");
+
+  ASSERT_TRUE(deserializer.consumeString(tmp));
+  ASSERT_EQ(tmp, "12345");
 }
