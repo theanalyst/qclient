@@ -31,6 +31,18 @@
 
 using namespace qclient;
 
+TEST(CommunicatorRequest, Serialization) {
+  std::string sourceUuid = "qwerty";
+  std::string contents = "uiop";
+
+  std::string payload = serializeCommunicatorRequest(sourceUuid, contents);
+
+  std::string parsedUuid;
+  std::string parsedContents;
+
+  ASSERT_TRUE(parseCommunicatorRequest(payload, parsedUuid, parsedContents));
+}
+
 TEST(Communicator, IssueWithReply) {
   Subscriber subscriber;
   Communicator communicator(&subscriber, "abc");

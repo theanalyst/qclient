@@ -24,6 +24,7 @@
 #include "SharedSerialization.hh"
 #include "qclient/shared/PendingRequestVault.hh"
 #include "qclient/utils/Macros.hh"
+#include "qclient/Debug.hh"
 #include "BinarySerializer.hh"
 #include <iostream>
 
@@ -84,6 +85,40 @@ bool parseBatch(const std::string &payload, std::map<std::string, std::string> &
 }
 
 //------------------------------------------------------------------------------
+//! Serialize Communicator request
+//------------------------------------------------------------------------------
+std::string serializeCommunicatorRequest(const std::string &uuid, const std::string &contents) {
+  std::string retval;
+
+  // REQ (string) + uuid (string) + contents (string)
+  size_t payloadSize = (8+3) + (8 + uuid.size()) + (8 + contents.size());
+
+  BinarySerializer serializer(retval, payloadSize);
+  serializer.appendString("REQ");
+  serializer.appendString(uuid);
+  serializer.appendString(contents);
+
+  qclient_assert(serializer.getRemaining() == 0);
+  return retval;
+}
+
+//------------------------------------------------------------------------------
+//! Parse Communicator request
+//------------------------------------------------------------------------------
+bool parseCommunicatorRequest(const std::string &payload, std::string &uuid, std::string &contents) {
+  BinaryDeserializer deserializer(payload);
+
+  std::string tmp;
+  if(!deserializer.consumeString(tmp)) return false;
+  if(tmp != "REQ") return false;
+  if(!deserializer.consumeString(uuid)) return false;
+  if(!deserializer.consumeString(contents)) return false;
+  if(deserializer.bytesLeft() != 0) return false;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 //! Serialize Communicator Reply
 //------------------------------------------------------------------------------
 std::string serializeCommunicatorReply(const std::string &uuid, const CommunicatorReply &reply) {
@@ -114,6 +149,7 @@ bool parseCommunicatorReply(const std::string &payload, CommunicatorReply &reply
   if(!deserializer.consumeString(uuid)) return false;
   if(!deserializer.consumeInt64(reply.status)) return false;
   if(!deserializer.consumeString(reply.contents)) return false;
+  if(deserializer.bytesLeft() != 0) return false;
 
   return true;
 }

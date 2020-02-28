@@ -39,11 +39,17 @@ std::string serializeBatch(const std::map<std::string, std::string> &batch);
 bool parseBatch(const std::string &payload, std::map<std::string, std::string> &out);
 
 //------------------------------------------------------------------------------
-//! Utilities for serializing the payload of messages intended for Communicator
-//! class.
+//! Utilities for serializing Communicator requests.
+//------------------------------------------------------------------------------
+std::string serializeCommunicatorRequest(const std::string &uuid, const std::string &contents);
+bool parseCommunicatorRequest(const std::string &payload, std::string &uuid, std::string &contents);
+
+//------------------------------------------------------------------------------
+//! Utilities for serializing Communicator replies.
 //------------------------------------------------------------------------------
 std::string serializeCommunicatorReply(const std::string &uuid, const CommunicatorReply &reply);
 bool parseCommunicatorReply(const std::string &payload, CommunicatorReply &reply, std::string &uuid);
+
 
 
 }
