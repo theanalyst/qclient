@@ -60,6 +60,11 @@ public:
   int64_t getRemaining() const;
 
 private:
+  //----------------------------------------------------------------------------
+  //! Get current position for write
+  //----------------------------------------------------------------------------
+  char* pos();
+
   std::string &target;
   size_t currentPosition;
 

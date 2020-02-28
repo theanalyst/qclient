@@ -71,10 +71,17 @@ BinarySerializer::BinarySerializer(std::string &trg, size_t size)
 }
 
 //------------------------------------------------------------------------------
+// Get current position for write
+//------------------------------------------------------------------------------
+char* BinarySerializer::pos() {
+  return ((char*) target.data()) + currentPosition;
+}
+
+//------------------------------------------------------------------------------
 // Append int64_t
 //------------------------------------------------------------------------------
 void BinarySerializer::appendInt64(int64_t num) {
-  intToBinaryString(num, target.data() + currentPosition);
+  intToBinaryString(num, pos());
   currentPosition += sizeof(int64_t);
 }
 
@@ -82,7 +89,7 @@ void BinarySerializer::appendInt64(int64_t num) {
 // Append raw bytes
 //------------------------------------------------------------------------------
 void BinarySerializer::appendBytes(const char* source, size_t len) {
-  memcpy(target.data() + currentPosition, source, len);
+  memcpy(pos(), source, len);
   currentPosition += len;
 }
 
