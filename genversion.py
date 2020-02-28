@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ################################################################################
 ## Script to generate version numbers from git tags.                          ##
@@ -45,10 +45,7 @@ class SoftwareVersion:
         if self.patch == None: assert self.miniPatch == None
 
     def toString(self):
-        ret = "{0}.{1}".format(self.major, self.minor)
-
-        if self.patch or self.miniPatch:
-            ret += ".{0}".format(self.patch)
+        ret = "{0}.{1}.{2}".format(self.major, self.minor, self.patch)
 
         if self.miniPatch:
             ret += ".{0}".format(self.miniPatch)
@@ -156,7 +153,7 @@ def applyTemplate(templateContent, replacements):
     return newContent
 
 def sh(cmd):
-    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode(sys.stdout.encoding)
 
 def getFile(filename):
     try:
