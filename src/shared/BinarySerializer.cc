@@ -135,7 +135,7 @@ bool BinaryDeserializer::consumeRawBytes(std::string &str, size_t sz) {
   }
 
   str.resize(sz);
-  memcpy(str.data(), source.data()+currentPosition, sz);
+  memcpy( (char*) str.data(), source.data()+currentPosition, sz);
   currentPosition += sz;
   return true;
 }
