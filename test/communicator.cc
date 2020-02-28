@@ -22,9 +22,35 @@
  ************************************************************************/
 
 #include "qclient/shared/PendingRequestVault.hh"
+#include "qclient/shared/Communicator.hh"
+#include "qclient/pubsub/Subscriber.hh"
+#include "qclient/pubsub/Message.hh"
+#include "shared/SharedSerialization.hh"
+#include "qclient/SSTR.hh"
 #include <gtest/gtest.h>
 
 using namespace qclient;
+
+TEST(Communicator, IssueWithReply) {
+  Subscriber subscriber;
+  Communicator communicator(&subscriber, "abc");
+
+  std::string reqid;
+  std::future<CommunicatorReply> fut = communicator.issue("1234", reqid);
+  ASSERT_EQ(fut.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  std::cerr << "Assigned RequestID: " << reqid << std::endl;
+
+  CommunicatorReply reply;
+  reply.status = 999;
+  reply.contents = "AAAA";
+
+  Message msg = Message::createMessage("abc", serializeCommunicatorReply(reqid, reply));
+  subscriber.feedFakeMessage(msg);
+
+  CommunicatorReply rep = fut.get();
+  ASSERT_EQ(rep.status, 999);
+  ASSERT_EQ(rep.contents, "AAAA");
+}
 
 TEST(PendingRequestVault, BasicSanity) {
   PendingRequestVault requestVault;

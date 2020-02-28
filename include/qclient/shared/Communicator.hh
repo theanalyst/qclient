@@ -29,7 +29,9 @@
 namespace qclient {
 
 class Subscriber;
+class Subscription;
 class QClient;
+class Message;
 
 //------------------------------------------------------------------------------
 // Convenience class for point-to-point request / response messaging between
@@ -53,29 +55,34 @@ public:
   //----------------------------------------------------------------------------
   // Convenience class for point-to-point request / response messaging
   //----------------------------------------------------------------------------
-  Communicator(Subscriber* subscriber);
+  Communicator(Subscriber* subscriber, const std::string &channel);
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  ~Communicator();
+
+  //----------------------------------------------------------------------------
+  // Issue a request on the given channel, retrieve assigned ID
+  //----------------------------------------------------------------------------
+  std::future<CommunicatorReply> issue(const std::string &contents, std::string &id);
 
   //----------------------------------------------------------------------------
   // Issue a request on the given channel
   //----------------------------------------------------------------------------
-  std::future<CommunicatorReply> issue(const std::string &channel,
-    const std::string &contents);
+  std::future<CommunicatorReply> issue(const std::string &contents);
 
 private:
-  using UniqueID = std::string;
-
-  struct PendingRequest {
-    std::chrono::steady_clock::time_point start;
-    std::chrono::steady_clock::time_point lastRetry;
-
-    std::string channel;
-    std::string contents;
-    std::promise<CommunicatorReply> promise;
-  };
+  //----------------------------------------------------------------------------
+  // Process incoming message
+  //----------------------------------------------------------------------------
+  void processIncoming(Message &&msg);
 
   Subscriber* mSubscriber;
+  std::string mChannel;
   QClient* mQcl;
-  std::map<UniqueID, std::unique_ptr<PendingRequest>> mPendingRequests;
+  PendingRequestVault mPendingVault;
+  std::unique_ptr<Subscription> mSubscription;
 
 };
 
