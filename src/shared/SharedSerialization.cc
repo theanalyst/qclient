@@ -22,46 +22,10 @@
  ************************************************************************/
 
 #include "SharedSerialization.hh"
-#include "qclient/Formatting.hh"
 #include "qclient/shared/PendingRequestVault.hh"
 #include "qclient/utils/Macros.hh"
 #include "BinarySerializer.hh"
-#include <sstream>
-#include <sys/types.h>
-#include <string.h>
 #include <iostream>
-
-#ifdef __APPLE__
-
-#include <libkern/OSByteOrder.h>
-
-#define htobe16(x) OSSwapHostToBigInt16(x)
-#define htole16(x) OSSwapHostToLittleInt16(x)
-#define be16toh(x) OSSwapBigToHostInt16(x)
-#define le16toh(x) OSSwapLittleToHostInt16(x)
-
-#define htobe32(x) OSSwapHostToBigInt32(x)
-#define htole32(x) OSSwapHostToLittleInt32(x)
-#define be32toh(x) OSSwapBigToHostInt32(x)
-#define le32toh(x) OSSwapLittleToHostInt32(x)
-
-#define htobe64(x) OSSwapHostToBigInt64(x)
-#define htole64(x) OSSwapHostToLittleInt64(x)
-#define be64toh(x) OSSwapBigToHostInt64(x)
-#define le64toh(x) OSSwapLittleToHostInt64(x)
-
-#endif
-
-static int64_t binaryStringToInt(const char* buff) {
-  int64_t result;
-  memcpy(&result, buff, sizeof(result));
-  return be64toh(result);
-}
-
-static void intToBinaryString(int64_t num, char* buff) {
-  int64_t be = htobe64(num);
-  memcpy(buff, &be, sizeof(be));
-}
 
 namespace qclient {
 
@@ -81,22 +45,13 @@ std::string serializeBatch(const std::map<std::string, std::string> &batch) {
     retvalSize += 8 + it->second.size();
   }
 
-  retval.resize(retvalSize);
-  char* pos = (char*) retval.data();
+  BinarySerializer serializer(retval, retvalSize);
 
-  intToBinaryString(batch.size() * 2, pos);
-  pos += 8;
+  serializer.appendInt64(batch.size() * 2);
 
   for(auto it = batch.begin(); it != batch.end(); it++) {
-    intToBinaryString(it->first.size(), pos);
-    pos += 8;
-    memcpy(pos, it->first.data(), it->first.size());
-    pos += it->first.size();
-
-    intToBinaryString(it->second.size(), pos);
-    pos += 8;
-    memcpy(pos, it->second.data(), it->second.size());
-    pos += it->second.size();
+    serializer.appendString(it->first);
+    serializer.appendString(it->second);
   }
 
   return retval;
@@ -105,28 +60,16 @@ std::string serializeBatch(const std::map<std::string, std::string> &batch) {
 bool parseBatch(const std::string &payload, std::map<std::string, std::string> &out) {
   out.clear();
 
-  if(payload.size() < 8) return false;
+  BinaryDeserializer deserializer(payload);
+
   int64_t elements = 0;
-
-  elements = binaryStringToInt(payload.data());
-  size_t pos = 8;
-
+  if(!deserializer.consumeInt64(elements)) return false;
   if(elements < 0 || elements % 2 != 0) return false;
 
   std::string key;
   for(int64_t i = 0; i < elements; i++) {
-    if(pos >= payload.size()) return false;
-
-    // parse string length
-    int64_t stringSize = binaryStringToInt(payload.data()+pos);
-    pos += 8;
-    if(pos+stringSize > payload.size()) return false;
-
-    // parse string
     std::string value;
-    value.resize(stringSize);
-    memcpy( (char*) value.data(), payload.data()+pos, stringSize);
-    pos += stringSize;
+    if(!deserializer.consumeString(value)) return false;
 
     // adjust output
     if(i % 2 != 0) {
