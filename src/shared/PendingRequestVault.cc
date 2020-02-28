@@ -22,7 +22,9 @@
  ************************************************************************/
 
 #include "qclient/shared/PendingRequestVault.hh"
+#include "qclient/utils/Macros.hh"
 #include "../Uuid.hh"
+#include <iostream>
 
 namespace qclient {
 
@@ -60,6 +62,7 @@ PendingRequestVault::InsertOutcome PendingRequestVault::insert(const std::string
   --mapIter->second.listIter;
 
   mCV.notify_all();
+  qclient_assert(mPendingRequests.size() == mNextToRetry.size());
   return outcome;
 }
 
@@ -77,6 +80,7 @@ bool PendingRequestVault::satisfy(const RequestID &id, CommunicatorReply &&reply
   mapIter->second.promise.set_value(std::move(reply));
   mNextToRetry.erase(mapIter->second.listIter);
   mPendingRequests.erase(mapIter);
+  qclient_assert(mPendingRequests.size() == mNextToRetry.size());
   return true;
 }
 
@@ -85,6 +89,7 @@ bool PendingRequestVault::satisfy(const RequestID &id, CommunicatorReply &&reply
 //------------------------------------------------------------------------------
 size_t PendingRequestVault::size() const {
   std::unique_lock<std::mutex> lock(mMutex);
+  qclient_assert(mPendingRequests.size() == mNextToRetry.size());
   return mPendingRequests.size();
 }
 
@@ -109,6 +114,7 @@ bool PendingRequestVault::getEarliestRetry(std::chrono::steady_clock::time_point
 void PendingRequestVault::dropFront() {
   mPendingRequests.erase(mNextToRetry.front());
   mNextToRetry.pop_front();
+  qclient_assert(mPendingRequests.size() == mNextToRetry.size());
 }
 
 //------------------------------------------------------------------------------
@@ -152,6 +158,7 @@ bool PendingRequestVault::retryFrontItem(std::chrono::steady_clock::time_point n
 
   mNextToRetry.pop_front();
   mNextToRetry.emplace_back(item.id);
+  qclient_assert(mPendingRequests.size() == mNextToRetry.size());
   return true;
 }
 

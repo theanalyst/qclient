@@ -23,6 +23,9 @@
 
 #include "SharedSerialization.hh"
 #include "qclient/Formatting.hh"
+#include "qclient/shared/PendingRequestVault.hh"
+#include "qclient/utils/Macros.hh"
+#include "BinarySerializer.hh"
 #include <sstream>
 #include <sys/types.h>
 #include <string.h>
@@ -137,5 +140,39 @@ bool parseBatch(const std::string &payload, std::map<std::string, std::string> &
   return true;
 }
 
+//------------------------------------------------------------------------------
+//! Serialize Communicator Reply
+//------------------------------------------------------------------------------
+std::string serializeCommunicatorReply(const std::string &uuid, const CommunicatorReply &reply) {
+
+  std::string retval;
+  // RESP (string) + uuid (string) + status (int64) + contents (string)
+  size_t payloadSize = (8 + 4) + (8 + uuid.size()) + (8) + (8 + reply.contents.size());
+
+  BinarySerializer serializer(retval, payloadSize);
+  serializer.appendString("RESP");
+  serializer.appendString(uuid);
+  serializer.appendInt64(reply.status);
+  serializer.appendString(reply.contents);
+
+  qclient_assert(serializer.getRemaining() == 0);
+  return retval;
+}
+
+//------------------------------------------------------------------------------
+//! Parse Communicator Reply
+//------------------------------------------------------------------------------
+bool parseCommunicatorReply(const std::string &payload, CommunicatorReply &reply, std::string &uuid) {
+  BinaryDeserializer deserializer(payload);
+
+  std::string tmp;
+  if(!deserializer.consumeString(tmp)) return false;
+  if(tmp != "RESP") return false;
+  if(!deserializer.consumeString(uuid)) return false;
+  if(!deserializer.consumeInt64(reply.status)) return false;
+  if(!deserializer.consumeString(reply.contents)) return false;
+
+  return true;
+}
 
 }

@@ -46,4 +46,5 @@ TEST(BinarySerializer, BasicSanity) {
 
   ASSERT_TRUE(deserializer.consumeString(tmp));
   ASSERT_EQ(tmp, "12345");
+  ASSERT_EQ(deserializer.bytesLeft(), 0u);
 }

@@ -35,7 +35,7 @@
 namespace qclient {
 
 struct CommunicatorReply {
-  int status;
+  int64_t status;
   std::string contents;
 };
 

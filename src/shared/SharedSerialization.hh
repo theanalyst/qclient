@@ -29,12 +29,22 @@
 
 namespace qclient {
 
+class CommunicatorReply;
+
 //------------------------------------------------------------------------------
 //! Utilities for serializing the payload of messages intended for shared
 //! data structures.
 //------------------------------------------------------------------------------
 std::string serializeBatch(const std::map<std::string, std::string> &batch);
 bool parseBatch(const std::string &payload, std::map<std::string, std::string> &out);
+
+//------------------------------------------------------------------------------
+//! Utilities for serializing the payload of messages intended for Communicator
+//! class.
+//------------------------------------------------------------------------------
+std::string serializeCommunicatorReply(const std::string &uuid, const CommunicatorReply &reply);
+bool parseCommunicatorReply(const std::string &payload, CommunicatorReply &reply, std::string &uuid);
+
 
 }
 

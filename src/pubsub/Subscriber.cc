@@ -213,7 +213,11 @@ std::unique_ptr<Subscription> Subscriber::subscribe(const std::string &channel) 
 // Get underlying QClient - lifetime tied to this object
 //------------------------------------------------------------------------------
 qclient::QClient* Subscriber::getQcl() {
-  return base->getQcl();
+  if(base) {
+    return base->getQcl();
+  }
+
+  return nullptr;
 }
 
 }
