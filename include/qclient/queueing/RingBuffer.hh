@@ -39,6 +39,7 @@ public:
   RingBuffer(size_t n) {
     mRing.resize(n);
     mNextToEvict = 0;
+    mRollover = false;
   }
 
   //----------------------------------------------------------------------------
@@ -51,6 +52,7 @@ public:
 
     if(mNextToEvict >= mRing.size()) {
       mNextToEvict = 0;
+      mRollover = true;
     }
   }
 
@@ -61,9 +63,17 @@ public:
     return mRing[mNextToEvict];
   }
 
+  //----------------------------------------------------------------------------
+  // Has rolled over?
+  //----------------------------------------------------------------------------
+  bool hasRolledOver() const {
+    return mRollover;
+  }
+
 private:
   std::vector<T> mRing;
   size_t mNextToEvict;
+  bool mRollover;
 };
 
 }

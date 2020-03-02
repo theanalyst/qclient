@@ -164,22 +164,29 @@ TEST(RingBuffer, BasicSanity) {
   RingBuffer<std::string> ringBuffer(3);
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ASSERT_FALSE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("aaa");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ASSERT_FALSE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("bbb");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ASSERT_FALSE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("ccc");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "aaa");
+  ASSERT_TRUE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("ddd");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "bbb");
+  ASSERT_TRUE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("eee");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "ccc");
+  ASSERT_TRUE(ringBuffer.hasRolledOver());
   ringBuffer.emplace_back("eee");
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "ddd");
+  ASSERT_TRUE(ringBuffer.hasRolledOver());
 }
