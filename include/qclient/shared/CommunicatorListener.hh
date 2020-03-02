@@ -24,8 +24,11 @@
 #ifndef QCLIENT_SHARED_COMMUNICATOR_LISTENER_HH
 #define QCLIENT_SHARED_COMMUNICATOR_LISTENER_HH
 
+#include "qclient/shared/PendingRequestVault.hh"
+
 #include "qclient/queueing/AttachableQueue.hh"
 #include "qclient/queueing/LastNSet.hh"
+#include "qclient/queueing/LastNMap.hh"
 
 #include <string>
 #include <memory>
@@ -101,7 +104,9 @@ private:
   QClient *mQcl;
   std::string mChannel;
   std::unique_ptr<Subscription> mSubscription;
+
   LastNSet<std::string> mAlreadyReceived;
+  LastNMap<std::string, CommunicatorReply> mCachedReplies;
 };
 
 

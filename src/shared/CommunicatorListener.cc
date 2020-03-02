@@ -63,7 +63,7 @@ void CommunicatorRequest::sendReply(int64_t status, const std::string &contents)
 //------------------------------------------------------------------------------
 CommunicatorListener::CommunicatorListener(Subscriber *subscriber, const std::string &channel)
 : mSubscriber(subscriber), mQcl(mSubscriber->getQcl()), mChannel(channel),
-  mAlreadyReceived(1000) {
+  mAlreadyReceived(1000), mCachedReplies(1000) {
 
   mSubscription = mSubscriber->subscribe(mChannel);
 
@@ -86,7 +86,25 @@ void CommunicatorListener::processIncoming(Message &&msg) {
 
   std::string uuid, contents;
   if(parseCommunicatorRequest(msg.getPayload(), uuid, contents)) {
-    if(!mAlreadyReceived.query(uuid)) {
+
+    CommunicatorReply cachedReply;
+    if(mCachedReplies.query(uuid, cachedReply)) {
+      //------------------------------------------------------------------------
+      // Cached response, replay
+      //------------------------------------------------------------------------
+      if(mQcl) {
+        mQcl->exec("PUBLISH", mChannel, serializeCommunicatorReply(uuid, cachedReply));
+      }
+    }
+    else if(mAlreadyReceived.query(uuid)) {
+      //------------------------------------------------------------------------
+      // Already received, but no response yet. Ignore
+      //------------------------------------------------------------------------
+    }
+    else {
+      //------------------------------------------------------------------------
+      // Add to queue
+      //------------------------------------------------------------------------
       this->emplace_back(this, uuid, contents);
       mAlreadyReceived.emplace(uuid);
     }
@@ -103,6 +121,7 @@ void CommunicatorListener::sendReply(int64_t status, const std::string &uuid, co
     reply.contents = contents;
 
     mQcl->exec("PUBLISH", mChannel, serializeCommunicatorReply(uuid, reply));
+    mCachedReplies.insert(uuid, reply);
   }
 }
 
