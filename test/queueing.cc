@@ -26,6 +26,7 @@
 #include "qclient/queueing/AttachableQueue.hh"
 #include "qclient/queueing/RingBuffer.hh"
 #include "qclient/queueing/LastNSet.hh"
+#include "qclient/queueing/LastNMap.hh"
 
 using namespace qclient;
 
@@ -219,4 +220,51 @@ TEST(LastNSet, BasicSanity) {
   ASSERT_TRUE(lastSet.query("ddd"));
 
   ASSERT_FALSE(lastSet.query(""));
+}
+
+TEST(LastNMap, BasicSanity) {
+  LastNMap<std::string, int32_t> lastMap(3);
+
+  lastMap.insert("a", 99);
+  int32_t val;
+
+  ASSERT_TRUE(lastMap.query("a", val));
+  ASSERT_EQ(val, 99);
+
+  lastMap.insert("a", 88);
+
+  ASSERT_TRUE(lastMap.query("a", val));
+  ASSERT_EQ(val, 88);
+
+  lastMap.insert("b", 77);
+
+  ASSERT_TRUE(lastMap.query("a", val));
+  ASSERT_EQ(val, 88);
+
+  ASSERT_TRUE(lastMap.query("b", val));
+  ASSERT_EQ(val, 77);
+
+  lastMap.insert("c", 66);
+
+  ASSERT_TRUE(lastMap.query("a", val));
+  ASSERT_EQ(val, 88);
+
+  ASSERT_TRUE(lastMap.query("b", val));
+  ASSERT_EQ(val, 77);
+
+  ASSERT_TRUE(lastMap.query("c", val));
+  ASSERT_EQ(val, 66);
+
+  lastMap.insert("d", 55);
+
+  ASSERT_FALSE(lastMap.query("a", val));
+
+  ASSERT_TRUE(lastMap.query("b", val));
+  ASSERT_EQ(val, 77);
+
+  ASSERT_TRUE(lastMap.query("c", val));
+  ASSERT_EQ(val, 66);
+
+  ASSERT_TRUE(lastMap.query("d", val));
+  ASSERT_EQ(val, 55);
 }

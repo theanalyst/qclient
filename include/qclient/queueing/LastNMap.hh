@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: LastNSet.hh
+// File: LastNMap.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_LAST_N_SET_HH
-#define QCLIENT_LAST_N_SET_HH
+#ifndef QCLIENT_LAST_N_MAP_HH
+#define QCLIENT_LAST_N_MAP_HH
 
 #include "RingBuffer.hh"
 #include <map>
@@ -34,51 +34,61 @@ namespace qclient {
 // A simple data structure to hold the "last N" elements put into it.
 // Thread-safe.
 //------------------------------------------------------------------------------
-template<typename T>
-class LastNSet {
+template<typename K, typename V>
+class LastNMap {
 public:
 
   //----------------------------------------------------------------------------
   // A simple data structure to hold the "last N" elements put into it.
   // Thread-safe.
   //----------------------------------------------------------------------------
-  LastNSet(size_t n) : mRingBuffer(n) {}
+  LastNMap(size_t n) : mRingBuffer(n) {}
 
   //----------------------------------------------------------------------------
-  // Does the given element exist in the set?
+  // Does the given element exist?
   //----------------------------------------------------------------------------
-  bool query(const T& elem) const {
+  bool query(const K& key, V& out) const {
     std::unique_lock<std::mutex> lock(mMutex);
-    return mSet.find(elem) != mSet.end();
+    auto it = mContents.find(key);
+
+    if(it == mContents.end()) {
+      return false;
+    }
+
+    out = it->second.value;
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Emplace
   //----------------------------------------------------------------------------
-  template<typename... Args>
-  void emplace(Args&&... args) {
+  void insert(const K &k, const V &v) {
     std::unique_lock<std::mutex> lock(mMutex);
 
     if(mRingBuffer.hasRolledOver()) {
-      auto it = mSet.find(mRingBuffer.getNextToEvict());
-      if(it != mSet.end()) {
-        it->second--;
+      auto it = mContents.find(mRingBuffer.getNextToEvict());
+      if(it != mContents.end()) {
+        it->second.count--;
 
-        if(it->second == 0) {
-          mSet.erase(it);
+        if(it->second.count == 0) {
+          mContents.erase(it);
         }
       }
-
     }
 
-    T item = T(std::forward<Args>(args)...);
-    mRingBuffer.emplace_back(item);
-    mSet[item]++;
+    mRingBuffer.emplace_back(k);
+    mContents[k].count++;
+    mContents[k].value = v;
   }
 
 private:
-  RingBuffer<T> mRingBuffer;
-  std::map<T, uint32_t> mSet;
+  struct InternalItem {
+    uint32_t count = 0;
+    V value;
+  };
+
+  RingBuffer<K> mRingBuffer;
+  std::map<K, InternalItem> mContents;
   mutable std::mutex mMutex;
 };
 
