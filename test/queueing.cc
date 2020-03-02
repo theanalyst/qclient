@@ -24,6 +24,7 @@
 #include <gtest/gtest.h>
 #include "qclient/queueing/ThreadSafeQueue.hh"
 #include "qclient/queueing/AttachableQueue.hh"
+#include "qclient/queueing/RingBuffer.hh"
 
 using namespace qclient;
 
@@ -157,4 +158,28 @@ TEST(AttachableQueue, BasicSanity) {
   queue.attach(std::bind(&Accumulator::add, &acu, _1));
   ASSERT_EQ(queue.size(), 0u);
   ASSERT_EQ(acu.getSum(), 20);
+}
+
+TEST(RingBuffer, BasicSanity) {
+  RingBuffer<std::string> ringBuffer(3);
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ringBuffer.emplace_back("aaa");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ringBuffer.emplace_back("bbb");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "");
+  ringBuffer.emplace_back("ccc");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "aaa");
+  ringBuffer.emplace_back("ddd");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "bbb");
+  ringBuffer.emplace_back("eee");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "ccc");
+  ringBuffer.emplace_back("eee");
+
+  ASSERT_EQ(ringBuffer.getNextToEvict(), "ddd");
 }
