@@ -23,6 +23,7 @@
 
 #include "qclient/shared/PendingRequestVault.hh"
 #include "qclient/shared/Communicator.hh"
+#include "qclient/shared/CommunicatorListener.hh"
 #include "qclient/pubsub/Subscriber.hh"
 #include "qclient/pubsub/Message.hh"
 #include "shared/SharedSerialization.hh"
@@ -144,4 +145,20 @@ TEST(PendingRequestVault, WithRetries) {
   ASSERT_EQ(requestVault.expire(start+std::chrono::seconds(1)), 0u);
   ASSERT_EQ(requestVault.expire(start+std::chrono::seconds(2)), 1u);
   ASSERT_EQ(requestVault.size(), 0u);
+}
+
+TEST(CommunicatorListener, BasicSanity) {
+  Subscriber subscriber;
+  CommunicatorListener communicator(&subscriber, "abc");
+
+  ASSERT_EQ(communicator.size(), 0u);
+  Message msg = Message::createMessage("abc", serializeCommunicatorRequest("1-2-3-4", "qqq"));
+  subscriber.feedFakeMessage(msg);
+  ASSERT_EQ(communicator.size(), 1u);
+
+  CommunicatorRequest req = communicator.front();
+  communicator.pop_front();
+
+  ASSERT_EQ(req.getID(), "1-2-3-4");
+  ASSERT_EQ(req.getContents(), "qqq");
 }

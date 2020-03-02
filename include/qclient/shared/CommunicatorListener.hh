@@ -26,17 +26,53 @@
 
 #include <string>
 #include <memory>
+#include "qclient/queueing/AttachableQueue.hh"
 
 namespace qclient {
 
 class Subscriber;
 class Subscription;
 class Message;
+class CommunicatorListener;
+class QClient;
+
+//------------------------------------------------------------------------------
+// CommunicatorRequest
+//------------------------------------------------------------------------------
+class CommunicatorRequest {
+public:
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  CommunicatorRequest(CommunicatorListener *listener, const std::string &uuid,
+    const std::string &contents);
+
+  //----------------------------------------------------------------------------
+  // Get request ID
+  //----------------------------------------------------------------------------
+  std::string getID() const;
+
+  //----------------------------------------------------------------------------
+  // Get contents
+  //----------------------------------------------------------------------------
+  std::string getContents() const;
+
+  //----------------------------------------------------------------------------
+  // Send reply
+  //----------------------------------------------------------------------------
+  void sendReply(int64_t status, const std::string &contents);
+
+private:
+  CommunicatorListener *mListener;
+  std::string mUuid;
+  std::string mContents;
+};
 
 //------------------------------------------------------------------------------
 // Convenience class to receive messages sent by Communicator.
 //------------------------------------------------------------------------------
-class CommunicatorListener {
+class CommunicatorListener : public qclient::AttachableQueue<CommunicatorRequest, 100> {
 public:
   //----------------------------------------------------------------------------
   // Constructor
@@ -48,6 +84,11 @@ public:
   //----------------------------------------------------------------------------
   ~CommunicatorListener();
 
+  //----------------------------------------------------------------------------
+  // Send reply
+  //----------------------------------------------------------------------------
+  void sendReply(int64_t status, const std::string &uuid, const std::string &contents);
+
 private:
   //----------------------------------------------------------------------------
   // Process incoming message
@@ -55,9 +96,9 @@ private:
   void processIncoming(Message &&msg);
 
   Subscriber *mSubscriber;
+  QClient *mQcl;
   std::string mChannel;
   std::unique_ptr<Subscription> mSubscription;
-
 };
 
 

@@ -23,14 +23,46 @@
 
 #include "qclient/shared/CommunicatorListener.hh"
 #include "qclient/pubsub/Subscriber.hh"
+#include "qclient/pubsub/Message.hh"
+#include "qclient/shared/PendingRequestVault.hh"
+#include "shared/SharedSerialization.hh"
 
 namespace qclient {
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+CommunicatorRequest::CommunicatorRequest(CommunicatorListener *listener, const std::string &uuid,
+  const std::string &contents) : mListener(listener), mUuid(uuid), mContents(contents) {}
+
+//------------------------------------------------------------------------------
+// Get request ID
+//------------------------------------------------------------------------------
+std::string CommunicatorRequest::getID() const {
+  return mUuid;
+}
+
+//------------------------------------------------------------------------------
+// Get contents
+//------------------------------------------------------------------------------
+std::string CommunicatorRequest::getContents() const {
+  return mContents;
+}
+
+//------------------------------------------------------------------------------
+// Send reply
+//------------------------------------------------------------------------------
+void CommunicatorRequest::sendReply(int64_t status, const std::string &contents) {
+  if(mListener) {
+    mListener->sendReply(status, mUuid, contents);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 CommunicatorListener::CommunicatorListener(Subscriber *subscriber, const std::string &channel)
-: mSubscriber(subscriber), mChannel(channel) {
+: mSubscriber(subscriber), mQcl(mSubscriber->getQcl()), mChannel(channel) {
 
   mSubscription = mSubscriber->subscribe(mChannel);
 
@@ -41,15 +73,34 @@ CommunicatorListener::CommunicatorListener(Subscriber *subscriber, const std::st
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-CommunicatorListener::~CommunicatorListener() {}
+CommunicatorListener::~CommunicatorListener() {
+  mSubscription.reset();
+}
 
 //------------------------------------------------------------------------------
 // Process incoming message
 //------------------------------------------------------------------------------
 void CommunicatorListener::processIncoming(Message &&msg) {
+  if(msg.getMessageType() != MessageType::kMessage) return;
 
+  std::string uuid, contents;
+  if(parseCommunicatorRequest(msg.getPayload(), uuid, contents)) {
+    this->emplace_back(this, uuid, contents);
+  }
 }
 
+//------------------------------------------------------------------------------
+// Send reply
+//------------------------------------------------------------------------------
+void CommunicatorListener::sendReply(int64_t status, const std::string &uuid, const std::string &contents) {
+  if(mQcl) {
+    CommunicatorReply reply;
+    reply.status = status;
+    reply.contents = contents;
+
+    mQcl->exec("PUBLISH", mChannel, serializeCommunicatorReply(uuid, reply));
+  }
+}
 
 }
 
