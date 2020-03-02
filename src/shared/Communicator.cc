@@ -27,14 +27,16 @@
 #include "SharedSerialization.hh"
 #include "qclient/SSTR.hh"
 #include "qclient/utils/Macros.hh"
+#include "qclient/utils/SteadyClock.hh"
 
 namespace qclient {
 
 //------------------------------------------------------------------------------
 // Convenience class for point-to-point request / response messaging
 //------------------------------------------------------------------------------
-Communicator::Communicator(Subscriber* subscriber, const std::string &channel)
-: mSubscriber(subscriber), mChannel(channel), mQcl(mSubscriber->getQcl()) {
+Communicator::Communicator(Subscriber* subscriber, const std::string &channel,
+  SteadyClock* clock)
+: mSubscriber(subscriber), mChannel(channel), mClock(clock), mQcl(mSubscriber->getQcl()) {
 
   mSubscription = mSubscriber->subscribe(mChannel);
 
@@ -45,7 +47,9 @@ Communicator::Communicator(Subscriber* subscriber, const std::string &channel)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-Communicator::~Communicator() {}
+Communicator::~Communicator() {
+  mPendingVault.setBlockingMode(false);
+}
 
 //------------------------------------------------------------------------------
 // Issue a request on the given channel
@@ -60,7 +64,7 @@ std::future<CommunicatorReply> Communicator::issue(const std::string &contents) 
 //------------------------------------------------------------------------------
 std::future<CommunicatorReply> Communicator::issue(const std::string &contents, std::string &id) {
   PendingRequestVault::InsertOutcome outcome = mPendingVault.insert(mChannel,
-    contents, std::chrono::steady_clock::now());
+    contents, SteadyClock::now(mClock));
 
   id = outcome.id;
 
@@ -69,6 +73,31 @@ std::future<CommunicatorReply> Communicator::issue(const std::string &contents, 
   }
 
   return std::move(outcome.fut);
+}
+
+//------------------------------------------------------------------------------
+// Run next-to-retry pass
+//
+// Return value:
+// - False: Nothing to retry
+// - True: We have something to retry
+//------------------------------------------------------------------------------
+bool Communicator::runNextToRetry(std::string &channel, std::string &contents, std::string &id) {
+  mPendingVault.expire(SteadyClock::now(mClock) - mHardDeadline);
+
+  std::chrono::steady_clock::time_point earliestRetry;
+  if(!mPendingVault.getEarliestRetry(earliestRetry)) {
+    // Empty, nothing to retry
+    return false;
+  }
+
+  // Are we at least mRetryInterval ahead of last retry?
+  if(earliestRetry+mRetryInterval > SteadyClock::now(mClock)) {
+    return false;
+  }
+
+  // Let's do it
+  return mPendingVault.retryFrontItem(SteadyClock::now(mClock), channel, contents, id);
 }
 
 //------------------------------------------------------------------------------

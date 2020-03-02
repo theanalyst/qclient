@@ -26,6 +26,7 @@
 #include "qclient/shared/CommunicatorListener.hh"
 #include "qclient/pubsub/Subscriber.hh"
 #include "qclient/pubsub/Message.hh"
+#include "qclient/utils/SteadyClock.hh"
 #include "shared/SharedSerialization.hh"
 #include "qclient/SSTR.hh"
 #include <gtest/gtest.h>
@@ -63,6 +64,40 @@ TEST(Communicator, IssueWithReply) {
   CommunicatorReply rep = fut.get();
   ASSERT_EQ(rep.status, 999);
   ASSERT_EQ(rep.contents, "AAAA");
+}
+
+TEST(Communicator, WithRetries) {
+  Subscriber subscriber;
+  SteadyClock steadyClock(true);
+  Communicator communicator(&subscriber, "abc", &steadyClock);
+
+  std::string reqid;
+  std::future<CommunicatorReply> fut = communicator.issue("987", reqid);
+  ASSERT_EQ(fut.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+  std::cerr << "Assigned RequestID: " << reqid << std::endl;
+
+  std::string retryChannel, retryContents, retryID;
+  ASSERT_FALSE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+
+  steadyClock.advance(std::chrono::seconds(9));
+  ASSERT_FALSE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+
+  steadyClock.advance(std::chrono::seconds(1));
+  ASSERT_TRUE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+
+  ASSERT_EQ(retryChannel, "abc");
+  ASSERT_EQ(retryContents, "987");
+  ASSERT_EQ(retryID, reqid);
+
+  ASSERT_FALSE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+  steadyClock.advance(std::chrono::seconds(10));
+  ASSERT_TRUE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+
+  // Test expiry
+  steadyClock.advance(std::chrono::seconds(40));
+  ASSERT_FALSE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
+  steadyClock.advance(std::chrono::seconds(9000));
+  ASSERT_FALSE(communicator.runNextToRetry(retryChannel, retryContents, retryID));
 }
 
 TEST(PendingRequestVault, BasicSanity) {

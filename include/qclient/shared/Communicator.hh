@@ -32,6 +32,7 @@ class Subscriber;
 class Subscription;
 class QClient;
 class Message;
+class SteadyClock;
 
 //------------------------------------------------------------------------------
 // Convenience class for point-to-point request / response messaging between
@@ -55,7 +56,7 @@ public:
   //----------------------------------------------------------------------------
   // Convenience class for point-to-point request / response messaging
   //----------------------------------------------------------------------------
-  Communicator(Subscriber* subscriber, const std::string &channel);
+  Communicator(Subscriber* subscriber, const std::string &channel, SteadyClock* clock = nullptr);
 
   //----------------------------------------------------------------------------
   // Destructor
@@ -72,6 +73,15 @@ public:
   //----------------------------------------------------------------------------
   std::future<CommunicatorReply> issue(const std::string &contents);
 
+  //----------------------------------------------------------------------------
+  // Run next-to-retry pass
+  //
+  // Return value:
+  // - False: Nothing to retry
+  // - True: We have something to retry
+  //----------------------------------------------------------------------------
+  bool runNextToRetry(std::string &channel, std::string &contents, std::string &id);
+
 private:
   //----------------------------------------------------------------------------
   // Process incoming message
@@ -80,9 +90,14 @@ private:
 
   Subscriber* mSubscriber;
   std::string mChannel;
+  SteadyClock *mClock;
+
   QClient* mQcl;
   PendingRequestVault mPendingVault;
   std::unique_ptr<Subscription> mSubscription;
+
+  std::chrono::seconds mHardDeadline = std::chrono::minutes(1);
+  std::chrono::seconds mRetryInterval = std::chrono::seconds(10);
 
 };
 
