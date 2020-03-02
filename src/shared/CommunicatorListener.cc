@@ -62,7 +62,8 @@ void CommunicatorRequest::sendReply(int64_t status, const std::string &contents)
 // Constructor
 //------------------------------------------------------------------------------
 CommunicatorListener::CommunicatorListener(Subscriber *subscriber, const std::string &channel)
-: mSubscriber(subscriber), mQcl(mSubscriber->getQcl()), mChannel(channel) {
+: mSubscriber(subscriber), mQcl(mSubscriber->getQcl()), mChannel(channel),
+  mAlreadyReceived(1000) {
 
   mSubscription = mSubscriber->subscribe(mChannel);
 
@@ -85,7 +86,10 @@ void CommunicatorListener::processIncoming(Message &&msg) {
 
   std::string uuid, contents;
   if(parseCommunicatorRequest(msg.getPayload(), uuid, contents)) {
-    this->emplace_back(this, uuid, contents);
+    if(!mAlreadyReceived.query(uuid)) {
+      this->emplace_back(this, uuid, contents);
+      mAlreadyReceived.emplace(uuid);
+    }
   }
 }
 

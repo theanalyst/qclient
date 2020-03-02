@@ -161,4 +161,7 @@ TEST(CommunicatorListener, BasicSanity) {
 
   ASSERT_EQ(req.getID(), "1-2-3-4");
   ASSERT_EQ(req.getContents(), "qqq");
+
+  subscriber.feedFakeMessage(msg);
+  ASSERT_EQ(communicator.size(), 0u);
 }

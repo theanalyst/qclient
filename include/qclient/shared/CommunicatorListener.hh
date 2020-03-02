@@ -24,9 +24,11 @@
 #ifndef QCLIENT_SHARED_COMMUNICATOR_LISTENER_HH
 #define QCLIENT_SHARED_COMMUNICATOR_LISTENER_HH
 
+#include "qclient/queueing/AttachableQueue.hh"
+#include "qclient/queueing/LastNSet.hh"
+
 #include <string>
 #include <memory>
-#include "qclient/queueing/AttachableQueue.hh"
 
 namespace qclient {
 
@@ -99,6 +101,7 @@ private:
   QClient *mQcl;
   std::string mChannel;
   std::unique_ptr<Subscription> mSubscription;
+  LastNSet<std::string> mAlreadyReceived;
 };
 
 
