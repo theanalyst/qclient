@@ -25,6 +25,7 @@
 #include "qclient/queueing/ThreadSafeQueue.hh"
 #include "qclient/queueing/AttachableQueue.hh"
 #include "qclient/queueing/RingBuffer.hh"
+#include "qclient/queueing/LastNSet.hh"
 
 using namespace qclient;
 
@@ -189,4 +190,33 @@ TEST(RingBuffer, BasicSanity) {
 
   ASSERT_EQ(ringBuffer.getNextToEvict(), "ddd");
   ASSERT_TRUE(ringBuffer.hasRolledOver());
+}
+
+TEST(LastNSet, BasicSanity) {
+  LastNSet<std::string> lastSet(3);
+
+  ASSERT_FALSE(lastSet.query(""));
+
+  lastSet.emplace("aaa");
+  ASSERT_TRUE(lastSet.query("aaa"));
+  ASSERT_FALSE(lastSet.query("bbb"));
+  ASSERT_FALSE(lastSet.query("ccc"));
+
+  lastSet.emplace("bbb");
+  ASSERT_TRUE(lastSet.query("aaa"));
+  ASSERT_TRUE(lastSet.query("bbb"));
+  ASSERT_FALSE(lastSet.query("ccc"));
+
+  lastSet.emplace("ccc");
+  ASSERT_TRUE(lastSet.query("aaa"));
+  ASSERT_TRUE(lastSet.query("bbb"));
+  ASSERT_TRUE(lastSet.query("ccc"));
+
+  lastSet.emplace("ddd");
+  ASSERT_FALSE(lastSet.query("aaa"));
+  ASSERT_TRUE(lastSet.query("bbb"));
+  ASSERT_TRUE(lastSet.query("ccc"));
+  ASSERT_TRUE(lastSet.query("ddd"));
+
+  ASSERT_FALSE(lastSet.query(""));
 }
