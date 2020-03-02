@@ -24,6 +24,8 @@
 #ifndef QCLIENT_RING_BUFFER_HH
 #define QCLIENT_RING_BUFFER_HH
 
+#include <vector>
+
 namespace qclient {
 
 //------------------------------------------------------------------------------
