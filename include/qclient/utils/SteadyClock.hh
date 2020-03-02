@@ -90,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if this is a "fake" clock
   //----------------------------------------------------------------------------
-  inline bool IsFake() const
+  inline bool isFake() const
   {
     return mFake;
   }

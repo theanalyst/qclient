@@ -42,6 +42,10 @@ Communicator::Communicator(Subscriber* subscriber, const std::string &channel,
 
   using namespace std::placeholders;
   mSubscription->attachCallback(std::bind(&Communicator::processIncoming, this, _1));
+
+  if(!mClock || !mClock->isFake()) {
+    mThread.reset(&Communicator::backgroundThread, this);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -49,6 +53,34 @@ Communicator::Communicator(Subscriber* subscriber, const std::string &channel,
 //------------------------------------------------------------------------------
 Communicator::~Communicator() {
   mPendingVault.setBlockingMode(false);
+}
+
+//------------------------------------------------------------------------------
+// Cleanup and retry thread
+//------------------------------------------------------------------------------
+void Communicator::backgroundThread(ThreadAssistant &assistant) {
+  while(!assistant.terminationRequested()) {
+    std::chrono::steady_clock::time_point earliestRetry;
+    if(!mPendingVault.getEarliestRetry(earliestRetry)) {
+      // Pending vault empty, sleep
+      mPendingVault.blockUntilNonEmpty();
+      continue;
+    }
+
+    std::chrono::steady_clock::time_point now = SteadyClock::now(mClock);
+    if(earliestRetry+mRetryInterval < now) {
+      // Not there yet, need to wait a bit more
+      std::chrono::milliseconds nextRetryIn = std::chrono::duration_cast<std::chrono::milliseconds>(now - (earliestRetry+mRetryInterval));
+      assistant.wait_for(nextRetryIn);
+      continue;
+    }
+
+    // Retry time
+    std::string channel, contents, id;
+    if(runNextToRetry(channel, contents, id) && mQcl) {
+      mQcl->exec("PUBLISH", channel, serializeCommunicatorRequest(id, contents));
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +101,7 @@ std::future<CommunicatorReply> Communicator::issue(const std::string &contents, 
   id = outcome.id;
 
   if(mQcl) {
-    mQcl->exec("PUBLISH", mChannel, SSTR("REQ---" << outcome.id << "---" << contents));
+    mQcl->exec("PUBLISH", mChannel, serializeCommunicatorRequest(outcome.id, contents));
   }
 
   return std::move(outcome.fut);

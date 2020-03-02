@@ -25,6 +25,7 @@
 #define QCLIENT_SHARED_COMMUNICATOR_HH
 
 #include "qclient/shared/PendingRequestVault.hh"
+#include "qclient/AssistedThread.hh"
 
 namespace qclient {
 
@@ -82,7 +83,17 @@ public:
   //----------------------------------------------------------------------------
   bool runNextToRetry(std::string &channel, std::string &contents, std::string &id);
 
+  //----------------------------------------------------------------------------
+  // Get time to sleep until next retry
+  //----------------------------------------------------------------------------
+  std::chrono::milliseconds getSleepUntilRetry() const;
+
 private:
+  //----------------------------------------------------------------------------
+  // Cleanup and retry thread
+  //----------------------------------------------------------------------------
+  void backgroundThread(ThreadAssistant &assistant);
+
   //----------------------------------------------------------------------------
   // Process incoming message
   //----------------------------------------------------------------------------
@@ -98,6 +109,8 @@ private:
 
   std::chrono::seconds mHardDeadline = std::chrono::minutes(1);
   std::chrono::seconds mRetryInterval = std::chrono::seconds(10);
+
+  AssistedThread mThread;
 
 };
 
