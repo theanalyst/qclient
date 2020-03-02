@@ -28,6 +28,7 @@
 #include "qclient/SSTR.hh"
 #include "qclient/utils/Macros.hh"
 #include "qclient/utils/SteadyClock.hh"
+#include "qclient/Debug.hh"
 
 namespace qclient {
 
@@ -35,8 +36,10 @@ namespace qclient {
 // Convenience class for point-to-point request / response messaging
 //------------------------------------------------------------------------------
 Communicator::Communicator(Subscriber* subscriber, const std::string &channel,
-  SteadyClock* clock)
-: mSubscriber(subscriber), mChannel(channel), mClock(clock), mQcl(mSubscriber->getQcl()) {
+  SteadyClock* clock, std::chrono::milliseconds retryInterval,
+  std::chrono::seconds deadline)
+: mSubscriber(subscriber), mChannel(channel), mClock(clock), mQcl(mSubscriber->getQcl()),
+  mRetryInterval(retryInterval), mHardDeadline(deadline) {
 
   mSubscription = mSubscriber->subscribe(mChannel);
 
@@ -68,16 +71,16 @@ void Communicator::backgroundThread(ThreadAssistant &assistant) {
     }
 
     std::chrono::steady_clock::time_point now = SteadyClock::now(mClock);
-    if(earliestRetry+mRetryInterval < now) {
+    if(earliestRetry+mRetryInterval > now) {
       // Not there yet, need to wait a bit more
       std::chrono::milliseconds nextRetryIn = std::chrono::duration_cast<std::chrono::milliseconds>(now - (earliestRetry+mRetryInterval));
       assistant.wait_for(nextRetryIn);
       continue;
     }
 
-    // Retry time
     std::string channel, contents, id;
     if(runNextToRetry(channel, contents, id) && mQcl) {
+      // Go
       mQcl->exec("PUBLISH", channel, serializeCommunicatorRequest(id, contents));
     }
   }

@@ -229,9 +229,10 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
     if(listener) {
       Message msg;
       if(!MessageParser::parse(std::move(reply), msg)) {
-        //------------------------------------------------------------------------
+        //----------------------------------------------------------------------
         // Parse error, doesn't look like a valid pub/sub message
-        //------------------------------------------------------------------------
+        //----------------------------------------------------------------------
+        QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to parse incoming PUSH type message: " << qclient::describeRedisReply(reply));
         return false;
       }
 
@@ -256,6 +257,7 @@ bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
       //------------------------------------------------------------------------
       // Parse error, doesn't look like a valid pub/sub message
       //------------------------------------------------------------------------
+      QCLIENT_LOG(logger, LogLevel::kWarn, "Unable to parse incoming message while connection is in PUB/SUB mode: " << qclient::describeRedisReply(reply));
       return false;
     }
 

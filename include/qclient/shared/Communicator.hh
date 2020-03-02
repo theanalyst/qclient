@@ -57,7 +57,10 @@ public:
   //----------------------------------------------------------------------------
   // Convenience class for point-to-point request / response messaging
   //----------------------------------------------------------------------------
-  Communicator(Subscriber* subscriber, const std::string &channel, SteadyClock* clock = nullptr);
+  Communicator(Subscriber* subscriber, const std::string &channel, SteadyClock* clock = nullptr,
+    std::chrono::milliseconds mRetryInterval = std::chrono::seconds(10),
+    std::chrono::seconds mHardDeadline = std::chrono::seconds(60)
+  );
 
   //----------------------------------------------------------------------------
   // Destructor
@@ -107,8 +110,8 @@ private:
   PendingRequestVault mPendingVault;
   std::unique_ptr<Subscription> mSubscription;
 
-  std::chrono::seconds mHardDeadline = std::chrono::minutes(1);
-  std::chrono::seconds mRetryInterval = std::chrono::seconds(10);
+  std::chrono::milliseconds mRetryInterval;
+  std::chrono::milliseconds mHardDeadline;
 
   AssistedThread mThread;
 
