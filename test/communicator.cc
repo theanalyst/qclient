@@ -182,6 +182,25 @@ TEST(PendingRequestVault, WithRetries) {
   ASSERT_EQ(requestVault.size(), 0u);
 }
 
+TEST(PendingRequestVault, SingleItemRetry) {
+  PendingRequestVault requestVault;
+  std::chrono::steady_clock::time_point start;
+
+  requestVault.insert("ch1", "123", start+std::chrono::seconds(1));
+
+  std::string channel, contents, id;
+  ASSERT_TRUE(requestVault.retryFrontItem(start+std::chrono::seconds(3),
+     channel, contents, id));
+  ASSERT_EQ(channel, "ch1");
+  ASSERT_EQ(contents, "123");
+
+  CommunicatorReply reply;
+  reply.status = 123;
+  reply.contents = "aaa";
+
+  ASSERT_TRUE(requestVault.satisfy(id, std::move(reply)));
+}
+
 TEST(CommunicatorListener, BasicSanity) {
   Subscriber subscriber;
   CommunicatorListener communicator(&subscriber, "abc");

@@ -156,8 +156,7 @@ bool PendingRequestVault::retryFrontItem(std::chrono::steady_clock::time_point n
   id = item.id;
   item.lastRetry = now;
 
-  mNextToRetry.pop_front();
-  mNextToRetry.emplace_back(item.id);
+  mNextToRetry.splice(mNextToRetry.end(), mNextToRetry, mNextToRetry.begin());
   qclient_assert(mPendingRequests.size() == mNextToRetry.size());
   return true;
 }
