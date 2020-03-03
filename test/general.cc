@@ -149,7 +149,7 @@ TEST(ResponseBuilder, MakeArrayStrStrInt) {
 }
 
 TEST(ConnectionCore, NoRetries) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), false);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "123"));
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeErr("UNAVAILABLE test test")));
@@ -158,7 +158,7 @@ TEST(ConnectionCore, NoRetries) {
 }
 
 TEST(ConnectionCore, BasicSanity) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "asdf1"));
   std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("ping", "asdf2"));
@@ -174,7 +174,7 @@ TEST(ConnectionCore, BasicSanity) {
 }
 
 TEST(ConnectionCore, Overflow) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "123"));
 
@@ -183,7 +183,7 @@ TEST(ConnectionCore, Overflow) {
 }
 
 TEST(ConnectionCore, BreakWhenMultiReceivesNonQueued) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "1234"), 3);
   ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeInt(8)));
@@ -206,7 +206,7 @@ TEST(ConnectionCore, BreakWhenMultiReceivesNonQueued) {
 }
 
 TEST(ConnectionCore, IgnoredResponses) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "1234"), 1);
 
@@ -217,7 +217,7 @@ TEST(ConnectionCore, IgnoredResponses) {
 }
 
 TEST(ConnectionCore, IgnoredResponsesWithReconnect) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "789"), 2);
 
@@ -239,7 +239,7 @@ TEST(ConnectionCore, IgnoredResponsesWithReconnect) {
 }
 
 TEST(ConnectionCore, Unavailable) {
-  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), RetryStrategy::InfiniteRetries());
+  ConnectionCore core(nullptr, nullptr, BackpressureStrategy::Default(), true);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("ping", "789"));
   std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("get", "asdf"));
@@ -265,7 +265,7 @@ TEST(ConnectionCore, Unavailable) {
 TEST(ConnectionCore, BadHandshakeResponse) {
   PingHandshake handshake("test test");
   ConnectionCore core(nullptr, &handshake,
-    BackpressureStrategy::Default(), RetryStrategy::NoRetries());
+    BackpressureStrategy::Default(), false);
 
   ASSERT_FALSE(core.consumeResponse(ResponseBuilder::makeStr("adsf")));
   core.reconnection();
@@ -282,7 +282,7 @@ TEST(ConnectionCore, PubSubModeWithHandshakeNoRetries) {
 
   MessageQueue mq;
   ConnectionCore core(nullptr, &handshake,
-    BackpressureStrategy::Default(), RetryStrategy::NoRetries(), &mq);
+    BackpressureStrategy::Default(), false, &mq);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("asdf", "1234"));
   ASSERT_TRUE(core.consumeResponse(ResponseBuilder::makeStr("hi there")));
@@ -334,7 +334,7 @@ TEST(ConnectionCore, PubSubModeWithHandshakeNoRetries) {
 TEST(ConnectionCore, NonExclusivePubsub) {
   MessageQueue mq;
   ConnectionCore core(nullptr, nullptr,
-    BackpressureStrategy::Default(), RetryStrategy::NoRetries(), &mq, false);
+    BackpressureStrategy::Default(), false, &mq, false);
 
   std::future<redisReplyPtr> fut1 = core.stage(EncodedRequest::make("qqqq", "adsf"));
   std::future<redisReplyPtr> fut2 = core.stage(EncodedRequest::make("qqqq", "adsf"));

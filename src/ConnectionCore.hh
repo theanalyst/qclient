@@ -44,7 +44,7 @@ class MessageListener;
 class ConnectionCore {
 public:
   ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy backpressure,
-    RetryStrategy rs, MessageListener *listener = nullptr, bool exclusivePubsub = true);
+    bool transparentUnavailable, MessageListener *listener = nullptr, bool exclusivePubsub = true);
   ~ConnectionCore();
   void reconnection();
 
@@ -69,7 +69,7 @@ private:
   Logger *logger;
   Handshake *handshake;
   BackpressureApplier backpressure;
-  RetryStrategy retryStrategy;
+  bool transparentUnavailable;
   MessageListener *listener = nullptr;
   bool exclusivePubsub;
 

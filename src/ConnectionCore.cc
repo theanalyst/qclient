@@ -31,9 +31,9 @@
 
 namespace qclient {
 
-ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp, RetryStrategy rs,
-  MessageListener *ms, bool exclpubsub)
-: logger(log), handshake(hs), backpressure(bp), retryStrategy(rs), listener(ms),
+ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp,
+  bool transUnavail, MessageListener *ms, bool exclpubsub)
+: logger(log), handshake(hs), backpressure(bp), transparentUnavailable(transUnavail), listener(ms),
   exclusivePubsub(exclpubsub) {
   reconnection();
 }
@@ -193,7 +193,7 @@ static bool isQueued(const redisReplyPtr &reply) {
 
 bool ConnectionCore::consumeResponse(redisReplyPtr &&reply) {
   // Is this a transient "unavailable" error? Specific to QDB.
-  if(retryStrategy.active() && isUnavailable(reply.get())) {
+  if(transparentUnavailable && isUnavailable(reply.get())) {
     // Break connection, try again.
     QCLIENT_LOG(logger, LogLevel::kWarn, "Cluster is temporarily unavailable: " << std::string(reply->str, reply->len));
     return false;
