@@ -122,13 +122,25 @@ if (ATOMIC_FOUND)
     ${UUID_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${FOLLY_LIBRARIES})
-
 else ()
 target_link_libraries(qclient PUBLIC
   fmt
   ${UUID_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${FOLLY_LIBRARIES})
+endif()
+
+set_property(TARGET qclient APPEND PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/qclient>)
+
+if (FOLLY_FOUND)
+  target_compile_definitions(qclient INTERFACE HAVE_FOLLY=1)
+
+  set_property(TARGET qclient APPEND PROPERTY
+    INTERFACE_INCLUDE_DIRECTORIES
+    $<BUILD_INTERFACE:${FOLLY_INCLUDE_DIRS}>)
 endif()
 
 set_target_properties(
