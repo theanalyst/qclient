@@ -26,8 +26,13 @@
 
 #include "qclient/utils/Macros.hh"
 #include <map>
-#include <shared_mutex>
 #include <string>
+
+#ifdef EOSCITRINE
+#include "common/SharedMutexWrapper.hh"
+#else
+#include <shared_mutex>
+#endif
 
 namespace qclient {
 

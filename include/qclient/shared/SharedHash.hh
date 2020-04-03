@@ -28,10 +28,15 @@
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Reply.hh"
 #include <map>
-#include <shared_mutex>
 #include <vector>
 #include <string>
 #include <future>
+
+#ifdef EOSCITRINE
+#include "common/SharedMutexWrapper.hh"
+#else
+#include <shared_mutex>
+#endif
 
 namespace qclient {
 
