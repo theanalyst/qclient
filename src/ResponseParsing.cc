@@ -122,4 +122,65 @@ std::string StringParser::value() const {
   return val;
 }
 
+HgetallParser::HgetallParser(const redisReplyPtr reply) : HgetallParser(reply.get()) {}
+
+HgetallParser::HgetallParser(const redisReply *reply) {
+  if(reply == nullptr) {
+    error = "Received null redisReply";
+    isOk = false;
+    return;
+  }
+
+  if(reply->type != REDIS_REPLY_ARRAY) {
+    error = SSTR("Unexpected reply type; was expecting ARRAY, received " << qclient::describeRedisReply(reply));
+    isOk = false;
+    return;
+  }
+
+  if(reply->elements % 2 != 0) {
+    error = SSTR("Unexpected number of elements; expected a multiple of 2, received " << reply->elements);
+    isOk = false;
+    return;
+  }
+
+  for(size_t i = 0; i < reply->elements; i += 2) {
+    StringParser parserKey(reply->element[i]);
+
+    if(!parserKey.ok()) {
+      error = SSTR("Unexpected reply type for element #" << i << ": " << parserKey.err());
+      isOk = false;
+      return;
+    }
+
+    StringParser parserValue(reply->element[i+1]);
+    if(!parserValue.ok()) {
+      error = SSTR("Unexpected reply type for element #" << i+1 << ": " << parserValue.err());
+      isOk = false;
+      return;
+    }
+
+    if(val.find(parserKey.value()) != val.end()) {
+      error = SSTR("Found duplicate key: '" << parserKey.value() << "'");
+      isOk = false;
+      return;
+    }
+
+    val.emplace(parserKey.value(), parserValue.value());
+  }
+
+  isOk = true;
+}
+
+bool HgetallParser::ok() const {
+  return isOk;
+}
+
+std::string HgetallParser::err() const {
+  return error;
+}
+
+std::map<std::string, std::string> HgetallParser::value() const {
+  return val;
+}
+
 }

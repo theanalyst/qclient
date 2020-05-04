@@ -82,3 +82,65 @@ TEST(ResponseParsing, StringParserErr) {
   ASSERT_FALSE(parser.ok());
   ASSERT_EQ(parser.err(), "Unexpected reply type; was expecting STRING, received (integer) 13");
 }
+
+TEST(ResponseParsing, HgetallParserNull) {
+  HgetallParser parser(nullptr);
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Received null redisReply");
+}
+
+TEST(ResponseParsing, HgetallParserErrInt) {
+  HgetallParser parser(ResponseBuilder::makeInt(13));
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Unexpected reply type; was expecting ARRAY, received (integer) 13");
+}
+
+TEST(ResponseParsing, HgetallParserErrOddElements) {
+  std::vector<std::string> vec = { "1", "2", "3" };
+
+  HgetallParser parser(ResponseBuilder::makeStringArray(vec));
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Unexpected number of elements; expected a multiple of 2, received 3");
+}
+
+TEST(ResponseParsing, HgetallParserErrBadTypesInArray) {
+  ResponseBuilder builder;
+  builder.feed("*2\r\n$1\r\na\r\n+3\r\n");
+
+  redisReplyPtr reply;
+  ASSERT_EQ(ResponseBuilder::Status::kOk, builder.pull(reply));
+
+  HgetallParser parser(reply);
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Unexpected reply type for element #1: Unexpected reply type; was expecting STRING, received 3");
+}
+
+TEST(ResponseParsing, HgetallParserEmpty) {
+  std::vector<std::string> emptyVec;
+
+  HgetallParser parser(ResponseBuilder::makeStringArray(emptyVec));
+  ASSERT_TRUE(parser.ok());
+  ASSERT_TRUE(parser.err().empty());
+  ASSERT_TRUE(parser.value().empty());
+}
+
+TEST(ResponseParsing, HgetallDuplicate) {
+  std::vector<std::string> vec = { "1", "2", "1", "4" };
+
+  HgetallParser parser(ResponseBuilder::makeStringArray(vec));
+  ASSERT_FALSE(parser.ok());
+  ASSERT_EQ(parser.err(), "Found duplicate key: '1'");
+}
+
+TEST(ResponseParsing, Hgetall) {
+  std::vector<std::string> vec = { "1", "2", "3", "4" };
+
+  HgetallParser parser(ResponseBuilder::makeStringArray(vec));
+  ASSERT_TRUE(parser.ok());
+  ASSERT_TRUE(parser.err().empty());
+
+  std::map<std::string, std::string> val = parser.value();
+  ASSERT_EQ(val.size(), 2u);
+  ASSERT_EQ(val["1"], "2");
+  ASSERT_EQ(val["3"], "4");
+}

@@ -26,6 +26,7 @@
 
 #include "qclient/Reply.hh"
 #include <string>
+#include <map>
 
 namespace qclient {
 
@@ -77,6 +78,24 @@ private:
   std::string val;
 };
 
+//------------------------------------------------------------------------------
+// Parse HGETALL reply, fills out a map
+//------------------------------------------------------------------------------
+class HgetallParser {
+public:
+
+  HgetallParser(const redisReply *reply);
+  HgetallParser(const redisReplyPtr reply);
+
+  bool ok() const;
+  std::string err() const;
+  std::map<std::string, std::string> value() const;
+
+private:
+  bool isOk;
+  std::string error;
+  std::map<std::string, std::string> val;
+};
 
 
 }
