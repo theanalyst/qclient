@@ -44,6 +44,7 @@
 #include "qclient/AssistedThread.hh"
 #include "qclient/FaultInjector.hh"
 #include "qclient/ReconnectionListener.hh"
+#include "qclient/Status.hh"
 
 #if HAVE_FOLLY == 1
 #include <folly/futures/Future.h>
@@ -229,6 +230,12 @@ public:
   //! removed, false otherwise.
   //----------------------------------------------------------------------------
   bool detachListener(ReconnectionListener *listener);
+
+  //----------------------------------------------------------------------------
+  //! Check whether we're currently connected by sending a PING -- synchronous
+  //! operation with the given timeout.
+  //----------------------------------------------------------------------------
+  Status checkConnection(std::chrono::milliseconds timeout);
 
 private:
   // The cluster members, as given in the constructor.

@@ -523,3 +523,27 @@ QClient::del(const std::string& key)
   return reply->integer;
 }
 
+//------------------------------------------------------------------------------
+// Check whether we're currently connected by sending a PING -- synchronous
+// operation with the given timeout.
+//------------------------------------------------------------------------------
+Status QClient::checkConnection(std::chrono::milliseconds timeout) {
+  std::future<qclient::redisReplyPtr> fut = this->exec("PING");
+
+  if(fut.wait_for(timeout) != std::future_status::ready) {
+    return Status(ETIME, "time-out while waiting on PING reply");
+  }
+
+  qclient::redisReplyPtr reply = fut.get();
+
+  if (!reply) {
+    return Status(ENOTCONN, "connection not active");
+  }
+
+  if (reply->type != REDIS_REPLY_STATUS || std::string(reply->str, reply->len) != "PONG") {
+    return Status(EINVAL, SSTR("Received unexpected response to PING request: " << qclient::describeRedisReply(reply)));
+  }
+
+  return Status();
+}
+
