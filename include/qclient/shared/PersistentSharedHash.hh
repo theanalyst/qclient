@@ -59,18 +59,18 @@ class SharedManager; class Logger;
 class Subscription; class QClient;
 class Message;
 
-class SharedHash final : public ReconnectionListener {
+class PersistentSharedHash final : public ReconnectionListener {
 public:
   //----------------------------------------------------------------------------
   //! Constructor - supply a SharedManager object. I'll keep a reference to it
   //! throughout my lifetime - don't destroy it before me!
   //----------------------------------------------------------------------------
-  SharedHash(SharedManager *sm, const std::string &key);
+  PersistentSharedHash(SharedManager *sm, const std::string &key);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SharedHash();
+  virtual ~PersistentSharedHash();
 
   //----------------------------------------------------------------------------
   //! Read contents of the specified field.

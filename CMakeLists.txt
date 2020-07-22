@@ -83,8 +83,8 @@ add_library(qclient STATIC
   src/shared/Communicator.cc
   src/shared/CommunicatorListener.cc
   src/shared/PendingRequestVault.cc
+  src/shared/PersistentSharedHash.cc
   src/shared/SharedDeque.cc
-  src/shared/SharedHash.cc
   src/shared/SharedManager.cc
   src/shared/SharedSerialization.cc
   src/shared/TransientSharedHash.cc

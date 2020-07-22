@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "qclient/shared/SharedHash.hh"
+#include "qclient/shared/PersistentSharedHash.hh"
 #include "qclient/shared/SharedManager.hh"
 #include "qclient/shared/TransientSharedHash.hh"
 #include <gtest/gtest.h>
