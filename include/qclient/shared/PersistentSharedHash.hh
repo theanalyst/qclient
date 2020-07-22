@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef QCLIENT_SHARED_HASH_HH
-#define QCLIENT_SHARED_HASH_HH
+#ifndef QCLIENT_PERSISTENT_SHARED_HASH_HH
+#define QCLIENT_PERSISTENT_SHARED_HASH_HH
 
 #include "qclient/utils/Macros.hh"
 #include "qclient/ReconnectionListener.hh"
