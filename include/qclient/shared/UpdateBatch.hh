@@ -66,6 +66,13 @@ public:
   ConstIterator localBegin() const;
   ConstIterator localEnd() const;
 
+  //----------------------------------------------------------------------------
+  //! References to maps
+  //----------------------------------------------------------------------------
+  const std::map<std::string, std::string>& getPersistent() const;
+  const std::map<std::string, std::string>& getTransient() const;
+  const std::map<std::string, std::string>& getLocal() const;
+
 private:
   std::map<std::string, std::string> mDurableUpdates;
   std::map<std::string, std::string> mTransientUpdates;

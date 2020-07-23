@@ -24,6 +24,8 @@
 #include "qclient/shared/SharedHash.hh"
 #include "qclient/shared/PersistentSharedHash.hh"
 #include "qclient/shared/TransientSharedHash.hh"
+#include "qclient/shared/UpdateBatch.hh"
+#include "qclient/shared/SharedManager.hh"
 
 namespace qclient {
 
@@ -31,7 +33,49 @@ namespace qclient {
 // Constructor
 //------------------------------------------------------------------------------
 SharedHash::SharedHash(SharedManager *sm, const std::string &key)
-: mSharedManager(sm), mKey(key) {}
+: mSharedManager(sm), mKey(key) {
 
+  mPersistent.reset(new PersistentSharedHash(sm, key));
+  mTransient = sm->makeTransientSharedHash(key);
 }
 
+//------------------------------------------------------------------------------
+// Set value
+//------------------------------------------------------------------------------
+void SharedHash::set(const UpdateBatch &batch) {
+  std::unique_lock<std::mutex> lock(mMutex);
+  for(auto it = batch.localBegin(); it != batch.localEnd(); it++) {
+    mLocal[it->first] = it->second;
+  }
+
+  lock.unlock();
+
+  mPersistent->set(batch.getPersistent());
+  mTransient->set(batch.getTransient());
+}
+
+//------------------------------------------------------------------------------
+// Get value
+//------------------------------------------------------------------------------
+bool SharedHash::get(const std::string &field, std::string& value) {
+  std::unique_lock<std::mutex> lock(mMutex);
+  auto it = mLocal.find(field);
+  if(it != mLocal.end()) {
+    value = it->second;
+    return true;
+  }
+
+  lock.unlock();
+
+  if(mTransient->get(field, value)) {
+    return true;
+  }
+
+  if(mPersistent->get(field, value)) {
+    return true;
+  }
+
+  return false;
+}
+
+}

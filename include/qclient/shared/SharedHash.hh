@@ -30,9 +30,14 @@
 #include <shared_mutex>
 #endif
 
+#include <map>
+
 namespace qclient {
 
 class SharedManager;
+class UpdateBatch;
+class PersistentSharedHash;
+class TransientSharedHash;
 
 //------------------------------------------------------------------------------
 //! Convenience class for Transient + Persistent shared hashes mushed together.
@@ -49,9 +54,24 @@ public:
   //----------------------------------------------------------------------------
   ~SharedHash();
 
+  //----------------------------------------------------------------------------
+  //! Set value
+  //----------------------------------------------------------------------------
+  void set(const UpdateBatch &batch);
+
+  //----------------------------------------------------------------------------
+  //! Get value
+  //----------------------------------------------------------------------------
+  bool get(const std::string &field, std::string& value);
+
 private:
   SharedManager* mSharedManager;
   std::string mKey;
+
+  std::mutex mMutex;
+  std::map<std::string, std::string> mLocal;
+  std::unique_ptr<PersistentSharedHash> mPersistent;
+  std::unique_ptr<TransientSharedHash> mTransient;
 };
 
 }

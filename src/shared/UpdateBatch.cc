@@ -79,4 +79,19 @@ UpdateBatch::ConstIterator UpdateBatch::localEnd() const {
   return mLocalUpdates.end();
 }
 
+//------------------------------------------------------------------------------
+// References to maps
+//------------------------------------------------------------------------------
+const std::map<std::string, std::string>& UpdateBatch::getPersistent() const {
+  return mDurableUpdates;
+}
+
+const std::map<std::string, std::string>& UpdateBatch::getTransient() const {
+  return mTransientUpdates;
+}
+
+const std::map<std::string, std::string>& UpdateBatch::getLocal() const {
+  return mLocalUpdates;
+}
+
 }
