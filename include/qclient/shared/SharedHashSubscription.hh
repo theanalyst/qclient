@@ -56,14 +56,29 @@ public:
   //----------------------------------------------------------------------------
   ~SharedHashSubscription();
 
+  //----------------------------------------------------------------------------
+  //! Detach from subscriber
+  //----------------------------------------------------------------------------
+  void detach();
+
+  //----------------------------------------------------------------------------
+  //! Check if currently attached to subscriber
+  //----------------------------------------------------------------------------
+  bool isAttached() const;
+
 private:
   friend class SharedHashSubscriber;
 
   //----------------------------------------------------------------------------
-  // Internal state
+  // Process incoming update
   //----------------------------------------------------------------------------
-  qclient::AttachableQueue<SharedHashUpdate, 50> queue;
-  std::shared_ptr<SharedHashSubscriber> subscriber;
+  void processIncoming(const SharedHashUpdate &update);
+
+  //----------------------------------------------------------------------------
+  //! Internal state
+  //----------------------------------------------------------------------------
+  qclient::AttachableQueue<SharedHashUpdate, 50> mQueue;
+  std::shared_ptr<SharedHashSubscriber> mSubscriber;
 
 };
 
@@ -92,7 +107,13 @@ public:
   //----------------------------------------------------------------------------
   void registerSubscription(SharedHashSubscription *subscription);
 
+  //----------------------------------------------------------------------------
+  //! Unregister subscription
+  //----------------------------------------------------------------------------
+  void unregisterSubscription(SharedHashSubscription *subscription);
+
 private:
+  std::mutex mMutex;
   std::set<SharedHashSubscription*> mSubscriptions;
 };
 
