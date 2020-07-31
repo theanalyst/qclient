@@ -58,10 +58,59 @@ void SharedHashSubscription::detach() {
 }
 
 //------------------------------------------------------------------------------
+// Get oldest entry, ie the front of the queue. Return false if the queue
+// is empty.
+//------------------------------------------------------------------------------
+bool SharedHashSubscription::front(SharedHashUpdate &out) const {
+  if(mQueue.size() == 0) {
+    return false;
+  }
+
+  out = mQueue.front();
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Remove the oldest entry, ie the front of the queue.
+//------------------------------------------------------------------------------
+void SharedHashSubscription::pop_front() {
+  return mQueue.pop_front();
+}
+
+//------------------------------------------------------------------------------
+// Is the queue empty?
+//------------------------------------------------------------------------------
+bool SharedHashSubscription::empty() const {
+  return mQueue.size() == 0;
+}
+
+//------------------------------------------------------------------------------
+// Return queue size
+//------------------------------------------------------------------------------
+size_t SharedHashSubscription::size() const {
+  return mQueue.size();
+}
+
+//------------------------------------------------------------------------------
+// Stop behaving like a queue, forward incoming messages to the given
+// callback.
+//------------------------------------------------------------------------------
+void SharedHashSubscription::attachCallback(const Callback &cb) {
+  mQueue.attach(cb);
+}
+
+//------------------------------------------------------------------------------
+// Detach callback, start behaving like a queue again
+//------------------------------------------------------------------------------
+void SharedHashSubscription::detachCallback() {
+  mQueue.detach();
+}
+
+//------------------------------------------------------------------------------
 // Process incoming update
 //------------------------------------------------------------------------------
 void SharedHashSubscription::processIncoming(const SharedHashUpdate &update) {
-
+  mQueue.emplace_back(update);
 }
 
 //------------------------------------------------------------------------------
