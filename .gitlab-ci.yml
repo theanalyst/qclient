@@ -1,9 +1,9 @@
 stages:
 - build
 
-fedora-31:
+centos8:
   stage: build
-  image: fedora:31
+  image: gitlab-registry.cern.ch/linuxsupport/c8-base
   script:
     - dnf install -y git python rpm-build which dnf-plugins-core libuuid-devel
     - ci/gitlab-build.sh
