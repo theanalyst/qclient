@@ -47,6 +47,7 @@ namespace qclient {
 //------------------------------------------------------------------------------
 class SharedManager; class Logger;
 class Subscription; class Message;
+class SharedHashSubscriber;
 
 class TransientSharedHash {
 public:
@@ -77,7 +78,8 @@ private:
   //! Private constructor - use SharedManager to instantiate this object.
   //----------------------------------------------------------------------------
   TransientSharedHash(SharedManager *sharedManager, const std::string &channel,
-    std::unique_ptr<qclient::Subscription> sub);
+    std::unique_ptr<qclient::Subscription> sub,
+    const std::shared_ptr<SharedHashSubscriber> &hashSub = {});
 
   //----------------------------------------------------------------------------
   //! Process incoming message
@@ -95,6 +97,8 @@ private:
   mutable std::mutex contentsMtx;
   std::map<std::string, std::string> contents;
   std::unique_ptr<qclient::Subscription> subscription;
+
+  std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
 };
 
 }

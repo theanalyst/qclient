@@ -34,8 +34,9 @@ namespace qclient {
 //! Private constructor - use SharedManager to instantiate this object.
 //------------------------------------------------------------------------------
 TransientSharedHash::TransientSharedHash(SharedManager *sm,
-  const std::string &chan, std::unique_ptr<qclient::Subscription> sub)
-: sharedManager(sm), channel(chan), subscription(std::move(sub)) {
+  const std::string &chan, std::unique_ptr<qclient::Subscription> sub,
+  const std::shared_ptr<SharedHashSubscriber> &hashSub)
+: sharedManager(sm), channel(chan), subscription(std::move(sub)), mHashSubscriber(hashSub) {
 
   using namespace std::placeholders;
   subscription->attachCallback(std::bind(&TransientSharedHash::processIncoming, this, _1));

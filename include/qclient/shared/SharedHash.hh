@@ -38,6 +38,7 @@ class SharedManager;
 class UpdateBatch;
 class PersistentSharedHash;
 class TransientSharedHash;
+class SharedHashSubscriber;
 
 //------------------------------------------------------------------------------
 //! Convenience class for Transient + Persistent shared hashes mushed together.
@@ -65,6 +66,8 @@ public:
   bool get(const std::string &field, std::string& value);
 
 private:
+  std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
+
   SharedManager* mSharedManager;
   std::string mKey;
 

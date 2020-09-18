@@ -34,6 +34,7 @@ class Members;
 class QClient;
 class Subscriber;
 class TransientSharedHash;
+class SharedHashSubscriber;
 
 //------------------------------------------------------------------------------
 //! SharedManager class to babysit SharedHashes and SharedQueues.
@@ -65,7 +66,7 @@ public:
   //! Make a transient shared hash based on the given channel
   //----------------------------------------------------------------------------
   std::unique_ptr<TransientSharedHash> makeTransientSharedHash(
-    const std::string &channel);
+    const std::string &channel, const std::shared_ptr<SharedHashSubscriber> &hashSub = {});
 
   //----------------------------------------------------------------------------
   //! Publish the given message. You probably should not call this directly,

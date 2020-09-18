@@ -26,6 +26,7 @@
 #include "qclient/shared/TransientSharedHash.hh"
 #include "qclient/shared/UpdateBatch.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 namespace qclient {
 
@@ -34,6 +35,8 @@ namespace qclient {
 //------------------------------------------------------------------------------
 SharedHash::SharedHash(SharedManager *sm, const std::string &key)
 : mSharedManager(sm), mKey(key) {
+
+  mHashSubscriber.reset(new SharedHashSubscriber());
 
   mPersistent.reset(new PersistentSharedHash(sm, key));
   mTransient = sm->makeTransientSharedHash(key);

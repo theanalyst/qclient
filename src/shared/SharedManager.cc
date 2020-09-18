@@ -75,8 +75,9 @@ void SharedManager::publish(const std::string &channel, const std::string &paylo
 //------------------------------------------------------------------------------
 // Make a transient shared hash based on the given channel
 //------------------------------------------------------------------------------
-std::unique_ptr<TransientSharedHash> SharedManager::makeTransientSharedHash(const std::string &channel) {
-  return std::unique_ptr<TransientSharedHash>(new TransientSharedHash(this, channel, subscriber->subscribe(channel)));
+std::unique_ptr<TransientSharedHash> SharedManager::makeTransientSharedHash(const std::string &channel,
+  const std::shared_ptr<SharedHashSubscriber> &hashSub) {
+  return std::unique_ptr<TransientSharedHash>(new TransientSharedHash(this, channel, subscriber->subscribe(channel), hashSub));
 }
 
 //------------------------------------------------------------------------------
