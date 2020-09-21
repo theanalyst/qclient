@@ -42,6 +42,13 @@ SharedHash::SharedHash(SharedManager *sm, const std::string &key)
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+SharedHash::~SharedHash() {
+
+}
+
+//------------------------------------------------------------------------------
 // Set value
 //------------------------------------------------------------------------------
 void SharedHash::set(const UpdateBatch &batch) {
@@ -78,6 +85,14 @@ bool SharedHash::get(const std::string &field, std::string& value) {
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Subscribe for updates to this hash
+//------------------------------------------------------------------------------
+std::unique_ptr<SharedHashSubscription> SharedHash::subscribe() {
+  return std::unique_ptr<SharedHashSubscription>(
+    new SharedHashSubscription(mHashSubscriber));
 }
 
 }

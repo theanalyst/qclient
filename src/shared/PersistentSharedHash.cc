@@ -31,6 +31,7 @@
 #include "qclient/pubsub/Subscriber.hh"
 #include "qclient/pubsub/Message.hh"
 #include "qclient/ResponseBuilder.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 #include <sstream>
 
 namespace qclient {
@@ -290,6 +291,18 @@ bool PersistentSharedHash::feedRevision(uint64_t revision, const std::map<std::s
   }
 
   currentVersion = revision;
+  lock.unlock();
+
+  if(mHashSubscriber) {
+    for(auto it = updates.begin(); it != updates.end(); it++) {
+      qclient::SharedHashUpdate hashUpdate;
+      hashUpdate.key = it->first;
+      hashUpdate.value = it->second;
+
+      mHashSubscriber->feedUpdate(hashUpdate);
+    }
+  }
+
   return true;
 }
 

@@ -114,6 +114,13 @@ void SharedHashSubscription::processIncoming(const SharedHashUpdate &update) {
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+SharedHashSubscriber::SharedHashSubscriber() {
+
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 SharedHashSubscriber::~SharedHashSubscriber() {

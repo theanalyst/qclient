@@ -27,6 +27,7 @@
 #include "SharedSerialization.hh"
 #include "qclient/Logger.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 namespace qclient {
 
@@ -65,8 +66,22 @@ void TransientSharedHash::processIncoming(Message &&msg) {
   //----------------------------------------------------------------------------
   // Batch received and parsed, apply
   //----------------------------------------------------------------------------
-  std::lock_guard<std::mutex> lock(contentsMtx);
+  std::unique_lock<std::mutex> lock(contentsMtx);
   contents.insert(incomingBatch.begin(), incomingBatch.end());
+  lock.unlock();
+
+  //----------------------------------------------------------------------------
+  // Notify subscriber
+  //----------------------------------------------------------------------------
+  if(mHashSubscriber) {
+    for(auto it = incomingBatch.begin(); it != incomingBatch.end(); it++) {
+      SharedHashUpdate hashUpdate;
+      hashUpdate.key = it->first;
+      hashUpdate.value = it->second;
+
+      mHashSubscriber->feedUpdate(hashUpdate);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

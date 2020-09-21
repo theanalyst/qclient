@@ -39,6 +39,7 @@ class UpdateBatch;
 class PersistentSharedHash;
 class TransientSharedHash;
 class SharedHashSubscriber;
+class SharedHashSubscription;
 
 //------------------------------------------------------------------------------
 //! Convenience class for Transient + Persistent shared hashes mushed together.
@@ -64,6 +65,11 @@ public:
   //! Get value
   //----------------------------------------------------------------------------
   bool get(const std::string &field, std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Subscribe for updates to this hash
+  //----------------------------------------------------------------------------
+  std::unique_ptr<SharedHashSubscription> subscribe();
 
 private:
   std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
