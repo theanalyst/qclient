@@ -58,6 +58,7 @@ namespace qclient {
 class SharedManager; class Logger;
 class Subscription; class QClient;
 class Message;
+class SharedHashSubscriber;
 
 class PersistentSharedHash final : public ReconnectionListener {
 public:
@@ -65,7 +66,8 @@ public:
   //! Constructor - supply a SharedManager object. I'll keep a reference to it
   //! throughout my lifetime - don't destroy it before me!
   //----------------------------------------------------------------------------
-  PersistentSharedHash(SharedManager *sm, const std::string &key);
+  PersistentSharedHash(SharedManager *sm, const std::string &key,
+    const std::shared_ptr<SharedHashSubscriber> &sub = {} );
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -152,6 +154,8 @@ private:
 
   std::mutex futureReplyMtx;
   std::future<redisReplyPtr> futureReply;
+
+  std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
 
   //----------------------------------------------------------------------------
   // Feed a single key-value update. Assumes lock is taken.

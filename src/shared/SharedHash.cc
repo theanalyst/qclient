@@ -37,9 +37,8 @@ SharedHash::SharedHash(SharedManager *sm, const std::string &key)
 : mSharedManager(sm), mKey(key) {
 
   mHashSubscriber.reset(new SharedHashSubscriber());
-
-  mPersistent.reset(new PersistentSharedHash(sm, key));
-  mTransient = sm->makeTransientSharedHash(key);
+  mPersistent.reset(new PersistentSharedHash(sm, key, mHashSubscriber));
+  mTransient = sm->makeTransientSharedHash(key, mHashSubscriber);
 }
 
 //------------------------------------------------------------------------------

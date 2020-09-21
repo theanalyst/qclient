@@ -39,8 +39,11 @@ namespace qclient {
 // Constructor - supply a SharedManager object. I'll keep a reference to it
 // throughout my lifetime - don't destroy it before me!
 //------------------------------------------------------------------------------
-PersistentSharedHash::PersistentSharedHash(SharedManager *sm_, const std::string &key_)
+PersistentSharedHash::PersistentSharedHash(SharedManager *sm_, const std::string &key_,
+  const std::shared_ptr<SharedHashSubscriber> &sub)
 : sm(sm_), key(key_), currentVersion(0u) {
+
+  mHashSubscriber = sub;
 
   logger = sm->getLogger();
   qcl = sm->getQClient();
