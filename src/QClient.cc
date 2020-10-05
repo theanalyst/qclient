@@ -108,18 +108,14 @@ void QClient::execute(QCallback *callback, std::deque<EncodedRequest> &&reqs) {
 
   connectionCore->stage(
     callback,
-    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
-    ignoredResponses
-  );
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)), ignoredResponses);
 }
 
 std::future<redisReplyPtr> QClient::execute(std::deque<EncodedRequest> &&reqs) {
   size_t ignoredResponses = reqs.size() + 1;
 
   return connectionCore->stage(
-    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)),
-    ignoredResponses
-  );
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(reqs)), ignoredResponses);
 }
 
 #if HAVE_FOLLY == 1
@@ -127,9 +123,7 @@ folly::Future<redisReplyPtr> QClient::follyExecute(std::deque<EncodedRequest> &&
   size_t ignoredResponses = req.size() + 1;
 
   return connectionCore->follyStage(
-    EncodedRequest::fuseIntoBlockAndSurround(std::move(req)),
-    ignoredResponses
-  );
+    EncodedRequest::fuseIntoBlockAndSurround(std::move(req)), ignoredResponses);
 }
 #endif
 
@@ -155,8 +149,10 @@ void QClient::startEventLoop()
   // Give some leeway when starting up before declaring the cluster broken.
   lastAvailable = std::chrono::steady_clock::now();
 
-  connectionCore.reset(new ConnectionCore(options.logger.get(),
-    options.handshake.get(), options.backpressureStrategy, options.transparentRedirects, options.messageListener.get(), options.exclusivePubsub));
+  connectionCore.reset(new ConnectionCore(options.logger.get(), options.handshake.get(),
+                                          options.backpressureStrategy, options.transparentRedirects,
+                                          options.messageListener.get(), options.exclusivePubsub,
+                                          options.mPerfCb.get()));
   writerThread.reset(new WriterThread(options.logger.get(), *connectionCore.get(), shutdownEventFD));
   eventLoopThread.reset(&QClient::eventLoop, this);
 }

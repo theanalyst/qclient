@@ -85,6 +85,10 @@ void WriterThread::eventLoop(NetworkStream *networkStream, ThreadAssistant &assi
       bytesWritten = 0;
       beingProcessed = connectionCore.getNextToWrite();
       if(!beingProcessed) continue;
+
+      if (connectionCore.hasPerfCb()) {
+        beingProcessed->setTimestamp();
+      }
     }
 
     // The socket is writable AND there's staged requests waiting to be written.

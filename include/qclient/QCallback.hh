@@ -38,6 +38,26 @@ public:
   virtual void handleResponse(redisReplyPtr &&reply) = 0;
 };
 
+  //----------------------------------------------------------------------------
+  //! QClient performance measurement callback
+  //----------------------------------------------------------------------------
+  class QPerfCallback {
+  public:
+    QPerfCallback() = default;
+    virtual ~QPerfCallback() = default;
+
+    //--------------------------------------------------------------------------
+    //! Send performance marker
+    //!
+    //! @param desc string description of the marker
+    //! @param value value of the performance marker
+    //!
+    //! @note: any implementation of this needs to be fast not to block the
+    //!        qclient since this gets called from the main event loop
+    //--------------------------------------------------------------------------
+    virtual void SendPerfMarker(const std::string& name,
+                                unsigned long long value) = 0;
+  };
 }
 
 #endif

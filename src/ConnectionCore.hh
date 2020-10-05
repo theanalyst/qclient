@@ -44,8 +44,11 @@ class MessageListener;
 class ConnectionCore {
 public:
   ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy backpressure,
-    bool transparentUnavailable, MessageListener *listener = nullptr, bool exclusivePubsub = true);
-  ~ConnectionCore();
+                 bool transparentUnavailable, MessageListener *listener = nullptr,
+                 bool exclusivePubsub = true, QPerfCallback* perf_cb = nullptr);
+
+  ~ConnectionCore() = default;
+
   void reconnection();
 
   // Returns whether connection is still alive after consuming this response.
@@ -53,17 +56,34 @@ public:
   bool consumeResponse(redisReplyPtr &&reply);
 
   void stage(QCallback *callback, EncodedRequest &&req, size_t multiSize = 0u);
+
   std::future<redisReplyPtr> stage(EncodedRequest &&req, size_t multiSize = 0u);
 
 #if HAVE_FOLLY == 1
-  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req, size_t multiSize = 0u);
+  folly::Future<redisReplyPtr> follyStage(EncodedRequest &&req,
+                                          size_t multiSize = 0u);
 #endif
 
   void setBlockingMode(bool value);
+
   StagedRequest* getNextToWrite();
 
   // Wipe out pending request queue - return size of queue
   size_t clearAllPending();
+
+  //----------------------------------------------------------------------------
+  //! Mesasure request performance and sent info to the perf callback
+  //!
+  //! @param req concerned request
+  //----------------------------------------------------------------------------
+  void measurePerf(const StagedRequest& reg) const;
+
+  //---------------------------------------------------------------------------
+  //! Check if we have a performance monitor callback registered
+  //---------------------------------------------------------------------------
+  inline bool hasPerfCb() const {
+    return (mPerfCb != nullptr);
+  }
 
 private:
   Logger *logger;
@@ -94,7 +114,7 @@ private:
   // NOTE: cbExecutor must be destroyed before FutureHandler, so it has to be
   // below it in the member variables definition.
   CallbackExecutorThread cbExecutor;
-
+  QPerfCallback* mPerfCb = nullptr; ///< Performance measurement callback
   std::mutex mtx;
 };
 

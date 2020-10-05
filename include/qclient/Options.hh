@@ -252,6 +252,11 @@ public:
   bool exclusivePubsub = true;
 
   //----------------------------------------------------------------------------
+  //! Performance object callback
+  //----------------------------------------------------------------------------
+  std::shared_ptr<QPerfCallback> mPerfCb;
+
+  //----------------------------------------------------------------------------
   //! Fluent interface: Chain a handshake. Explicit transfer of ownership to
   //! this object.
   //!

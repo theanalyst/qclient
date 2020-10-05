@@ -26,13 +26,15 @@
 
 #include "qclient/QCallback.hh"
 #include "qclient/EncodedRequest.hh"
+#include <chrono>
 
 namespace qclient {
 
 class StagedRequest {
 public:
   StagedRequest(QCallback *cb, EncodedRequest &&request, size_t multi = 0)
-  : callback(cb), encodedRequest(std::move(request)), multiSize(multi) { }
+    : callback(cb), encodedRequest(std::move(request)), multiSize(multi)
+  {}
 
   StagedRequest(const StagedRequest& other) = delete;
   StagedRequest(StagedRequest&& other) = delete;
@@ -59,10 +61,21 @@ public:
     return multiSize;
   }
 
+  inline void setTimestamp() {
+    mSendTs = std::chrono::system_clock::now();
+  }
+
+  inline std::chrono::time_point<std::chrono::system_clock>
+  getTimestamp() const {
+    return mSendTs;
+  }
+
 private:
   QCallback *callback = nullptr;
   EncodedRequest encodedRequest;
   size_t multiSize;
+  //! Send request timestamp
+  std::chrono::time_point<std::chrono::system_clock> mSendTs;
 };
 
 }

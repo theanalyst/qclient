@@ -32,14 +32,12 @@
 namespace qclient {
 
 ConnectionCore::ConnectionCore(Logger *log, Handshake *hs, BackpressureStrategy bp,
-  bool transUnavail, MessageListener *ms, bool exclpubsub)
-: logger(log), handshake(hs), backpressure(bp), transparentUnavailable(transUnavail), listener(ms),
-  exclusivePubsub(exclpubsub) {
+                               bool transUnavail, MessageListener *ms, bool exclpubsub,
+                               QPerfCallback* perf_cb)
+  : logger(log), handshake(hs), backpressure(bp),
+    transparentUnavailable(transUnavail), listener(ms),
+    exclusivePubsub(exclpubsub), mPerfCb(perf_cb) {
   reconnection();
-}
-
-ConnectionCore::~ConnectionCore() {
-
 }
 
 //------------------------------------------------------------------------------
@@ -121,27 +119,32 @@ size_t ConnectionCore::clearAllPending() {
   return retval;
 }
 
-void ConnectionCore::stage(QCallback *callback, EncodedRequest &&req, size_t multiSize) {
-  backpressure.reserve();
 
+void
+ConnectionCore::stage(QCallback *callback, EncodedRequest &&req,
+                      size_t multiSize)
+{
+  backpressure.reserve();
   std::lock_guard<std::mutex> lock(mtx);
   requestQueue.emplace_back(callback, std::move(req), multiSize);
 }
 
-std::future<redisReplyPtr> ConnectionCore::stage(EncodedRequest &&req, size_t multiSize) {
-  std::lock_guard<std::mutex> lock(mtx);
 
+std::future<redisReplyPtr>
+ConnectionCore::stage(EncodedRequest &&req, size_t multiSize)
+{
+  std::lock_guard<std::mutex> lock(mtx);
   std::future<redisReplyPtr> retval = futureHandler.stage();
   requestQueue.emplace_back(&futureHandler, std::move(req), multiSize);
   return retval;
 }
 
 #if HAVE_FOLLY == 1
-folly::Future<redisReplyPtr> ConnectionCore::follyStage(EncodedRequest &&req, size_t multiSize) {
+folly::Future<redisReplyPtr>
+ConnectionCore::follyStage(EncodedRequest &&req, size_t multiSize)
+{
   backpressure.reserve();
-
   std::lock_guard<std::mutex> lock(mtx);
-
   folly::Future<redisReplyPtr> retval = follyFutureHandler.stage();
   requestQueue.emplace_back(&follyFutureHandler, std::move(req), multiSize);
   return retval;
@@ -149,7 +152,13 @@ folly::Future<redisReplyPtr> ConnectionCore::follyStage(EncodedRequest &&req, si
 #endif
 
 void ConnectionCore::acknowledgePending(redisReplyPtr &&reply) {
-  cbExecutor.stage(nextToAcknowledgeIterator.item().getCallback(), std::move(reply));
+  auto& stage_req = nextToAcknowledgeIterator.item();
+
+  if (mPerfCb) {
+    measurePerf(stage_req);
+  }
+
+  cbExecutor.stage(stage_req.getCallback(), std::move(reply));
   discardPending();
 }
 
@@ -342,6 +351,19 @@ StagedRequest* ConnectionCore::getNextToWrite() {
   if(!item) return nullptr;
   nextToWriteIterator.next();
   return item;
+}
+
+//------------------------------------------------------------------------------
+// Mesasure request performance and sent info to the perf callback
+//------------------------------------------------------------------------------
+void
+ConnectionCore::measurePerf(const StagedRequest& req) const
+{
+  if (mPerfCb) {
+    unsigned long long rtt_val = std::chrono::duration_cast<std::chrono::microseconds>
+      (std::chrono::system_clock::now() - req.getTimestamp()).count();
+    mPerfCb->SendPerfMarker("rtt_us", rtt_val);
+  }
 }
 
 }
