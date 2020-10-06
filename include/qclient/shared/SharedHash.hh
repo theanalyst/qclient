@@ -67,6 +67,11 @@ public:
   bool get(const std::string &field, std::string& value);
 
   //----------------------------------------------------------------------------
+  //! Get current revision ID of the persistent hash
+  //----------------------------------------------------------------------------
+  uint64_t getPersistentRevision();
+
+  //----------------------------------------------------------------------------
   //! Subscribe for updates to this hash
   //----------------------------------------------------------------------------
   std::unique_ptr<SharedHashSubscription> subscribe();
