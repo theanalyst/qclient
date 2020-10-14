@@ -29,8 +29,13 @@
 #include <map>
 #include <chrono>
 #include <list>
+
+#ifdef EOSCITRINE
+#include "common/SharedMutexWrapper.hh"
+#else
 #include <shared_mutex>
-#include <condition_variable>
+#endif
+
 
 namespace qclient {
 
