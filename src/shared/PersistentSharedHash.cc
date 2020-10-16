@@ -92,13 +92,13 @@ bool PersistentSharedHash::get(const std::string &field, std::string& value) {
 // Set contents of the specified field, or batch of values.
 // Not guaranteed to succeed in case of network instabilities.
 //------------------------------------------------------------------------------
-void PersistentSharedHash::set(const std::string &field, const std::string &value) {
+std::future<redisReplyPtr> PersistentSharedHash::set(const std::string &field, const std::string &value) {
   std::map<std::string, std::string> batch;
   batch[field] = value;
   return this->set(batch);
 }
 
-void PersistentSharedHash::set(const std::map<std::string, std::string> &batch) {
+std::future<redisReplyPtr> PersistentSharedHash::set(const std::map<std::string, std::string> &batch) {
   qclient::MultiBuilder multi;
   for(auto it = batch.begin(); it != batch.end(); it++) {
     if(it->second.empty()) {
@@ -109,14 +109,14 @@ void PersistentSharedHash::set(const std::map<std::string, std::string> &batch) 
     }
   }
 
-  sm->getQClient()->execute(multi.getDeque());
+  return sm->getQClient()->execute(multi.getDeque());
 }
 
 //------------------------------------------------------------------------------
 // Delete the specified field.
 // Not guaranteed to succeed in case of network instabilities.
 //------------------------------------------------------------------------------
-void PersistentSharedHash::del(const std::string &field) {
+std::future<redisReplyPtr> PersistentSharedHash::del(const std::string &field) {
   std::map<std::string, std::string> batch;
   batch[field] = "";
   return this->set(batch);

@@ -90,14 +90,14 @@ public:
   //! Set contents of the specified field, or batch of values.
   //! Not guaranteed to succeed in case of network instabilities.
   //----------------------------------------------------------------------------
-  void set(const std::string &field, const std::string &value);
-  void set(const std::map<std::string, std::string> &values);
+  std::future<redisReplyPtr> set(const std::string &field, const std::string &value);
+  std::future<redisReplyPtr> set(const std::map<std::string, std::string> &values);
 
   //----------------------------------------------------------------------------
   //! Delete the specified field.
   //! Not guaranteed to succeed in case of network instabilities.
   //----------------------------------------------------------------------------
-  void del(const std::string &field);
+  std::future<redisReplyPtr> del(const std::string &field);
 
   //----------------------------------------------------------------------------
   //! Get current version
