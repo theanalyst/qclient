@@ -51,7 +51,7 @@ SharedHash::~SharedHash() {
 //------------------------------------------------------------------------------
 // Set value
 //------------------------------------------------------------------------------
-void SharedHash::set(const UpdateBatch &batch) {
+std::future<redisReplyPtr> SharedHash::set(const UpdateBatch &batch) {
   std::unique_lock<std::mutex> lock(mMutex);
   for(auto it = batch.localBegin(); it != batch.localEnd(); it++) {
     mLocal[it->first] = it->second;
@@ -59,8 +59,9 @@ void SharedHash::set(const UpdateBatch &batch) {
 
   lock.unlock();
 
-  mPersistent->set(batch.getPersistent());
   mTransient->set(batch.getTransient());
+  std::future<redisReplyPtr> reply = mPersistent->set(batch.getPersistent());
+  return reply;
 }
 
 //------------------------------------------------------------------------------

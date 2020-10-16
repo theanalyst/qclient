@@ -30,7 +30,9 @@
 #include <shared_mutex>
 #endif
 
+#include <qclient/Reply.hh>
 #include <map>
+#include <future>
 
 namespace qclient {
 
@@ -59,7 +61,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set value
   //----------------------------------------------------------------------------
-  void set(const UpdateBatch &batch);
+  std::future<redisReplyPtr> set(const UpdateBatch &batch);
 
   //----------------------------------------------------------------------------
   //! Get value
