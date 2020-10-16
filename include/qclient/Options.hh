@@ -324,6 +324,13 @@ public:
   //----------------------------------------------------------------------------
   bool usePushTypes = false;
 
+  //----------------------------------------------------------------------------
+  //! Specifies how to handle failing rqeuests. Default is NoRetries, meaning
+  //! if the connection drops, some requests receive redisReplyPtr == nullptr,
+  //! and it is up to the user to resubmit them.
+  //----------------------------------------------------------------------------
+  RetryStrategy retryStrategy = RetryStrategy::NoRetries();
+
 };
 
 }

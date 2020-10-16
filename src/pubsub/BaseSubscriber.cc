@@ -55,7 +55,7 @@ static Options makeOptions(SubscriptionOptions &&opts,
   options.logger = opts.logger;
   options.ensureConnectionIsPrimed = true;
   options.transparentRedirects = true;
-  options.retryStrategy = RetryStrategy::NoRetries();
+  options.retryStrategy = opts.retryStrategy;
   options.backpressureStrategy = BackpressureStrategy::Default();
   options.messageListener = listener;
 
