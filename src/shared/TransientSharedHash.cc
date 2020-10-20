@@ -67,7 +67,11 @@ void TransientSharedHash::processIncoming(Message &&msg) {
   // Batch received and parsed, apply
   //----------------------------------------------------------------------------
   std::unique_lock<std::mutex> lock(contentsMtx);
-  contents.insert(incomingBatch.begin(), incomingBatch.end());
+
+  for(auto it = incomingBatch.begin(); it != incomingBatch.end(); it++) {
+    contents[it->first] = it->second;
+  }
+
   lock.unlock();
 
   //----------------------------------------------------------------------------
