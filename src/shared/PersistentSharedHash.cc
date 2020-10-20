@@ -327,6 +327,16 @@ void PersistentSharedHash::resilver(uint64_t revision, std::map<std::string, std
 
   currentVersion = revision;
   contents = std::move(newContents);
+
+  if(mHashSubscriber) {
+    for(auto it = contents.begin(); it != contents.end(); it++) {
+      qclient::SharedHashUpdate hashUpdate;
+      hashUpdate.key = it->first;
+      hashUpdate.value = it->second;
+
+      mHashSubscriber->feedUpdate(hashUpdate);
+    }
+  }
 }
 
 }

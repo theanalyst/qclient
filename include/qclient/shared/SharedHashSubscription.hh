@@ -101,6 +101,7 @@ public:
 
 private:
   friend class SharedHashSubscriber;
+  friend class SharedHash;
 
   //----------------------------------------------------------------------------
   // Process incoming update

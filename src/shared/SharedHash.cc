@@ -98,9 +98,23 @@ uint64_t SharedHash::getPersistentRevision() {
 //------------------------------------------------------------------------------
 // Subscribe for updates to this hash
 //------------------------------------------------------------------------------
-std::unique_ptr<SharedHashSubscription> SharedHash::subscribe() {
-  return std::unique_ptr<SharedHashSubscription>(
-    new SharedHashSubscription(mHashSubscriber));
+std::unique_ptr<SharedHashSubscription> SharedHash::subscribe(bool withCurrentContents) {
+  if(!withCurrentContents) {
+    return std::unique_ptr<SharedHashSubscription>(new SharedHashSubscription(mHashSubscriber));
+  }
+
+  std::shared_lock<std::shared_timed_mutex> lock(mPersistent->contentsMutex);
+  std::unique_ptr<SharedHashSubscription> sub { new SharedHashSubscription(mHashSubscriber) };
+
+  for(auto it = mPersistent->contents.begin(); it != mPersistent->contents.end(); it++) {
+    qclient::SharedHashUpdate hashUpdate;
+    hashUpdate.key = it->first;
+    hashUpdate.value = it->second;
+
+    sub->processIncoming(hashUpdate);
+  }
+
+  return sub;
 }
 
 }

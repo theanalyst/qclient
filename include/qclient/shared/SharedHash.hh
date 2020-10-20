@@ -76,7 +76,7 @@ public:
   //----------------------------------------------------------------------------
   //! Subscribe for updates to this hash
   //----------------------------------------------------------------------------
-  std::unique_ptr<SharedHashSubscription> subscribe();
+  std::unique_ptr<SharedHashSubscription> subscribe(bool withCurrentContents = false);
 
 private:
   std::shared_ptr<SharedHashSubscriber> mHashSubscriber;

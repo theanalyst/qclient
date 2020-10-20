@@ -59,6 +59,7 @@ class SharedManager; class Logger;
 class Subscription; class QClient;
 class Message;
 class SharedHashSubscriber;
+class SharedHashSubscription;
 
 class PersistentSharedHash final : public ReconnectionListener {
 public:
@@ -140,6 +141,7 @@ PUBLIC_FOR_TESTS_ONLY:
 
 private:
   friend class SharedManager;
+  friend class SharedHash;
 
   SharedManager *sm;
   std::string key;
