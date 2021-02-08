@@ -37,6 +37,19 @@
 #include "gtest/gtest.h"
 using namespace qclient;
 
+TEST(Members, Parsing) {
+  std::string input = "host1.com:7777 host2.com:7777 host3.com:7777";
+  Members members;
+  ASSERT_TRUE(members.parse(input));
+  ASSERT_EQ(3, members.size());
+  input = "host1.com:7777,host3.com:7777,host3.com:7777";
+  ASSERT_FALSE(members.parse(input));
+  input = "host1.com:7777:host3.com:7777:host3.com:7777";
+  ASSERT_FALSE(members.parse(input));
+  input = "host1.com:7777;host3.com:7777;host3.com:7777";
+  ASSERT_FALSE(members.parse(input));
+}
+
 TEST(GlobalInterceptor, BasicSanity) {
   Endpoint e1("example.com", 1234);
   Endpoint e2("localhost", 999);

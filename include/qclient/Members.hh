@@ -120,10 +120,14 @@ public:
 
       if (pos != std::string::npos) {
         try {
+          size_t conv_pos = 0;
           std::string host = token.substr(0, pos);
-          uint32_t port = std::stoul(token.substr(pos + 1));
-          members.emplace_back(host, port);
-          valid = true;
+          uint32_t port = std::stoul(token.substr(pos + 1), &conv_pos);
+
+          if (conv_pos == (token.length() - pos - 1)) {
+            members.emplace_back(host, port);
+            valid = true;
+          }
         } catch (const std::exception& e) {
           continue;
         }
