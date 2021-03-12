@@ -1,4 +1,5 @@
 %global debug_package %{nil}
+%define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 
 #-------------------------------------------------------------------------------
 # Package definitions
@@ -30,7 +31,7 @@ mkdir -p build
 cd build
 %define cmake cmake
 
-%if 0%{rhel} == 8
+%if 0%{distribution} == 8
   echo "Install custom cmake 3.15.5"
   mkdir ./cmake_install/
   ../misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
