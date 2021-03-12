@@ -41,7 +41,7 @@ TEST(Members, Parsing) {
   std::string input = "host1.com:7777 host2.com:7777 host3.com:7777";
   Members members;
   ASSERT_TRUE(members.parse(input));
-  ASSERT_EQ(3, members.size());
+  ASSERT_EQ(3lu, members.size());
   input = "host1.com:7777,host3.com:7777,host3.com:7777";
   ASSERT_FALSE(members.parse(input));
   input = "host1.com:7777:host3.com:7777:host3.com:7777";
