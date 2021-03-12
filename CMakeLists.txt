@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.14)
 
 #-------------------------------------------------------------------------------
 # Initialize
@@ -7,6 +7,11 @@ cmake_minimum_required(VERSION 2.8.11)
 project(qclient)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install prefix: /usr" FORCE)
+endif ()
+
 include(GNUInstallDirs)
 option(PACKAGEONLY "Build without dependencies" OFF)
 
@@ -32,19 +37,6 @@ set(FMT_USE_CPP11 OFF CACHE BOOL "Prevent fmt from adding std=c++11")
 add_definitions(-Wall -Wextra -Wno-unused-parameter -fPIC -Wno-implicit-fallthrough)
 
 #-------------------------------------------------------------------------------
-# Is there folly support?
-# If so, we expect to find relevant include directories and libraries in
-# FOLLY_INCLUDE_DIRS and FOLLY_LIBRARIES.
-#-------------------------------------------------------------------------------
-if(FOLLY_FOUND)
-  include_directories(${FOLLY_INCLUDE_DIRS})
-  message(STATUS "Building QClient with Folly support.")
-  add_definitions(-DHAVE_FOLLY=1)
-else()
-  message(STATUS "Building QClient without Folly support.")
-endif()
-
-#-------------------------------------------------------------------------------
 # Build fmt library for string conversions
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
@@ -62,11 +54,10 @@ endif()
 include_directories(
   ./include
   ./src/
-  ${FOLLY_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIR}
 )
 
-add_library(qclient STATIC
+set(QCLIENT_SRCS
   src/network/AsyncConnector.cc
   src/network/FileDescriptor.cc
   src/network/HostResolver.cc
@@ -114,51 +105,65 @@ add_library(qclient STATIC
   src/ResponseBuilder.cc
   src/ResponseParsing.cc
   src/TlsFilter.cc
-  src/WriterThread.cc
-)
+  src/WriterThread.cc)
 
+add_library(Qclient-Objects OBJECT ${QCLIENT_SRCS})
+add_library(Qclient-no-folly-Objects OBJECT ${QCLIENT_SRCS})
+
+target_link_libraries(Qclient-Objects PUBLIC fmt)
+target_link_libraries(Qclient-no-folly-Objects PUBLIC fmt)
+
+#-------------------------------------------------------------------------------
+# Is there folly support?
+# If so, we expect to find relevant include directories and libraries in
+# FOLLY_INCLUDE_DIRS and FOLLY_LIBRARIES.
+#-------------------------------------------------------------------------------
+if (FOLLY_FOUND)
+  message(STATUS "Building QClient with and without Folly support.")
+  target_compile_definitions(Qclient-Objects PUBLIC HAVE_FOLLY=1)
+  target_include_directories(Qclient-Objects PUBLIC ${FOLLY_INCLUDE_DIRS})
+  target_link_libraries(Qclient-Objects PUBLIC ${FOLLY_LIBRARIES})
+else()
+  message(STATUS "Building QClient without Folly support.")
+endif()
 
 if (ATOMIC_FOUND)
-  target_link_libraries(qclient PUBLIC
-    fmt
-    ATOMIC::ATOMIC
-    ${UUID_LIBRARIES}
-    ${OPENSSL_LIBRARIES}
-    ${FOLLY_LIBRARIES})
-else ()
-target_link_libraries(qclient PUBLIC
-  fmt
-  ${UUID_LIBRARIES}
-  ${OPENSSL_LIBRARIES}
-  ${FOLLY_LIBRARIES})
+  target_link_libraries(Qclient-Objects PUBLIC ATOMIC::ATOMIC)
+  target_link_libraries(Qclient-no-folly-Objects PUBLIC ATOMIC::ATOMIC)
 endif()
+
+add_library(qclient STATIC $<TARGET_OBJECTS:Qclient-Objects>)
+add_library(qclient-no-folly STATIC $<TARGET_OBJECTS:Qclient-no-folly-Objects>)
+
+target_link_libraries(qclient PUBLIC
+  Qclient-Objects
+  ${UUID_LIBRARIES}
+  ${OPENSSL_LIBRARIES})
+
+target_link_libraries(qclient-no-folly PUBLIC
+  Qclient-no-folly-Objects
+  ${UUID_LIBRARIES}
+  ${OPENSSL_LIBRARIES})
 
 set_property(TARGET qclient APPEND PROPERTY
   INTERFACE_INCLUDE_DIRECTORIES
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/qclient>)
 
-if (FOLLY_FOUND)
-  target_compile_definitions(qclient INTERFACE HAVE_FOLLY=1)
+set_property(TARGET qclient-no-folly APPEND PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/qclient>)
 
-  set_property(TARGET qclient APPEND PROPERTY
-    INTERFACE_INCLUDE_DIRECTORIES
-    $<BUILD_INTERFACE:${FOLLY_INCLUDE_DIRS}>)
-endif()
-
-set_target_properties(
-  qclient PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+set_target_properties(qclient PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+set_target_properties(qclient-no-folly PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
-install(
-  DIRECTORY
-  include/qclient
+install(DIRECTORY include/qclient
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qclient)
 
-install(
-  TARGETS qclient
+install(TARGETS qclient qclient-no-folly
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

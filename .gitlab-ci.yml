@@ -1,7 +1,7 @@
 stages:
 - build
 
-centos8:
+c8:
   stage: build
   image: gitlab-registry.cern.ch/linuxsupport/c8-base
   script:
