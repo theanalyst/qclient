@@ -116,8 +116,10 @@ void BackgroundFlusher::pushRequest(const std::vector<std::string> &operation) {
 }
 
 void BackgroundFlusher::itemWasAcknowledged() {
-  std::lock_guard<std::mutex> lock(acknowledgementMtx);
-  persistency->pop();
+  {
+    std::lock_guard<std::mutex> lock(newEntriesMtx);
+    persistency->pop();
+  }
   acknowledged++;
   acknowledgementCV.notify_all();
 }
