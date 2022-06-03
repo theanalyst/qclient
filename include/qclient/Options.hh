@@ -108,7 +108,8 @@ public:
   enum class Mode {
     kNoRetries = 0,
     kRetryWithTimeout,
-    kInfiniteRetries
+    kInfiniteRetries,
+    kNRetries
   };
 
   //----------------------------------------------------------------------------
@@ -140,6 +141,22 @@ public:
     return val;
   }
 
+  //----------------------------------------------------------------------------
+  //! Limited number of retries
+  //----------------------------------------------------------------------------
+  static RetryStrategy NRetries(uint64_t retries) {
+    RetryStrategy val;
+
+    if (retries) {
+      val.mode = Mode::kNRetries;
+      val.retries = retries;
+    } else {
+      val.mode = Mode::kNoRetries;
+    }
+
+    return val;
+  }
+
   Mode getMode() const {
     return mode;
   }
@@ -148,13 +165,17 @@ public:
     return timeout;
   }
 
+  uint64_t getRetries() const {
+    return retries;
+  }
+
   bool active() const {
     return mode != Mode::kNoRetries;
   }
 
 private:
   Mode mode { Mode::kNoRetries };
-
+  uint64_t retries {0};
   //----------------------------------------------------------------------------
   //! Timeout is per-connection, not per request. Only applies if mode
   //! is kRetryWithTimeout.

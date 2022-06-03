@@ -225,6 +225,14 @@ bool QClient::shouldPurgePendingRequests() {
     return false;
   }
 
+  if(options.retryStrategy.getMode() == RetryStrategy::Mode::kNRetries &&
+     currentConnectionEpoch <= options.retryStrategy.getRetries()) {
+    //--------------------------------------------------------------------------
+    // Retries have not been done yet, nope.
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
   //----------------------------------------------------------------------------
   // We shouldn't purge while trying to connect.. Otherwise, the following
   // will occur:
