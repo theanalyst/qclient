@@ -67,15 +67,11 @@ std::future<redisReplyPtr> SharedHash::set(const UpdateBatch &batch) {
 //------------------------------------------------------------------------------
 // Get value
 //------------------------------------------------------------------------------
-bool SharedHash::get(const std::string &field, std::string& value) {
-  std::unique_lock<std::mutex> lock(mMutex);
-  auto it = mLocal.find(field);
-  if(it != mLocal.end()) {
-    value = it->second;
+bool SharedHash::get(const std::string &field, std::string& value) const
+{
+  if (getLocal(field, value)) {
     return true;
   }
-
-  lock.unlock();
 
   if(mTransient->get(field, value)) {
     return true;
@@ -86,6 +82,72 @@ bool SharedHash::get(const std::string &field, std::string& value) {
   }
 
   return false;
+}
+
+bool
+SharedHash::get(const std::vector<std::string>& keys,
+                std::map<std::string, std::string>& out) const
+{
+  if (!out.empty()) {
+    return false;
+  }
+
+  if (getLocal(keys, out)) {
+    return true;
+  }
+
+  uint32_t counter = out.size();
+  std::string value;
+  for (const auto& key : keys) {
+    // TODO: C++20 use contains
+    if (!out.count(key)) {
+      if (mTransient->get(key, value)) {
+        out.insert_or_assign(key, std::move(value));
+        ++counter;
+      } else if (mPersistent->get(key, value)) {
+        out.insert_or_assign(key, std::move(value));
+        ++counter;
+      }
+    }
+  }
+
+
+  return counter == keys.size();
+}
+
+//------------------------------------------------------------------------------
+// Get value
+//------------------------------------------------------------------------------
+bool SharedHash::getLocal(const std::string &field, std::string& value) const
+{
+  std::scoped_lock lock(mMutex);
+  auto it = mLocal.find(field);
+  if(it != mLocal.end()) {
+    value = it->second;
+    return true;
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Get value
+//------------------------------------------------------------------------------
+bool
+SharedHash::getLocal(const std::vector<std::string>& keys,
+                     std::map<std::string, std::string>& out) const
+{
+  uint32_t counter{0};
+  std::scoped_lock lock(mMutex);
+
+  for (const auto &key : keys) {
+    if (auto it = mLocal.find(key);
+        it != mLocal.end()) {
+      out.insert_or_assign(key,it->second);
+      ++counter;
+    }
+  }
+
+  return counter == keys.size();
 }
 
 //------------------------------------------------------------------------------

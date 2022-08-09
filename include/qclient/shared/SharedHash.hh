@@ -32,6 +32,7 @@
 
 #include <qclient/Reply.hh>
 #include <map>
+#include <vector>
 #include <future>
 
 namespace qclient {
@@ -66,7 +67,30 @@ public:
   //----------------------------------------------------------------------------
   //! Get value
   //----------------------------------------------------------------------------
-  bool get(const std::string &field, std::string& value);
+  bool get(const std::string &field, std::string& value) const;
+
+  //----------------------------------------------------------------------------
+  //! Get a list of values, returns a map of kv pairs of found values, expects
+  //! empty map as the out param, returns true if all the values have been found
+  //!
+  //! \param keys vector of string keys
+  //! \param out empty map, which will be populated
+  //! \return true if all keys were found, false otherwise or in case of
+  //! non empty map
+  //----------------------------------------------------------------------------
+  bool get(const std::vector<std::string>& keys,
+           std::map<std::string, std::string>& out) const;
+
+  //----------------------------------------------------------------------------
+  //! Get Local value
+  //----------------------------------------------------------------------------
+  bool getLocal(const std::string &field, std::string& value) const;
+
+  //----------------------------------------------------------------------------
+  //! Get a list of local values, returns a map of key, values of found values
+  //----------------------------------------------------------------------------
+  bool getLocal(const std::vector<std::string>& keys,
+                std::map<std::string, std::string>& out) const;
 
   //----------------------------------------------------------------------------
   //! Get current revision ID of the persistent hash
@@ -84,7 +108,7 @@ private:
   SharedManager* mSharedManager;
   std::string mKey;
 
-  std::mutex mMutex;
+  mutable std::mutex mMutex;
   std::map<std::string, std::string> mLocal;
   std::unique_ptr<PersistentSharedHash> mPersistent;
   std::unique_ptr<TransientSharedHash> mTransient;
