@@ -65,7 +65,7 @@ public:
   }
 
   bool hasPattern() const {
-    return ! pattern.empty();
+    return !pattern.empty();
   }
 
   const std::string& getPattern() const {

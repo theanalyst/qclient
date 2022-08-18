@@ -161,16 +161,14 @@ private:
   std::mutex mtx;
 
   std::multimap<std::string, Subscription*> channelSubscriptions;
-  std::map<Subscription*, std::multimap<std::string, Subscription*>::iterator> reverseChannelSubscriptions;
+  std::map<Subscription*, std::multimap<std::string, Subscription*>::iterator>
+  reverseChannelSubscriptions;
 
   //----------------------------------------------------------------------------
   // Process incoming message
   //----------------------------------------------------------------------------
   void processIncomingMessage(const Message &msg);
-
-
 };
-
 }
 
 #endif

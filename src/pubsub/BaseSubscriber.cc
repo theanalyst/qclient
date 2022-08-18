@@ -58,8 +58,8 @@ static Options makeOptions(SubscriptionOptions &&opts,
   options.retryStrategy = opts.retryStrategy;
   options.backpressureStrategy = BackpressureStrategy::Default();
   options.messageListener = listener;
-
   options.exclusivePubsub = !opts.usePushTypes;
+
   if(opts.usePushTypes) {
     options.chainHandshake(std::unique_ptr<Handshake>(new ActivatePushTypesHandshake()));
   }
@@ -78,7 +78,8 @@ BaseSubscriber::BaseSubscriber(const Members &memb,
 
   // Invalid listener?
   if(!listener) {
-    QCLIENT_LOG(options.logger, LogLevel::kFatal, "Attempted to initialize qclient::BaseSubscriber object with nullptr message listener!");
+    QCLIENT_LOG(options.logger, LogLevel::kFatal, "Attempted to initialize "
+                "qclient::BaseSubscriber object with nullptr message listener!");
     std::abort();
   }
 
@@ -96,8 +97,8 @@ BaseSubscriber::~BaseSubscriber() { }
 //------------------------------------------------------------------------------
 void BaseSubscriber::notifyConnectionEstablished(int64_t epoch) {
   std::unique_lock<std::mutex> lock(mtx);
-
   std::vector<std::string> payloadChannels = {"subscribe"};
+
   for(auto it = channels.begin(); it != channels.end(); it++) {
     payloadChannels.emplace_back(*it);
   }
@@ -120,10 +121,11 @@ void BaseSubscriber::notifyConnectionEstablished(int64_t epoch) {
 // Subscribe to the given channels, in addition to any other subscriptions
 // we may currently have.
 //------------------------------------------------------------------------------
-void BaseSubscriber::subscribe(const std::vector<std::string> &newChannels) {
+void BaseSubscriber::subscribe(const std::vector<std::string> &newChannels)
+{
   std::unique_lock<std::mutex> lock(mtx);
-
   std::vector<std::string> payload = {"subscribe"};
+
   for(auto it = newChannels.begin(); it != newChannels.end(); it++) {
     if(channels.find(*it) == channels.end()) {
       payload.emplace_back(*it);

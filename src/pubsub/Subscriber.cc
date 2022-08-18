@@ -183,10 +183,9 @@ void Subscriber::processIncomingMessage(const Message &msg) {
     return;
   }
 
-  //----------------------------------------------------------------------------
   // Feed to channel subscriptions
-  //----------------------------------------------------------------------------
   auto channels = channelSubscriptions.equal_range(msg.getChannel());
+
   for(auto it = channels.first; it != channels.second; it++) {
     it->second->processIncoming(msg);
   }
@@ -195,9 +194,10 @@ void Subscriber::processIncomingMessage(const Message &msg) {
 //------------------------------------------------------------------------------
 // Subscribe to the given channel through a Subscription object
 //------------------------------------------------------------------------------
-std::unique_ptr<Subscription> Subscriber::subscribe(const std::string &channel) {
+std::unique_ptr<Subscription>
+Subscriber::subscribe(const std::string &channel)
+{
   std::lock_guard<std::mutex> lock(mtx);
-
   std::unique_ptr<Subscription> subscription = std::make_unique<Subscription>(this);
   auto it = channelSubscriptions.emplace(channel, subscription.get());
   reverseChannelSubscriptions.emplace(subscription.get(), it);

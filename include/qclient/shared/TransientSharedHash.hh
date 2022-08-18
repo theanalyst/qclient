@@ -91,13 +91,10 @@ private:
   //----------------------------------------------------------------------------
   SharedManager *sharedManager;
   std::shared_ptr<Logger> logger;
-
   std::string channel;
-
   mutable std::mutex contentsMtx;
   std::map<std::string, std::string> contents;
   std::unique_ptr<qclient::Subscription> subscription;
-
   std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
 };
 
