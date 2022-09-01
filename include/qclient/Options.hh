@@ -144,7 +144,7 @@ public:
   //----------------------------------------------------------------------------
   //! Limited number of retries
   //----------------------------------------------------------------------------
-  static RetryStrategy NRetries(uint64_t retries) {
+  static RetryStrategy NRetries(int64_t retries) {
     RetryStrategy val;
 
     if (retries) {
@@ -165,7 +165,7 @@ public:
     return timeout;
   }
 
-  uint64_t getRetries() const {
+  int64_t getRetries() const {
     return retries;
   }
 
@@ -175,7 +175,7 @@ public:
 
 private:
   Mode mode { Mode::kNoRetries };
-  uint64_t retries {0};
+  int64_t retries {0};
   //----------------------------------------------------------------------------
   //! Timeout is per-connection, not per request. Only applies if mode
   //! is kRetryWithTimeout.
