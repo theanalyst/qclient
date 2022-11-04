@@ -6,19 +6,20 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 
-add_executable(
-  qclient-functional-tests
+add_executable(qclient-functional-tests
   hash.cc
   ping.cc
   pubsub.cc
   set.cc
-  test-config.cc
-)
+  test-config.cc)
+
+set_target_properties(qclient-functional-tests
+  PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 target_link_libraries(
-  qclient-functional-tests
+  qclient-functional-tests PRIVATE
   qclient
-  pthread
   gtest_main
   ${FOLLY_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
