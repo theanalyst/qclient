@@ -91,7 +91,6 @@ AsyncHandler::Register(QClient* qcl, const std::vector<std::string>& cmd)
 {
   std::future<redisReplyPtr> reply = qcl->execute(cmd);
   std::lock_guard<std::mutex> lock(mLstMutex);
-  mResponses.clear();
   mRequests.emplace_back(qcl, std::move(reply));
 }
 
