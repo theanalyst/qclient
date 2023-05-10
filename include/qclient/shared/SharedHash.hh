@@ -32,6 +32,7 @@
 
 #include <qclient/Reply.hh>
 #include <map>
+#include <set>
 #include <vector>
 #include <future>
 
@@ -73,13 +74,21 @@ public:
   //! Get a list of values, returns a map of kv pairs of found values, expects
   //! empty map as the out param, returns true if all the values have been found
   //!
-  //! \param keys vector of string keys
-  //! \param out empty map, which will be populated
-  //! \return true if all keys were found, false otherwise or in case of
+  //! @param keys vector of string keys
+  //! @param out empty map, which will be populated
+  //!
+  //! @return true if all keys were found, false otherwise or in case of
   //! non empty map
   //----------------------------------------------------------------------------
   bool get(const std::vector<std::string>& keys,
            std::map<std::string, std::string>& out) const;
+
+  //----------------------------------------------------------------------------
+  //! Get the set of keys in the current hash
+  //!
+  //! @return set of keys in the hash, or empty if none
+  //----------------------------------------------------------------------------
+  std::set<std::string> getKeys() const;
 
   //----------------------------------------------------------------------------
   //! Get Local value

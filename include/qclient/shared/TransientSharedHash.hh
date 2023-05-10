@@ -26,6 +26,7 @@
 
 #include "qclient/utils/Macros.hh"
 #include <map>
+#include <set>
 #include <string>
 
 #ifdef EOSCITRINE
@@ -70,6 +71,13 @@ public:
   //! Get key, if it exists
   //----------------------------------------------------------------------------
   bool get(const std::string &key, std::string &value) const;
+
+  //----------------------------------------------------------------------------
+  //! Get the set of keys in the current hash
+  //!
+  //! @return set of keys in the hash, or empty if none
+  //----------------------------------------------------------------------------
+  std::set<std::string> getKeys() const;
 
 private:
   friend class SharedManager;

@@ -74,7 +74,8 @@ PersistentSharedHash::~PersistentSharedHash() {
 //
 // Returns true if found, false otherwise.
 //------------------------------------------------------------------------------
-bool PersistentSharedHash::get(const std::string &field, std::string& value) {
+bool
+PersistentSharedHash::get(const std::string &field, std::string& value) {
   checkFuture();
 
   std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
@@ -86,6 +87,23 @@ bool PersistentSharedHash::get(const std::string &field, std::string& value) {
 
   value = it->second;
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Get the set of keys in the current hash
+//------------------------------------------------------------------------------
+std::set<std::string>
+PersistentSharedHash::getKeys()
+{
+  checkFuture();
+  std::set<std::string> keys;
+  std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
+
+  for (const auto& elem: contents) {
+    keys.insert(elem.first);
+  }
+
+  return keys;
 }
 
 //------------------------------------------------------------------------------

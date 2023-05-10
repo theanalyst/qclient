@@ -116,6 +116,30 @@ SharedHash::get(const std::vector<std::string>& keys,
 }
 
 //------------------------------------------------------------------------------
+// Get the set of keys in the current hash
+//------------------------------------------------------------------------------
+std::set<std::string> SharedHash::getKeys() const
+{
+  std::set<std::string> keys, transient_keys, persistent_keys;
+
+  { // Get local keys
+    std::scoped_lock lock(mMutex);
+
+    for (const auto& elem: mLocal) {
+      keys.insert(elem.first);
+    }
+  }
+
+  // Get the transient keys
+  transient_keys = mTransient->getKeys();
+  keys.insert(transient_keys.begin(), transient_keys.end());
+  // Get the persistent keys
+  persistent_keys = mPersistent->getKeys();
+  keys.insert(persistent_keys.begin(), persistent_keys.end());
+  return keys;
+}
+
+//------------------------------------------------------------------------------
 // Get value
 //------------------------------------------------------------------------------
 bool SharedHash::getLocal(const std::string &field, std::string& value) const

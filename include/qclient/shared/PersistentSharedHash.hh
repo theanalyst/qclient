@@ -28,6 +28,7 @@
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Reply.hh"
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include <future>
@@ -88,6 +89,13 @@ public:
   bool get(const std::string &field, std::string& value);
 
   //----------------------------------------------------------------------------
+  //! Get the set of keys in the current hash
+  //!
+  //! @return set of keys in the hash, or empty if none
+  //----------------------------------------------------------------------------
+  std::set<std::string> getKeys();
+
+  //----------------------------------------------------------------------------
   //! Set contents of the specified field, or batch of values.
   //! Not guaranteed to succeed in case of network instabilities.
   //----------------------------------------------------------------------------
@@ -124,7 +132,7 @@ PUBLIC_FOR_TESTS_ONLY:
   //!   function returns true.
   //! - The hash is out-of-date, and needs to be reset with the complete
   //!   contents. The change is not applied - a return value of false means
-  //!   "please bring me up-to-date by calling resilver function"
+  //!   "please bring me up-to-date by calling resilver function"
   //----------------------------------------------------------------------------
   bool feedRevision(uint64_t revision, const std::map<std::string, std::string>  &updates);
 
@@ -183,7 +191,6 @@ private:
   //! Parse serialized version + string map
   //----------------------------------------------------------------------------
   bool parseReply(redisReplyPtr &reply, uint64_t &revision, std::map<std::string, std::string> &contents);
-
 };
 
 }
