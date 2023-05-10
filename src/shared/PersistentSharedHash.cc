@@ -75,7 +75,8 @@ PersistentSharedHash::~PersistentSharedHash() {
 // Returns true if found, false otherwise.
 //------------------------------------------------------------------------------
 bool
-PersistentSharedHash::get(const std::string &field, std::string& value) {
+PersistentSharedHash::get(const std::string &field, std::string& value)
+{
   checkFuture();
 
   std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
@@ -90,20 +91,31 @@ PersistentSharedHash::get(const std::string &field, std::string& value) {
 }
 
 //------------------------------------------------------------------------------
-// Get the set of keys in the current hash
+// Get vector of keys in the current hash
 //------------------------------------------------------------------------------
-std::set<std::string>
+std::vector<std::string>
 PersistentSharedHash::getKeys()
 {
   checkFuture();
-  std::set<std::string> keys;
+  std::vector<std::string> keys;
   std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
 
   for (const auto& elem: contents) {
-    keys.insert(elem.first);
+    keys.push_back(elem.first);
   }
 
   return keys;
+}
+
+//------------------------------------------------------------------------------
+// Get contents of the hash
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+PersistentSharedHash::getContents()
+{
+  checkFuture();
+  std::shared_lock<std::shared_timed_mutex> lock(contentsMutex);
+  return contents;
 }
 
 //------------------------------------------------------------------------------
@@ -255,9 +267,7 @@ void PersistentSharedHash::processIncoming(Message &&msg) {
     return;
   }
 
-  //----------------------------------------------------------------------------
   // Payload parsed successfully, apply
-  //----------------------------------------------------------------------------
   if(!feedRevision(revision, update)) {
     triggerResilvering();
   }
@@ -283,7 +293,7 @@ void PersistentSharedHash::feedSingleKeyValue(const std::string &key, const std:
 //   function returns true.
 // - The hash is out-of-date, and needs to be reset with the complete
 //   contents. The change is not applied - a return value of false means
-//   "please bring me up-to-date by calling resilver function"
+//   "please bring me up-to-date by calling resilver function"
 //------------------------------------------------------------------------------
 bool PersistentSharedHash::feedRevision(uint64_t revision, const std::map<std::string, std::string> &updates) {
   std::unique_lock<std::shared_timed_mutex> lock(contentsMutex);
@@ -316,7 +326,6 @@ bool PersistentSharedHash::feedRevision(uint64_t revision, const std::map<std::s
       qclient::SharedHashUpdate hashUpdate;
       hashUpdate.key = it->first;
       hashUpdate.value = it->second;
-
       mHashSubscriber->feedUpdate(hashUpdate);
     }
   }
@@ -328,7 +337,8 @@ bool PersistentSharedHash::feedRevision(uint64_t revision, const std::map<std::s
 // Same as above, but the given revision updates only a single
 // key-value pair
 //------------------------------------------------------------------------------
-bool PersistentSharedHash::feedRevision(uint64_t revision, const std::string &key, const std::string &value) {
+bool PersistentSharedHash::feedRevision(uint64_t revision, const std::string &key,
+                                        const std::string &value) {
   std::map<std::string, std::string> batch;
   batch[key] = value;
   return feedRevision(revision, batch);
@@ -337,12 +347,13 @@ bool PersistentSharedHash::feedRevision(uint64_t revision, const std::string &ke
 //------------------------------------------------------------------------------
 // "Resilver" ṫhe hash, flushing all previous contents with new ones.
 //------------------------------------------------------------------------------
-void PersistentSharedHash::resilver(uint64_t revision, std::map<std::string, std::string> &&newContents) {
+void
+PersistentSharedHash::resilver(uint64_t revision,
+                               std::map<std::string, std::string> &&newContents)
+{
   std::unique_lock<std::shared_timed_mutex> lock(contentsMutex);
-
   QCLIENT_LOG(logger, LogLevel::kWarn, "SharedHash with key " << key <<
     " being resilvered with revision " << revision << " from " << currentVersion);
-
   currentVersion = revision;
   contents = std::move(newContents);
 
@@ -351,7 +362,6 @@ void PersistentSharedHash::resilver(uint64_t revision, std::map<std::string, std
       qclient::SharedHashUpdate hashUpdate;
       hashUpdate.key = it->first;
       hashUpdate.value = it->second;
-
       mHashSubscriber->feedUpdate(hashUpdate);
     }
   }

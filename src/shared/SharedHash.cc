@@ -52,12 +52,12 @@ SharedHash::~SharedHash() {
 // Set value
 //------------------------------------------------------------------------------
 std::future<redisReplyPtr> SharedHash::set(const UpdateBatch &batch) {
-  std::unique_lock<std::mutex> lock(mMutex);
-  for(auto it = batch.localBegin(); it != batch.localEnd(); it++) {
-    mLocal[it->first] = it->second;
+  {
+    std::unique_lock<std::mutex> lock(mMutex);
+    for(auto it = batch.localBegin(); it != batch.localEnd(); it++) {
+      mLocal[it->first] = it->second;
+    }
   }
-
-  lock.unlock();
 
   mTransient->set(batch.getTransient());
   std::future<redisReplyPtr> reply = mPersistent->set(batch.getPersistent());
@@ -67,23 +67,26 @@ std::future<redisReplyPtr> SharedHash::set(const UpdateBatch &batch) {
 //------------------------------------------------------------------------------
 // Get value
 //------------------------------------------------------------------------------
-bool SharedHash::get(const std::string &field, std::string& value) const
+bool SharedHash::get(const std::string &key, std::string& value) const
 {
-  if (getLocal(field, value)) {
+  if (getLocal(key, value)) {
     return true;
   }
 
-  if(mTransient->get(field, value)) {
+  if(mTransient->get(key, value)) {
     return true;
   }
 
-  if(mPersistent->get(field, value)) {
+  if(mPersistent->get(key, value)) {
     return true;
   }
 
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Get values corresponding to the given keys
+//------------------------------------------------------------------------------
 bool
 SharedHash::get(const std::vector<std::string>& keys,
                 std::map<std::string, std::string>& out) const
@@ -118,38 +121,61 @@ SharedHash::get(const std::vector<std::string>& keys,
 //------------------------------------------------------------------------------
 // Get the set of keys in the current hash
 //------------------------------------------------------------------------------
-std::set<std::string> SharedHash::getKeys() const
+std::vector<std::string> SharedHash::getKeys() const
 {
-  std::set<std::string> keys, transient_keys, persistent_keys;
+  std::vector<std::string> keys, transient_keys, persistent_keys;
 
   { // Get local keys
     std::scoped_lock lock(mMutex);
 
     for (const auto& elem: mLocal) {
-      keys.insert(elem.first);
+      keys.push_back(elem.first);
     }
   }
 
   // Get the transient keys
   transient_keys = mTransient->getKeys();
-  keys.insert(transient_keys.begin(), transient_keys.end());
+  keys.insert(keys.end(), transient_keys.begin(), transient_keys.end());
   // Get the persistent keys
   persistent_keys = mPersistent->getKeys();
-  keys.insert(persistent_keys.begin(), persistent_keys.end());
+  keys.insert(keys.end(), persistent_keys.begin(), persistent_keys.end());
   return keys;
+}
+
+
+//------------------------------------------------------------------------------
+// Get contents of the hash
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+SharedHash::getContents() const
+{
+  std::map<std::string, std::string> contents;
+
+  { // Get local contents
+    std::scoped_lock lock(mMutex);
+    contents.insert(mLocal.cbegin(), mLocal.cend());
+  }
+
+  // Get the transient contents
+  contents.merge(mTransient->getContents());
+  // Get the persistent keys
+  contents.merge(mPersistent->getContents());
+  return contents;
 }
 
 //------------------------------------------------------------------------------
 // Get value
 //------------------------------------------------------------------------------
-bool SharedHash::getLocal(const std::string &field, std::string& value) const
+bool SharedHash::getLocal(const std::string &key, std::string& value) const
 {
   std::scoped_lock lock(mMutex);
-  auto it = mLocal.find(field);
+  auto it = mLocal.find(key);
+
   if(it != mLocal.end()) {
     value = it->second;
     return true;
   }
+
   return false;
 }
 
@@ -177,14 +203,17 @@ SharedHash::getLocal(const std::vector<std::string>& keys,
 //------------------------------------------------------------------------------
 // Get current revision ID of the persistent hash
 //------------------------------------------------------------------------------
-uint64_t SharedHash::getPersistentRevision() {
+uint64_t SharedHash::getPersistentRevision()
+{
   return mPersistent->getCurrentVersion();
 }
 
 //------------------------------------------------------------------------------
 // Subscribe for updates to this hash
 //------------------------------------------------------------------------------
-std::unique_ptr<SharedHashSubscription> SharedHash::subscribe(bool withCurrentContents) {
+std::unique_ptr<SharedHashSubscription>
+SharedHash::subscribe(bool withCurrentContents)
+{
   if(!withCurrentContents) {
     return std::unique_ptr<SharedHashSubscription>(new SharedHashSubscription(mHashSubscriber));
   }
@@ -196,7 +225,6 @@ std::unique_ptr<SharedHashSubscription> SharedHash::subscribe(bool withCurrentCo
     qclient::SharedHashUpdate hashUpdate;
     hashUpdate.key = it->first;
     hashUpdate.value = it->second;
-
     sub->processIncoming(hashUpdate);
   }
 

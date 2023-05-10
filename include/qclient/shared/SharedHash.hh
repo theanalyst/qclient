@@ -68,7 +68,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get value
   //----------------------------------------------------------------------------
-  bool get(const std::string &field, std::string& value) const;
+  bool get(const std::string &key, std::string& value) const;
 
   //----------------------------------------------------------------------------
   //! Get a list of values, returns a map of kv pairs of found values, expects
@@ -88,12 +88,19 @@ public:
   //!
   //! @return set of keys in the hash, or empty if none
   //----------------------------------------------------------------------------
-  std::set<std::string> getKeys() const;
+  std::vector<std::string> getKeys() const;
+
+  //----------------------------------------------------------------------------
+  //! Get contents of the hash
+  //!
+  //! @return map of the key value pairs
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getContents() const;
 
   //----------------------------------------------------------------------------
   //! Get Local value
   //----------------------------------------------------------------------------
-  bool getLocal(const std::string &field, std::string& value) const;
+  bool getLocal(const std::string &key, std::string& value) const;
 
   //----------------------------------------------------------------------------
   //! Get a list of local values, returns a map of key, values of found values

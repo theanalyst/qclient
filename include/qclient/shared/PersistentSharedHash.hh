@@ -28,7 +28,6 @@
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Reply.hh"
 #include <map>
-#include <set>
 #include <vector>
 #include <string>
 #include <future>
@@ -89,11 +88,18 @@ public:
   bool get(const std::string &field, std::string& value);
 
   //----------------------------------------------------------------------------
-  //! Get the set of keys in the current hash
+  //! Get vector of keys in the current hash
   //!
-  //! @return set of keys in the hash, or empty if none
+  //! @return vector of keys in the hash, or empty if none
   //----------------------------------------------------------------------------
-  std::set<std::string> getKeys();
+  std::vector<std::string> getKeys();
+
+  //----------------------------------------------------------------------------
+  //! Get contents of the hash
+  //!
+  //! @return map of key value pairs
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getContents();
 
   //----------------------------------------------------------------------------
   //! Set contents of the specified field, or batch of values.

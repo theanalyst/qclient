@@ -121,17 +121,27 @@ bool TransientSharedHash::get(const std::string &key, std::string &value) const
 }
 
 //------------------------------------------------------------------------------
-// Get the set of keys in the current hash
+// Get vector of keys in the hash
 //------------------------------------------------------------------------------
-std::set<std::string> TransientSharedHash::getKeys() const
+std::vector<std::string> TransientSharedHash::getKeys() const
 {
-  std::set<std::string> keys;
+  std::vector<std::string> keys;
   std::lock_guard<std::mutex> lock(contentsMtx);
 
   for (const auto& elem: contents) {
-    keys.insert(elem.first);
+    keys.push_back(elem.first);
   }
 
   return keys;
+}
+
+//------------------------------------------------------------------------------
+// Get contents of the hash
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+TransientSharedHash::getContents() const
+{
+  std::lock_guard<std::mutex> lock(contentsMtx);
+  return contents;
 }
 }

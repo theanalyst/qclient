@@ -26,7 +26,7 @@
 
 #include "qclient/utils/Macros.hh"
 #include <map>
-#include <set>
+#include <vector>
 #include <string>
 
 #ifdef EOSCITRINE
@@ -73,11 +73,18 @@ public:
   bool get(const std::string &key, std::string &value) const;
 
   //----------------------------------------------------------------------------
-  //! Get the set of keys in the current hash
+  //! Get vector of keys in the hash
   //!
-  //! @return set of keys in the hash, or empty if none
+  //! @return vector of keys in the hash, or empty if none
   //----------------------------------------------------------------------------
-  std::set<std::string> getKeys() const;
+  std::vector<std::string> getKeys() const;
+
+  //----------------------------------------------------------------------------
+  //! Get contents of the hash
+  //!
+  //! @return map of key value pairs
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getContents() const;
 
 private:
   friend class SharedManager;
