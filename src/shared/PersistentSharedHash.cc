@@ -60,8 +60,11 @@ PersistentSharedHash::PersistentSharedHash(SharedManager *sm_, const std::string
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-PersistentSharedHash::~PersistentSharedHash() {
-  qcl->detachListener(this);
+PersistentSharedHash::~PersistentSharedHash()
+{
+  if (qcl) {
+    qcl->detachListener(this);
+  }
 }
 
 //------------------------------------------------------------------------------

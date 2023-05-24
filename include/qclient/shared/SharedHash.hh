@@ -24,7 +24,7 @@
 #ifndef QCLIENT_SHARED_HASH_HH
 #define QCLIENT_SHARED_HASH_HH
 
-#ifdef EOSCITRINE
+#if defined (EOSCITRINE)
 #include "common/SharedMutexWrapper.hh"
 #else
 #include <shared_mutex>
@@ -58,17 +58,17 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SharedHash();
+  virtual ~SharedHash() = default;
 
   //----------------------------------------------------------------------------
   //! Set value
   //----------------------------------------------------------------------------
-  std::future<redisReplyPtr> set(const UpdateBatch &batch);
+  virtual std::future<redisReplyPtr> set(const UpdateBatch &batch);
 
   //----------------------------------------------------------------------------
   //! Get value
   //----------------------------------------------------------------------------
-  bool get(const std::string &key, std::string& value) const;
+  virtual bool get(const std::string &key, std::string& value) const;
 
   //----------------------------------------------------------------------------
   //! Get a list of values, returns a map of kv pairs of found values, expects
@@ -80,22 +80,22 @@ public:
   //! @return true if all keys were found, false otherwise or in case of
   //! non empty map
   //----------------------------------------------------------------------------
-  bool get(const std::vector<std::string>& keys,
-           std::map<std::string, std::string>& out) const;
+  virtual bool get(const std::vector<std::string>& keys,
+                   std::map<std::string, std::string>& out) const;
 
   //----------------------------------------------------------------------------
   //! Get the set of keys in the current hash
   //!
   //! @return set of keys in the hash, or empty if none
   //----------------------------------------------------------------------------
-  std::vector<std::string> getKeys() const;
+  virtual std::vector<std::string> getKeys() const;
 
   //----------------------------------------------------------------------------
   //! Get contents of the hash
   //!
   //! @return map of the key value pairs
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> getContents() const;
+  virtual std::map<std::string, std::string> getContents() const;
 
   //----------------------------------------------------------------------------
   //! Get Local value

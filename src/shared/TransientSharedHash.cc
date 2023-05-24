@@ -32,6 +32,14 @@
 namespace qclient {
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+TransientSharedHash::~TransientSharedHash()
+{
+  // empty
+}
+
+//------------------------------------------------------------------------------
 //! Private constructor - use SharedManager to instantiate this object.
 //------------------------------------------------------------------------------
 TransientSharedHash::TransientSharedHash(SharedManager *sm,
@@ -42,11 +50,6 @@ TransientSharedHash::TransientSharedHash(SharedManager *sm,
   using namespace std::placeholders;
   subscription->attachCallback(std::bind(&TransientSharedHash::processIncoming, this, _1));
 }
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-TransientSharedHash::~TransientSharedHash() {}
 
 //------------------------------------------------------------------------------
 // Process incoming message

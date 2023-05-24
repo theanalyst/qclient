@@ -34,18 +34,13 @@ namespace qclient {
 // Constructor
 //------------------------------------------------------------------------------
 SharedHash::SharedHash(SharedManager *sm, const std::string &key)
-: mSharedManager(sm), mKey(key) {
-
-  mHashSubscriber.reset(new SharedHashSubscriber());
-  mPersistent.reset(new PersistentSharedHash(sm, key, mHashSubscriber));
-  mTransient = sm->makeTransientSharedHash(key, mHashSubscriber);
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-SharedHash::~SharedHash() {
-
+: mSharedManager(sm), mKey(key)
+{
+  if (sm) {
+    mHashSubscriber.reset(new SharedHashSubscriber());
+    mPersistent.reset(new PersistentSharedHash(sm, key, mHashSubscriber));
+    mTransient = sm->makeTransientSharedHash(key, mHashSubscriber);
+  }
 }
 
 //------------------------------------------------------------------------------
