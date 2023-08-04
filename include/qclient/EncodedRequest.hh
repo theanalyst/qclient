@@ -28,6 +28,7 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <cstdint>
 
 namespace qclient {
 
