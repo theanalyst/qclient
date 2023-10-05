@@ -29,7 +29,7 @@
 
 namespace qclient {
 
-class CommunicatorReply;
+struct CommunicatorReply;
 
 //------------------------------------------------------------------------------
 //! Utilities for serializing the payload of messages intended for shared
