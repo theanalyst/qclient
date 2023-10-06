@@ -34,7 +34,7 @@ namespace qclient {
 // Constructor
 //------------------------------------------------------------------------------
 SharedHash::SharedHash(SharedManager *sm, const std::string &key)
-: mSharedManager(sm), mKey(key)
+: mKey(key)
 {
   if (sm) {
     mHashSubscriber.reset(new SharedHashSubscriber());

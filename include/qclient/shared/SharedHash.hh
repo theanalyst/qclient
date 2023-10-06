@@ -120,8 +120,6 @@ public:
 
 private:
   std::shared_ptr<SharedHashSubscriber> mHashSubscriber;
-
-  SharedManager* mSharedManager;
   std::string mKey;
 
   mutable std::mutex mMutex;
