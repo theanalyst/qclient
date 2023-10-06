@@ -54,7 +54,7 @@ typedef ::testing::Types<
   ThreadSafeQueue<Coord, 100>, ThreadSafeQueue<Coord, 128>, ThreadSafeQueue<Coord, 200>,
   ThreadSafeQueue<Coord, 333>> Implementations;
 
-TYPED_TEST_CASE(Thread_Safe_Queue, Implementations);
+TYPED_TEST_SUITE(Thread_Safe_Queue, Implementations);
 
 TYPED_TEST(Thread_Safe_Queue, BasicSanity) {
   ASSERT_TRUE(this->queue.empty());
