@@ -39,7 +39,9 @@ add_definitions(-Wall -Wextra -Wno-unused-parameter -fPIC -Wno-implicit-fallthro
 #-------------------------------------------------------------------------------
 # Build fmt library for string conversions
 #-------------------------------------------------------------------------------
-if (NOT TARGET fmt)
+find_package(fmt)
+
+if (NOT fmt_FOUND)
   include_directories(src/fmt)
   add_subdirectory(src/fmt)
 endif()
