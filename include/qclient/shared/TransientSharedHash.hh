@@ -26,6 +26,7 @@
 
 #include "qclient/utils/Macros.hh"
 #include <map>
+#include <memory>
 #include <vector>
 #include <string>
 
