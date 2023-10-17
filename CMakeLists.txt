@@ -22,6 +22,12 @@ if (NOT PACKAGEONLY)
   find_package(GTest)
   find_package(OpenSSL REQUIRED)
   find_package(uuid REQUIRED)
+  find_package(fmt)
+
+  if (NOT fmt_FOUND)
+    include_directories(src/fmt)
+    add_subdirectory(src/fmt)
+  endif()
 else ()
   message(STATUS "Runing CMake in package only mode.")
 endif()
@@ -36,15 +42,6 @@ set(FMT_USE_CPP11 OFF CACHE BOOL "Prevent fmt from adding std=c++11")
 #-------------------------------------------------------------------------------
 add_definitions(-Wall -Wextra -Wno-unused-parameter -fPIC -Wno-implicit-fallthrough)
 
-#-------------------------------------------------------------------------------
-# Build fmt library for string conversions
-#-------------------------------------------------------------------------------
-find_package(fmt)
-
-if (NOT fmt_FOUND)
-  include_directories(src/fmt)
-  add_subdirectory(src/fmt)
-endif()
 
 if(TARGET gtest_main)
   add_subdirectory(test)
