@@ -22,20 +22,10 @@ if (NOT PACKAGEONLY)
   find_package(GTest)
   find_package(OpenSSL REQUIRED)
   find_package(uuid REQUIRED)
-  find_package(fmt)
-
-  if (NOT fmt_FOUND)
-    include_directories(src/fmt)
-    add_subdirectory(src/fmt)
-  endif()
+  find_package(fmt REQUIRED)
 else ()
   message(STATUS "Runing CMake in package only mode.")
 endif()
-
-#-------------------------------------------------------------------------------
-# Prevent fmt from adding std=c++11
-#-------------------------------------------------------------------------------
-set(FMT_USE_CPP11 OFF CACHE BOOL "Prevent fmt from adding std=c++11")
 
 #-------------------------------------------------------------------------------
 # Compiler options
