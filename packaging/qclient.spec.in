@@ -19,6 +19,7 @@ BuildRequires: cmake
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: openssl-devel
+BuildRequires: fmt-devel
 
 %description
 redis client library for C++11
