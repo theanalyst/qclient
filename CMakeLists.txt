@@ -15,11 +15,23 @@ endif ()
 include(GNUInstallDirs)
 option(PACKAGEONLY "Build without dependencies" OFF)
 
+#------------------------------------------------------------------------------
+# Determine if qclient is built as a subproject (using add_subdirectory)
+# or if it is the master project.
+#-------------------------------------------------------------------------------
+set(MASTER_PROJECT OFF)
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  set(MASTER_PROJECT ON)
+endif()
+
 #-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
 if (NOT PACKAGEONLY)
-  find_package(GTest)
+  if (MASTER_PROJECT)
+    find_package(GTest)
+  endif()
+
   find_package(OpenSSL REQUIRED)
   find_package(uuid REQUIRED)
   find_package(fmt REQUIRED)
