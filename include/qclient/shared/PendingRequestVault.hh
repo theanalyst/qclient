@@ -24,18 +24,17 @@
 #ifndef QCLIENT_SHARED_PENDING_REQUEST_VAULT_HH
 #define QCLIENT_SHARED_PENDING_REQUEST_VAULT_HH
 
-#include <string>
-#include <future>
-#include <map>
-#include <chrono>
-#include <list>
-
 #ifdef EOSCITRINE
 #include "common/SharedMutexWrapper.hh"
 #else
 #include <shared_mutex>
 #endif
 
+#include <string>
+#include <future>
+#include <map>
+#include <chrono>
+#include <list>
 
 namespace qclient {
 

@@ -24,17 +24,17 @@
 #ifndef QCLIENT_TRANSIENT_SHARED_HASH_HH
 #define QCLIENT_TRANSIENT_SHARED_HASH_HH
 
-#include "qclient/utils/Macros.hh"
-#include <map>
-#include <memory>
-#include <vector>
-#include <string>
-
 #ifdef EOSCITRINE
 #include "common/SharedMutexWrapper.hh"
 #else
 #include <shared_mutex>
 #endif
+
+#include "qclient/utils/Macros.hh"
+#include <map>
+#include <memory>
+#include <vector>
+#include <string>
 
 namespace qclient {
 
