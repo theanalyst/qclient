@@ -42,7 +42,7 @@ namespace qclient {
 //------------------------------------------------------------------------------
 PersistentSharedHash::PersistentSharedHash(SharedManager *sm_, const std::string &key_,
   const std::shared_ptr<SharedHashSubscriber> &sub)
-: sm(sm_), key(key_), currentVersion(0u) {
+  : sm(sm_), key(key_), currentVersion(0u) {
 
   mHashSubscriber = sub;
 
@@ -133,12 +133,22 @@ std::future<redisReplyPtr> PersistentSharedHash::set(const std::string &field, c
 
 std::future<redisReplyPtr> PersistentSharedHash::set(const std::map<std::string, std::string> &batch) {
   qclient::MultiBuilder multi;
-  for(auto it = batch.begin(); it != batch.end(); it++) {
-    if(it->second.empty()) {
-      multi.emplace_back("VHDEL", key, it->first);
-    }
-    else {
-      multi.emplace_back("VHSET", key, it->first, it->second);
+  {
+    std::unique_lock<std::shared_timed_mutex> wr_lock(contentsMutex);
+
+    for(auto it = batch.begin(); it != batch.end(); it++) {
+      if(it->second.empty()) {
+        multi.emplace_back("VHDEL", key, it->first);
+        auto it_rm = contents.find(it->first);
+
+        if (it_rm != contents.end()) {
+          contents.erase(it_rm);
+        }
+      }
+      else {
+        multi.emplace_back("VHSET", key, it->first, it->second);
+        contents.insert_or_assign(it->first, it->second);
+      }
     }
   }
 
