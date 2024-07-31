@@ -35,6 +35,8 @@
 #include "ReplyMacros.hh"
 
 #include "gtest/gtest.h"
+#include <algorithm>
+
 using namespace qclient;
 
 TEST(Members, Parsing) {
