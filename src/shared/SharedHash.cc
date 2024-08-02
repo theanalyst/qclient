@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "qclient/shared/SharedHash.hh"
+#include "qclient/ResponseBuilder.hh"
 #include "qclient/shared/PersistentSharedHash.hh"
 #include "qclient/shared/TransientSharedHash.hh"
 #include "qclient/shared/UpdateBatch.hh"
@@ -54,9 +55,18 @@ std::future<redisReplyPtr> SharedHash::set(const UpdateBatch &batch) {
     }
   }
 
-  mTransient->set(batch.getTransient());
-  std::future<redisReplyPtr> reply = mPersistent->set(batch.getPersistent());
-  return reply;
+  if (batch.getTransient().empty() &&
+      batch.getPersistent().empty()) {
+    std::promise<redisReplyPtr> promise;
+    std::future<redisReplyPtr> reply = promise.get_future();
+    // Return does not matter as it's ignored anyway
+    promise.set_value(qclient::ResponseBuilder::makeInt(1));
+    return reply;
+  } else {
+    mTransient->set(batch.getTransient());
+    std::future<redisReplyPtr> reply = mPersistent->set(batch.getPersistent());
+    return reply;
+  }
 }
 
 //------------------------------------------------------------------------------
