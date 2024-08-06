@@ -24,12 +24,7 @@
 #ifndef QCLIENT_PERSISTENT_SHARED_HASH_HH
 #define QCLIENT_PERSISTENT_SHARED_HASH_HH
 
-#ifdef EOSCITRINE
-#include "common/SharedMutexWrapper.hh"
-#else
 #include <shared_mutex>
-#endif
-
 #include "qclient/utils/Macros.hh"
 #include "qclient/ReconnectionListener.hh"
 #include "qclient/Reply.hh"

@@ -24,13 +24,8 @@
 #ifndef QCLIENT_SHARED_HASH_HH
 #define QCLIENT_SHARED_HASH_HH
 
-#if defined (EOSCITRINE)
-#include "common/SharedMutexWrapper.hh"
-#else
-#include <shared_mutex>
-#endif
-
 #include <qclient/Reply.hh>
+#include <shared_mutex>
 #include <map>
 #include <set>
 #include <vector>

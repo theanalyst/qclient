@@ -24,13 +24,8 @@
 #ifndef QCLIENT_TRANSIENT_SHARED_HASH_HH
 #define QCLIENT_TRANSIENT_SHARED_HASH_HH
 
-#ifdef EOSCITRINE
-#include "common/SharedMutexWrapper.hh"
-#else
-#include <shared_mutex>
-#endif
-
 #include "qclient/utils/Macros.hh"
+#include <shared_mutex>
 #include <map>
 #include <memory>
 #include <vector>
