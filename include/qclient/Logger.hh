@@ -27,6 +27,8 @@
 #include <atomic>
 #include <mutex>
 #include <iostream>
+#include <time.h>
+#include <sys/time.h>
 
 namespace qclient {
 
@@ -51,7 +53,8 @@ class Logger {
 public:
   Logger() : logLevel(LogLevel::kInfo) {}
 
-  virtual ~Logger() {}
+  virtual ~Logger() = default;
+
   virtual void print(LogLevel level, int line, const std::string &file, const std::string &msg) = 0;
 
   static std::string logLevelToString(LogLevel level) {
@@ -74,6 +77,31 @@ public:
       logLevel = level;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get current timestamp for printing in the logs using standard C library
+  //! calls and snprintf for formatting. Not thread-safe and should be
+  //! called from a protected scope.
+  //!
+  //! @return string represenation of the timestamp
+  //----------------------------------------------------------------------------
+  std::string getLibcTimestamp() {
+    tm tm;
+    struct timeval tv;
+    struct timezone tz;
+    gettimeofday(&tv,&tz);
+    time_t current_time= tv.tv_sec;
+    localtime_r(&current_time, &tm);
+    constexpr uint sz = 42;
+    static char buffer[sz];
+    snprintf(buffer, sz,
+            "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu ",
+            tm.tm_year - 100, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
+            tm.tm_sec, current_time, (unsigned long) tv.tv_usec);
+    return std::string(buffer);
+  }
+
+
+
 protected:
   std::atomic<LogLevel> logLevel;
 };
@@ -86,8 +114,8 @@ public:
 
   void print(LogLevel level, int line, const std::string &file, const std::string &msg) override {
     std::lock_guard<std::mutex> lock(mtx);
-      std::cerr << "[QCLIENT - " << logLevelToString(level) << " - " << file << ":" << line << "] "
-        << msg << std::endl;
+    std::cerr << getLibcTimestamp() << "[QCLIENT - " << logLevelToString(level) << " - "
+              << file << ":" << line << "] " << msg << std::endl;
   }
 
 private:
@@ -104,4 +132,3 @@ private:
 }
 
 #endif
-
