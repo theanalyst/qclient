@@ -32,6 +32,5 @@ target_link_libraries(qclient-tests PRIVATE
   ${FOLLY_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-
-
-
+install(TARGETS qclient-tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
