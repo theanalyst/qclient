@@ -35,10 +35,12 @@ TEST(AsyncConnector, noone_is_listening) {
   Status st;
   std::vector<ServiceEndpoint> endpoints = resolver.resolve("localhost", 13000, st);
   ASSERT_TRUE(st.ok());
-  ASSERT_EQ(endpoints.size(), 1u);
+  for (const auto& endpoint: endpoints) {
+    std::cerr << "Testing endpoint: " << endpoint.getString() << std::endl;
+    qclient::AsyncConnector connector(endpoint);
+    ASSERT_TRUE(connector.blockUntilReady());
+    ASSERT_FALSE(connector.ok());
+    ASSERT_EQ(connector.getErrno(), ECONNREFUSED);
+  }
 
-  qclient::AsyncConnector connector(endpoints[0]);
-  ASSERT_TRUE(connector.blockUntilReady());
-  ASSERT_FALSE(connector.ok());
-  ASSERT_EQ(connector.getErrno(), ECONNREFUSED);
 }
