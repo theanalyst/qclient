@@ -21,7 +21,9 @@ add_executable(qclient-tests
   pubsub.cc
   queueing.cc
   response-builder.cc
-  shared.cc)
+  shared.cc
+  persistency-layer.cc
+  flusher.cc)
 
 set_target_properties(qclient-tests
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
@@ -30,7 +32,13 @@ target_link_libraries(qclient-tests PRIVATE
   qclient
   gtest_main
   ${FOLLY_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ROCKSDB::ROCKSDB
+  ZLIB::ZLIB
+  # The following are needed for CENTOS7
+  GLIBC::DL
+  stdc++fs
+)
 
 install(TARGETS qclient-tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
