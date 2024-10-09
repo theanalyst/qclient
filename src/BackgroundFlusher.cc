@@ -53,7 +53,7 @@ void BackgroundFlusher::FlusherCallback::handleResponse(redisReplyPtr &&reply) {
     std::terminate();
   }
 
-  parent->itemWasAcknowledged();
+  parent->qhandler->handleAck();
 }
 
 BackgroundFlusher::~BackgroundFlusher() {
@@ -65,7 +65,8 @@ BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
 : persistency(pers),
   callback(this),
   options(std::move(opts)),
-  notifier(notif) {
+  notifier(notif),
+  qhandler(std::make_unique<SerialQueueHandler>(this)) {
 
   //----------------------------------------------------------------------------
   // Overwrite certain QClient options.
@@ -109,9 +110,10 @@ int64_t BackgroundFlusher::getAcknowledgedAndClear() {
 }
 
 void BackgroundFlusher::pushRequest(const std::vector<std::string> &operation) {
-  std::lock_guard<std::mutex> lock(newEntriesMtx);
+  /*std::lock_guard<std::mutex> lock(newEntriesMtx);
   persistency->record(persistency->getEndingIndex(), operation);
-  qclient->execute(&callback, operation);
+  qclient->execute(&callback, operation);*/
+  qhandler->pushRequest(operation);
   enqueued++;
 }
 
@@ -122,4 +124,27 @@ void BackgroundFlusher::itemWasAcknowledged() {
   }
   acknowledged++;
   acknowledgementCV.notify_all();
+}
+
+void BackgroundFlusher::notifyWaiters()
+{
+  ++acknowledged;
+  acknowledgementCV.notify_all();
+}
+
+BackgroundFlusher::SerialQueueHandler::SerialQueueHandler(BackgroundFlusher * parent): parent(parent), callback(&parent->callback) {}
+void BackgroundFlusher::SerialQueueHandler::pushRequest(const std::vector<std::string>& operation)
+{
+  std::lock_guard lock(newEntriesMtx);
+  parent->persistency->record(parent->persistency->getEndingIndex(), operation);
+  parent->qclient->execute(callback, operation);
+}
+
+void BackgroundFlusher::SerialQueueHandler::handleAck(ItemIndex)
+{
+  {
+    std::lock_guard lock(newEntriesMtx);
+    parent->persistency->pop();
+  }
+  parent->notifyWaiters();
 }
