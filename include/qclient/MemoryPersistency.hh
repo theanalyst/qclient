@@ -59,8 +59,9 @@ public:
     ItemIndex index;
     {
       std::unique_lock<std::shared_mutex> wr_lock(mtx);
-      index = endingIndex++;
+      index = endingIndex.load();
       data[index] = item;
+      endingIndex = index+1;
     }
 
     return index;
@@ -78,8 +79,14 @@ public:
 
   void popIndex(ItemIndex index) override
   {
-    std::unique_lock<std::shared_mutex> wr_lock(mtx);
-    data.erase(index);
+    ItemIndex curr_starting_index = startingIndex;
+    ItemIndex erased = 0;
+    {
+      std::unique_lock<std::shared_mutex> wr_lock(mtx);
+      erased = data.erase(index);
+    }
+    startingIndex = std::max(index + erased, curr_starting_index);
+
   }
 
   ItemIndex getStartingIndex() override
