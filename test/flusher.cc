@@ -129,6 +129,15 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPush)
   testMultiPush(flusher, "memory");
 }
 
+TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
+{
+  qclient::BackgroundFlusher flusher(members, getQCOpts(),
+                                     dummyNotifier,
+                                     new qclient::StubInMemoryPersistency<q_item_t>(),
+                                     qclient::FlusherQueueHandler::LockFree);
+  testMultiPush(flusher, "memory");
+}
+
 TEST_F(QDBFlusherInstance, RocksDBPeristencypush)
 {
   qclient::BackgroundFlusher flusher(members, getQCOpts(),

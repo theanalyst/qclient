@@ -42,7 +42,9 @@ public:
   virtual ~PersistencyLayer() {} // very important to be virtual!
 
   virtual void record(ItemIndex index, const QueueItem &item) {}
+  virtual ItemIndex record(const QueueItem &item) { return std::numeric_limits<ItemIndex>::min(); }
   virtual void pop() {}
+  virtual void popIndex(ItemIndex index) {}
 
   // The following three functions are only used during reconstruction.
   virtual ItemIndex getStartingIndex() {
@@ -73,11 +75,15 @@ class ResponseVerifier {
 };
 
 using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
+enum class FlusherQueueHandler {
+  Serial,
+  LockFree
+};
 
 class BackgroundFlusher {
 public:
   BackgroundFlusher(Members members, qclient::Options &&options, Notifier &notifier,
-    BackgroundFlusherPersistency *persistency = nullptr);
+    BackgroundFlusherPersistency *persistency = nullptr, FlusherQueueHandler handler_t = FlusherQueueHandler::Serial);
 
   ~BackgroundFlusher();
 
@@ -128,6 +134,16 @@ public:
     QCallback * callback;
     std::mutex newEntriesMtx;
   };
+
+  struct LockFreeQueueHandler : public QueueHandler {
+    LockFreeQueueHandler(BackgroundFlusher * persistency);
+    void pushRequest(const std::vector<std::string>& operation) override;
+    void handleAck(ItemIndex) override;
+  private:
+    BackgroundFlusher * parent;
+  };
+
+  std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandler type);
 private:
   void itemWasAcknowledged();
   void notifyWaiters();
@@ -152,6 +168,14 @@ private:
 
   private:
     BackgroundFlusher *parent;
+  };
+
+  struct StatefulCallback : public QCallback {
+    StatefulCallback(BackgroundFlusher * parent, ItemIndex index);
+    void handleResponse(redisReplyPtr &&reply) override;
+  private:
+    BackgroundFlusher * parent;
+    ItemIndex index;
   };
 
   Members members;

@@ -61,12 +61,12 @@ BackgroundFlusher::~BackgroundFlusher() {
 }
 
 BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
-  Notifier &notif, BackgroundFlusherPersistency *pers)
+  Notifier &notif, BackgroundFlusherPersistency *pers, FlusherQueueHandler handler_t)
 : persistency(pers),
   callback(this),
   options(std::move(opts)),
   notifier(notif),
-  qhandler(std::make_unique<SerialQueueHandler>(this)) {
+  qhandler(makeQueueHandler(handler_t)) {
 
   //----------------------------------------------------------------------------
   // Overwrite certain QClient options.
@@ -147,4 +147,50 @@ void BackgroundFlusher::SerialQueueHandler::handleAck(ItemIndex)
     parent->persistency->pop();
   }
   parent->notifyWaiters();
+}
+
+BackgroundFlusher::LockFreeQueueHandler::LockFreeQueueHandler(BackgroundFlusher * _parent): parent(_parent) {}
+
+void BackgroundFlusher::LockFreeQueueHandler::pushRequest(const std::vector<std::string>& operation)
+{
+  auto index = parent->persistency->record(operation);
+  parent->qclient->execute(new StatefulCallback(parent, index), operation);
+}
+
+void BackgroundFlusher::LockFreeQueueHandler::handleAck(ItemIndex index)
+{
+  parent->persistency->popIndex(index);
+  parent->notifyWaiters();
+}
+
+BackgroundFlusher::StatefulCallback::StatefulCallback(BackgroundFlusher * _parent,
+                                                      ItemIndex _index): parent(_parent), index(_index) {}
+
+void
+BackgroundFlusher::StatefulCallback::handleResponse(qclient::redisReplyPtr&& reply)
+{
+  if(reply == nullptr) {
+    parent->notifier.eventUnexpectedResponse("received nullptr in BackgroundFlusher::LockFreeQueueHandler::StatefulCallback::handleResponse, should never happen");
+    std::terminate();
+  }
+
+  if(reply->type == REDIS_REPLY_ERROR) {
+    std::string err(reply->str, reply->len);
+    parent->notifier.eventUnexpectedResponse(SSTR("Unexpected backend response: " << err));
+    std::terminate();
+  }
+
+  parent->qhandler->handleAck(index);
+}
+
+std::unique_ptr<BackgroundFlusher::QueueHandler> BackgroundFlusher::makeQueueHandler(FlusherQueueHandler type)
+{
+  switch(type)
+  {
+    case FlusherQueueHandler::Serial:
+      return std::make_unique<SerialQueueHandler>(this);
+    case FlusherQueueHandler::LockFree:
+      return std::make_unique<LockFreeQueueHandler>(this);
+  }
+  return nullptr;
 }

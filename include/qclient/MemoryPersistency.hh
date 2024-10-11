@@ -54,6 +54,18 @@ public:
     ++endingIndex;
   }
 
+  ItemIndex record(const QueueItem &item) override
+  {
+    ItemIndex index;
+    {
+      std::unique_lock<std::shared_mutex> wr_lock(mtx);
+      index = endingIndex++;
+      data[index] = item;
+    }
+
+    return index;
+  }
+
   void pop() override
   {
     std::unique_lock<std::shared_mutex> wr_lock(mtx);
@@ -62,6 +74,12 @@ public:
       data.erase(data.begin());
       ++startingIndex;
     }
+  }
+
+  void popIndex(ItemIndex index) override
+  {
+    std::unique_lock<std::shared_mutex> wr_lock(mtx);
+    data.erase(index);
   }
 
   ItemIndex getStartingIndex() override
