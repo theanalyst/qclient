@@ -131,7 +131,9 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPush)
 
 TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
 {
-  qclient::BackgroundFlusher flusher(members, getQCOpts(),
+  auto opts = getQCOpts();
+  opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
+  qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
                                      new qclient::StubInMemoryPersistency<q_item_t, true>(),
                                      qclient::FlusherQueueHandler::LockFree);
@@ -156,9 +158,12 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPush)
 
 TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPushLockfree)
 {
-  qclient::BackgroundFlusher flusher(members, getQCOpts(),
+  auto opts = getQCOpts();
+  opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
+  std::string rocksdb_options = "enable_pipeline_write=false";
+  qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
-                                     new qclient::ParallelRocksDBPersistency(tmp_dir),
+                                     new qclient::ParallelRocksDBPersistency(tmp_dir, rocksdb_options),
                                      qclient::FlusherQueueHandler::LockFree);
   testMultiPush(flusher, "rocksdb_lockfree");
 }
