@@ -258,7 +258,7 @@ public:
 
   ItemIndex record(const std::vector<std::string> &cmd) override {
     std::string serialization = serializeVector(cmd);
-    ItemIndex index = ++endIndex;
+    ItemIndex index = endIndex++;
     std::string key = getKey(index);
 
     rocksdb::WriteBatch batch;
@@ -302,7 +302,6 @@ private:
 
     options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
     options.create_if_missing = true;
-    options.enable_pipelined_write = true;
     options.merge_operator.reset(new Int64AddOperator());
     return options;
   }
