@@ -76,7 +76,7 @@ void testMultiPush(qclient::BackgroundFlusher& flusher,
                    std::string tag="rocksdb")
 {
   auto start_time = std::chrono::high_resolution_clock::now();
-  int max_reqs = 10000;
+  int max_reqs = 20000;
   int max_threads = 16;
 
   auto push_fn = [&flusher, &tag, max_reqs](int thread_id) {
@@ -133,9 +133,9 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
 {
   qclient::BackgroundFlusher flusher(members, getQCOpts(),
                                      dummyNotifier,
-                                     new qclient::StubInMemoryPersistency<q_item_t>(),
+                                     new qclient::StubInMemoryPersistency<q_item_t, true>(),
                                      qclient::FlusherQueueHandler::LockFree);
-  testMultiPush(flusher, "memory");
+  testMultiPush(flusher, "memory_lockfree");
 }
 
 TEST_F(QDBFlusherInstance, RocksDBPeristencypush)
@@ -152,4 +152,13 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPush)
                                      dummyNotifier,
                                      new qclient::RocksDBPersistency(tmp_dir));
   testMultiPush(flusher, "rocksdb");
+}
+
+TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPushLockfree)
+{
+  qclient::BackgroundFlusher flusher(members, getQCOpts(),
+                                     dummyNotifier,
+                                     new qclient::ParallelRocksDBPersistency(tmp_dir),
+                                     qclient::FlusherQueueHandler::LockFree);
+  testMultiPush(flusher, "rocksdb_lockfree");
 }

@@ -29,6 +29,8 @@
 #include <rocksdb/db.h>
 #include <rocksdb/filter_policy.h>
 #include <rocksdb/table.h>
+#include <rocksdb/merge_operator.h>
+#include <rocksdb/convenience.h>
 
 #include "qclient/BackgroundFlusher.hh"
 
@@ -98,26 +100,10 @@ inline std::string getKey(ItemIndex index) {
 class RocksDBPersistency : public BackgroundFlusherPersistency {
 public:
   RocksDBPersistency(const std::string &path) : dbpath(path) {
-    rocksdb::Options options;
-    rocksdb::BlockBasedTableOptions table_options;
-    table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
-    table_options.block_size = 16 * 1024;
-
-    options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
-    options.create_if_missing = true;
-
-    rocksdb::DB *ptr = nullptr;
-    rocksdb::Status status = rocksdb::DB::Open(options, path, &ptr);
-    db.reset(ptr);
-
-    if(!status.ok()) {
-      std::cerr << "Unable to open rocksdb persistent queue: " << status.ToString() << std::endl;
-      exit(EXIT_FAILURE);
-    }
-
-    startIndex = retrieveCounter("START-INDEX");
-    endIndex = retrieveCounter("END-INDEX");
+    this->InitializeDB();
   }
+
+  RocksDBPersistency() = default;
 
   virtual void record(ItemIndex index, const std::vector<std::string> &cmd) override {
     if(index != endIndex) {
@@ -175,7 +161,29 @@ public:
     startIndex++;
   }
 
-private:
+protected:
+  virtual void InitializeDB() {
+    rocksdb::Options options;
+    rocksdb::BlockBasedTableOptions table_options;
+    table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
+    table_options.block_size = 16 * 1024;
+
+    options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
+    options.create_if_missing = true;
+
+    rocksdb::DB *ptr = nullptr;
+    rocksdb::Status status = rocksdb::DB::Open(options, dbpath, &ptr);
+    db.reset(ptr);
+
+    if(!status.ok()) {
+      std::cerr << "Unable to open rocksdb persistent queue: " << status.ToString() << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    startIndex = retrieveCounter("START-INDEX");
+    endIndex = retrieveCounter("END-INDEX");
+  }
+
   void commitBatch(rocksdb::WriteBatch &batch) {
     rocksdb::Status st = db->Write(rocksdb::WriteOptions(), &batch);
     if(!st.ok()) {
@@ -210,6 +218,117 @@ private:
 
   std::string dbpath;
   std::unique_ptr<rocksdb::DB> db;
+};
+
+// Writing a custom merge operator for rocksdb to support atomic addition of int64 values
+// Rocksdb already has a UInt64AddOperator, but it looks like we do host order
+// versus little endianness, or atleast we use inttoBinaryString and binaryStringToInt
+// which may not be same as rocksdb's put
+class Int64AddOperator: public rocksdb::AssociativeMergeOperator {
+public:
+  virtual bool Merge(const rocksdb::Slice& key,
+        const rocksdb::Slice* existing_value,
+        const rocksdb::Slice& value,
+        std::string* new_value,
+        rocksdb::Logger* logger) const override {
+    int64_t existing = 0;
+    if(existing_value != nullptr) {
+      existing = binaryStringToInt(existing_value->data());
+    }
+
+    int64_t toAdd = binaryStringToInt(value.data());
+    int64_t result = existing + toAdd;
+
+    *new_value = intToBinaryString(result);
+    return true;
+  }
+
+  virtual const char* Name() const override {
+    return "Int64AddOperator";
+  }
+};
+
+class ParallelRocksDBPersistency : public RocksDBPersistency {
+public:
+  ParallelRocksDBPersistency(const std::string& path, std::string options="") :
+      options_str(options), RocksDBPersistency() {
+    dbpath = path;
+    InitializeDB();
+  }
+
+  ItemIndex record(const std::vector<std::string> &cmd) override {
+    std::string serialization = serializeVector(cmd);
+    ItemIndex index = ++endIndex;
+    std::string key = getKey(index);
+
+    rocksdb::WriteBatch batch;
+    batch.Put(key, serialization);
+    batch.Merge("END-INDEX", intToBinaryString(1));
+    commitBatch(batch);
+    return index;
+  }
+
+  void popIndex(ItemIndex index) override {
+    ItemIndex curr_starting_index = startIndex.load(std::memory_order_acquire);
+    rocksdb::WriteBatch batch;
+    batch.SingleDelete(getKey(index));
+    batch.Merge("START-INDEX", intToBinaryString(1));
+    commitBatch(batch);
+    startIndex.store(std::max(index + 1, curr_starting_index), std::memory_order_release);
+  }
+
+private:
+  void InitializeDB() override
+  {
+    rocksdb::Options opts = setupOptions();
+    rocksdb::DB *ptr = nullptr;
+    rocksdb::Status status = rocksdb::DB::Open(opts, dbpath, &ptr);
+    db.reset(ptr);
+
+    if(!status.ok()) {
+      std::cerr << "Unable to open rocksdb persistent queue: " << status.ToString() << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    startIndex = retrieveCounter("START-INDEX");
+    endIndex = retrieveCounter("END-INDEX");
+  }
+
+  rocksdb::Options makeBaseOptions() {
+    rocksdb::Options options;
+    rocksdb::BlockBasedTableOptions table_options;
+    table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
+    table_options.block_size = 16 * 1024;
+
+    options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
+    options.create_if_missing = true;
+    options.enable_pipelined_write = true;
+    options.merge_operator.reset(new Int64AddOperator());
+    return options;
+  }
+
+  rocksdb::Options setupOptions() {
+    rocksdb::Options options = makeBaseOptions();
+    if (!options_str.empty()) {
+      rocksdb::Options new_options; // If the string is invalid this object is invalid...
+      rocksdb::ConfigOptions cfg_options;
+      cfg_options.ignore_unknown_options = true;
+      auto status = rocksdb::GetOptionsFromString(cfg_options, options, options_str, &new_options);
+      if (status.ok()) {
+        options = std::move(new_options);
+        std::string final_db_options_str, final_cf_options_str, final_cf_options_str2;
+        auto st = rocksdb::GetStringFromDBOptions(&final_db_options_str, options);
+        st = rocksdb::GetStringFromColumnFamilyOptions(&final_cf_options_str, options);
+        std::cerr << "QCLIENT: using DB options set from string: " <<  final_db_options_str << std::endl;
+        std::cerr << "QCLIENT: using CF options set from string: " << final_cf_options_str << std::endl;
+      } else {
+        std::cerr << "QCLIENT: skipping invalid string options" << std::endl;
+      }
+    }
+    return options;
+  }
+
+  std::string options_str;
 };
 
 }
