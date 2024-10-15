@@ -40,7 +40,7 @@ namespace qclient {
  * performance and correctness.
  * The class name is intentional as it is not supposed to really used!
  */
-template <typename QueueItem>
+template <typename QueueItem, bool isUnordered=false>
 class StubInMemoryPersistency final: public PersistencyLayer<QueueItem>
 {
 public:
@@ -49,7 +49,7 @@ public:
 
   void record(ItemIndex index, const QueueItem &item) override
   {
-    std::unique_lock<std::shared_mutex> wr_lock(mtx);
+    std::scoped_lock wr_lock(mtx);
     data[index] = item;
     ++endingIndex;
   }
@@ -58,7 +58,7 @@ public:
   {
     ItemIndex index;
     {
-      std::unique_lock<std::shared_mutex> wr_lock(mtx);
+      std::scoped_lock wr_lock(mtx);
       index = endingIndex.load();
       data[index] = item;
       endingIndex = index+1;
@@ -69,7 +69,7 @@ public:
 
   void pop() override
   {
-    std::unique_lock<std::shared_mutex> wr_lock(mtx);
+    std::scoped_lock wr_lock(mtx);
     if(!data.empty())
     {
       data.erase(data.begin());
@@ -82,11 +82,10 @@ public:
     ItemIndex curr_starting_index = startingIndex;
     ItemIndex erased = 0;
     {
-      std::unique_lock<std::shared_mutex> wr_lock(mtx);
+      std::scoped_lock wr_lock(mtx);
       erased = data.erase(index);
     }
     startingIndex = std::max(index + erased, curr_starting_index);
-
   }
 
   ItemIndex getStartingIndex() override
@@ -101,7 +100,7 @@ public:
 
   bool retrieve(ItemIndex index, QueueItem &ret) override
   {
-    std::shared_lock<std::shared_mutex> rd_lock(mtx);
+    std::scoped_lock rd_lock(mtx);
     auto it = data.find(index);
     if(it == data.end())
     {
@@ -112,8 +111,13 @@ public:
   }
 
 private:
-  std::shared_mutex mtx;
-  std::map<ItemIndex, QueueItem> data;
+  template <typename... Args>
+  using MapT = typename std::conditional_t<isUnordered,
+                                           std::unordered_map<Args...>,
+                                           std::map<Args...>>;
+
+  std::mutex mtx;
+  MapT<ItemIndex, QueueItem> data;
   std::atomic<ItemIndex> startingIndex{0};
   std::atomic<ItemIndex> endingIndex{0};
 };
