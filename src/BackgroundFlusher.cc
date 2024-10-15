@@ -181,6 +181,7 @@ BackgroundFlusher::StatefulCallback::handleResponse(qclient::redisReplyPtr&& rep
   }
 
   parent->qhandler->handleAck(index);
+  delete this;
 }
 
 std::unique_ptr<BackgroundFlusher::QueueHandler> BackgroundFlusher::makeQueueHandler(FlusherQueueHandler type)
