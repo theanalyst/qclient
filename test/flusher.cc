@@ -76,8 +76,8 @@ void testMultiPush(qclient::BackgroundFlusher& flusher,
                    std::string tag="rocksdb")
 {
   auto start_time = std::chrono::high_resolution_clock::now();
-  int max_reqs = 20000;
-  int max_threads = 16;
+  int max_reqs = std::getenv("QCL_MAX_REQS") ? atoi(std::getenv("QCL_MAX_REQS")) : 20000;
+  int max_threads = std::getenv("QCL_THREADS") ? atoi(std::getenv("QCL_THREADS")) : 16;
 
   auto push_fn = [&flusher, &tag, max_reqs](int thread_id) {
     std::string hash_str = "dict_" + tag +  std::to_string(thread_id);
