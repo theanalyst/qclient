@@ -61,12 +61,23 @@ BackgroundFlusher::~BackgroundFlusher() {
 }
 
 BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
-  Notifier &notif, BackgroundFlusherPersistency *pers, FlusherQueueHandler handler_t)
+  Notifier &notif, BackgroundFlusherPersistency *pers)
 : persistency(pers),
   callback(this),
   qclient(BackgroundFlusher::makeQClient(members, std::move(opts))),
   notifier(notif),
-  qhandler(makeQueueHandler(handler_t)) {
+  qhandler(makeQueueHandler(FlusherQueueHandler::Serial)) {
+  restorefromPersistency();
+}
+
+BackgroundFlusher::BackgroundFlusher(Members members, Options&& options,
+    Notifier& notif, std::unique_ptr<BackgroundFlusherPersistency>&& persistency_,
+    FlusherQueueHandler q_handler_t)
+    : persistency(std::move(persistency_)),
+      callback(this),
+      qclient(BackgroundFlusher::makeQClient(members, std::move(options))),
+      notifier(notif),
+      qhandler(makeQueueHandler(q_handler_t)) {
   restorefromPersistency();
 }
 

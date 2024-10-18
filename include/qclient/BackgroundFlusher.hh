@@ -80,10 +80,23 @@ enum class FlusherQueueHandler {
   LockFree
 };
 
+constexpr FlusherQueueHandler FlusherQueueHandlerfromString(std::string_view str)
+{
+  if (str == "LockFree") {
+    return FlusherQueueHandler::LockFree;
+  }
+  return FlusherQueueHandler::Serial;
+}
+
+
 class BackgroundFlusher {
 public:
   BackgroundFlusher(Members members, qclient::Options &&options, Notifier &notifier,
-    BackgroundFlusherPersistency *persistency = nullptr, FlusherQueueHandler handler_t = FlusherQueueHandler::Serial);
+    BackgroundFlusherPersistency *persistency = nullptr);
+
+  BackgroundFlusher(Members members, qclient::Options&& options, Notifier &notifier,
+                    std::unique_ptr<BackgroundFlusherPersistency>&& persistency,
+                    FlusherQueueHandler q_handler_t);
 
   ~BackgroundFlusher();
 
