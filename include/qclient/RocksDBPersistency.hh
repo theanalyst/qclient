@@ -103,7 +103,6 @@ public:
     this->InitializeDB();
   }
 
-  RocksDBPersistency() = default;
 
   virtual void record(ItemIndex index, const std::vector<std::string> &cmd) override {
     if(index != endIndex) {
@@ -162,6 +161,8 @@ public:
   }
 
 protected:
+  RocksDBPersistency() = default;
+
   virtual void InitializeDB() {
     rocksdb::Options options;
     rocksdb::BlockBasedTableOptions table_options;
