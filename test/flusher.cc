@@ -25,6 +25,7 @@
 #include "QDBFixture.hh"
 #include "qclient/BackgroundFlusher.hh"
 #include "qclient/RocksDBPersistency.hh"
+#include "qclient/PersistencyLayerBuilder.hh"
 
 using namespace qclient;
 
@@ -135,7 +136,7 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
   opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
-                                     new qclient::StubInMemoryPersistency<q_item_t, true>(),
+                                     std::make_unique<qclient::StubInMemoryPersistency<q_item_t, true>>(),
                                      qclient::FlusherQueueHandler::LockFree);
   testMultiPush(flusher, "memory_lockfree");
 }
@@ -160,10 +161,19 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPushLockfree)
 {
   auto opts = getQCOpts();
   opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
-  std::string rocksdb_options = "enable_pipeline_write=false";
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
-                                     new qclient::ParallelRocksDBPersistency(tmp_dir, rocksdb_options),
+                                     std::make_unique<qclient::ParallelRocksDBPersistency>(tmp_dir),
                                      qclient::FlusherQueueHandler::LockFree);
   testMultiPush(flusher, "rocksdb_lockfree");
+}
+
+TEST_F(QDBFlusherInstance, RocksDBMultiPushBuilder)
+{
+  std::string rocksdb_options = "enable_pipeline_write=false";
+  auto flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                dummyNotifier, "ROCKSDB_MULTI",
+                                                                RocksDBConfig(tmp_dir, rocksdb_options));
+
+  testMultiPush(flusher, "rocksdb_lockfree_builder");
 }

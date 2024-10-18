@@ -23,6 +23,7 @@ add_executable(qclient-tests
   response-builder.cc
   shared.cc
   persistency-layer.cc
+  persistency-layer-builder.cc
   flusher.cc)
 
 set_target_properties(qclient-tests
