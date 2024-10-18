@@ -64,24 +64,31 @@ BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
   Notifier &notif, BackgroundFlusherPersistency *pers, FlusherQueueHandler handler_t)
 : persistency(pers),
   callback(this),
-  options(std::move(opts)),
+  qclient(BackgroundFlusher::makeQClient(members, std::move(opts))),
   notifier(notif),
   qhandler(makeQueueHandler(handler_t)) {
+  restorefromPersistency();
+}
 
+std::unique_ptr<QClient>
+BackgroundFlusher::makeQClient(Members members, Options &&options) {
   //----------------------------------------------------------------------------
   // Overwrite certain QClient options.
   //----------------------------------------------------------------------------
   options.transparentRedirects = true;
   options.retryStrategy = RetryStrategy::InfiniteRetries();
 
-  //----------------------------------------------------------------------------
-  // Initialize QClient object.
-  //----------------------------------------------------------------------------
-  qclient.reset(new QClient(members, std::move(options)));
+  return std::make_unique<QClient>(members, std::move(options));
+}
 
-  //----------------------------------------------------------------------------
-  // Restore contents from persistency layer, if there are any.
-  //----------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------
+// Restore contents from persistency layer, if there are any.
+//----------------------------------------------------------------------------
+void
+BackgroundFlusher::restorefromPersistency()
+{
+
   for(ItemIndex i = persistency->getStartingIndex(); i != persistency->getEndingIndex(); i++) {
     std::vector<std::string> contents;
     if(!persistency->retrieve(i, contents)) {

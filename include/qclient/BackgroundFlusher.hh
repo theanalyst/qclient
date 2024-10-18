@@ -144,9 +144,15 @@ public:
   };
 
   std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandler type);
+
+  static std::unique_ptr<QClient> makeQClient(Members members, Options&& options);
+
 private:
+  void restorefromPersistency();
   void itemWasAcknowledged();
   void notifyWaiters();
+
+
   std::unique_ptr<BackgroundFlusherPersistency> persistency;
   // Ensure that qhandler outlives the callbacks it uses!
   std::unique_ptr<QueueHandler> qhandler;
@@ -178,10 +184,8 @@ private:
     ItemIndex index;
   };
 
-  Members members;
   FlusherCallback callback;
 
-  Options options;
   std::unique_ptr<QClient> qclient;
   Notifier &notifier;
 };
