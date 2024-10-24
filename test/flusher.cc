@@ -141,6 +141,19 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
   testMultiPush(flusher, "memory_lockfree");
 }
 
+TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfreeHighestAck)
+{
+  auto opts = getQCOpts();
+  opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
+  auto ack_tracker = std::make_unique<qclient::HighestAckTracker>();
+  qclient::BackgroundFlusher flusher(members, std::move(opts),
+                                     dummyNotifier,
+                                     std::make_unique<qclient::StubInMemoryPersistency<q_item_t, true>>(std::move(ack_tracker)),
+                                     qclient::FlusherQueueHandler::LockFree);
+  testMultiPush(flusher, "memory_lockfree_highack");
+}
+
+
 TEST_F(QDBFlusherInstance, RocksDBPeristencypush)
 {
   qclient::BackgroundFlusher flusher(members, getQCOpts(),

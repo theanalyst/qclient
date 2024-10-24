@@ -28,10 +28,12 @@
 
 #include <shared_mutex>
 #include <map>
+#include <memory>
 
 #include "qclient/BackgroundFlusher.hh"
-
+#include "utils/AckTracker.hh"
 namespace qclient {
+
 
 
 /*
@@ -44,7 +46,9 @@ template <typename QueueItem, bool isUnordered=false>
 class StubInMemoryPersistency final: public PersistencyLayer<QueueItem>
 {
 public:
-  StubInMemoryPersistency() = default;
+  StubInMemoryPersistency() : ack_tracker(std::make_unique<SetAckTracker>()) {};
+  StubInMemoryPersistency(std::unique_ptr<AckTracker> ack_tracker) :
+      ack_tracker(std::move(ack_tracker)) {};
   ~StubInMemoryPersistency() override = default;
 
   void record(ItemIndex index, const QueueItem &item) override
@@ -73,24 +77,23 @@ public:
     if(!data.empty())
     {
       data.erase(data.begin());
-      ++startingIndex;
     }
+    ack_tracker->ackIndex(startingIndex++);
   }
 
   void popIndex(ItemIndex index) override
   {
     ItemIndex curr_starting_index = startingIndex;
-    ItemIndex erased = 0;
     {
       std::scoped_lock wr_lock(mtx);
-      erased = data.erase(index);
+      data.erase(index);
     }
-    startingIndex = std::max(index + erased, curr_starting_index);
+    ack_tracker->ackIndex(index);
   }
 
   ItemIndex getStartingIndex() override
   {
-    return startingIndex;
+    return ack_tracker->getStartingIndex();
   }
 
   ItemIndex getEndingIndex() override
@@ -118,8 +121,9 @@ private:
 
   std::mutex mtx;
   MapT<ItemIndex, QueueItem> data;
-  std::atomic<ItemIndex> startingIndex{0};
   std::atomic<ItemIndex> endingIndex{0};
+  std::atomic<ItemIndex> startingIndex{0};
+  std::unique_ptr<AckTracker> ack_tracker {nullptr};
 };
 
 
