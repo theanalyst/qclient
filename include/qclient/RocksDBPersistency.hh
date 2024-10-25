@@ -305,6 +305,7 @@ private:
 
     startIndex = retrieveCounter("START-INDEX");
     endIndex = retrieveCounter("END-INDEX");
+    ackTracker->setStartingIndex(startIndex.load());
   }
 
   rocksdb::Options makeBaseOptions() {
