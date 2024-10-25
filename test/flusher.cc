@@ -74,11 +74,16 @@ void testPush(qclient::BackgroundFlusher& flusher,
 }
 
 void testMultiPush(qclient::BackgroundFlusher& flusher,
-                   std::string tag="rocksdb")
+                   std::string tag="rocksdb",
+                   int default_max_reqs = 20000,
+                   int default_max_threads = 16)
 {
   auto start_time = std::chrono::high_resolution_clock::now();
-  int max_reqs = std::getenv("QCL_MAX_REQS") ? atoi(std::getenv("QCL_MAX_REQS")) : 20000;
-  int max_threads = std::getenv("QCL_THREADS") ? atoi(std::getenv("QCL_THREADS")) : 16;
+  int max_reqs = std::getenv("QCL_MAX_REQS") ? atoi(std::getenv("QCL_MAX_REQS")) : default_max_reqs;
+  int max_threads = std::getenv("QCL_THREADS") ? atoi(std::getenv("QCL_THREADS")) : default_max_threads;
+  ItemIndex startIndex = flusher.getStartingIndex();
+  std::cerr << "Starting index = " << startIndex
+            << " endingIndex=" << flusher.getEndingIndex() << std::endl;
 
   auto push_fn = [&flusher, &tag, max_reqs](int thread_id) {
     std::string hash_str = "dict_" + tag +  std::to_string(thread_id);
@@ -99,14 +104,14 @@ void testMultiPush(qclient::BackgroundFlusher& flusher,
   }
   auto end_time = std::chrono::high_resolution_clock::now();
   auto ms_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-  EXPECT_EQ(max_reqs * max_threads, flusher.getEndingIndex());
-  while (!flusher.waitForIndex(max_reqs*max_threads - 1, std::chrono::milliseconds(100))) {
+  EXPECT_EQ(max_reqs * max_threads + startIndex, flusher.getEndingIndex());
+  while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(100))) {
    std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
              << " acknowledged = " << flusher.getAcknowledgedAndClear()
              << " starting index =" << flusher.getStartingIndex()
              << " ending index =" << flusher.getEndingIndex() << std::endl;
   }
-  EXPECT_EQ(max_reqs * max_threads, flusher.getStartingIndex());
+  EXPECT_EQ(max_reqs * max_threads + startIndex, flusher.getStartingIndex());
   std::cerr << "Total test time with " << tag << " persistency for " <<
              max_reqs << " reqs/thread with " << max_threads
             << " threads " << ms_elapsed
@@ -190,4 +195,30 @@ TEST_F(QDBFlusherInstance, RocksDBMultiPushBuilder)
                                                                 RocksDBConfig(tmp_dir, rocksdb_options));
 
   testMultiPush(flusher, "rocksdb_lockfree_builder:low");
+}
+
+
+// start with serial rocksdb -> move to parallel -> move back to serial
+TEST_F(QDBFlusherInstance, RocksDBRestartsMulti)
+{
+  {
+    qclient::BackgroundFlusher flusher1(
+        members, getQCOpts(), dummyNotifier,
+        new qclient::RocksDBPersistency(tmp_dir));
+    testMultiPush(flusher1, "rocksdb_restart:serial", 10000, 16);
+    std::cerr << "Completed first serial rocksdb test" << std::endl;
+  }
+  {
+    auto flusher2 = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                   dummyNotifier, "ROCKSDB_MULTI", RocksDBConfig(tmp_dir));
+    testMultiPush(flusher2, "rocksdb_restart:parallel",10000, 16);
+    std::cerr << "Completed second parallel rocksdb test" << std::endl;
+  }
+  {
+    std::cerr << "Starting third serial rocksdb test" << std::endl;
+    auto flusher3 = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                   dummyNotifier, "ROCKSDB", RocksDBConfig(tmp_dir));
+    testMultiPush(flusher3, "rocksdb_restart:serial2",10000, 16);
+  }
+
 }
