@@ -58,6 +58,7 @@ struct RocksDBConfig {
   std::string path;
   std::string options;
   RocksDBConfig() = default;
+  RocksDBConfig(std::string p) : path(p) {}
   RocksDBConfig(std::string p, std::string o) : path(p), options(o) {}
 };
 
