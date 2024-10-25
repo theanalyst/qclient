@@ -27,6 +27,8 @@
 #include "qclient/BackgroundFlusher.hh"
 #include "qclient/RocksDBPersistency.hh"
 #include "qclient/MemoryPersistency.hh"
+#include "qclient/Utils.hh"
+#include "utils/AckTracker.hh"
 
 namespace qclient {
 
@@ -63,7 +65,12 @@ class PersistencyLayerBuilder {
 public:
   PersistencyLayerBuilder(std::string_view configuration, RocksDBConfig _rocksdb_config = {}):
       rocksdb_config(_rocksdb_config) {
-    std::tie(persistency_type, q_handler_t) = PersistencyConfigfromString(configuration);
+    auto config_str_list = split(std::string(configuration), ":");
+    std::tie(persistency_type, q_handler_t) = PersistencyConfigfromString(config_str_list[0]);
+    if (config_str_list.size() > 1) {
+      ack_tracker_type = config_str_list[1];
+    }
+
   }
 
   PersistencyLayerBuilder(PersistencyLayerT ptype, FlusherQueueHandlerT qtype,
@@ -79,9 +86,21 @@ public:
         return std::make_unique<RocksDBPersistency>(rocksdb_config.path);
       }
     } else if (q_handler_t == FlusherQueueHandlerT::LockFree) {
+      std::unique_ptr<AckTracker> ack_tracker {nullptr};
+      if (!ack_tracker_type.empty()) {
+        ack_tracker = makeAckTracker(ack_tracker_type);
+      }
       if (persistency_type == PersistencyLayerT::MEMORY) {
+        if (ack_tracker != nullptr) {
+          return std::make_unique<StubInMemoryPersistency<q_item_t, true>>(std::move(ack_tracker));
+        }
         return std::make_unique<StubInMemoryPersistency<q_item_t, true>>();
       } else if (persistency_type == PersistencyLayerT::ROCKSDB) {
+        if (ack_tracker != nullptr) {
+          return std::make_unique<ParallelRocksDBPersistency>(rocksdb_config.path,
+                                                              rocksdb_config.options,
+                                                              std::move(ack_tracker));
+        }
         return std::make_unique<ParallelRocksDBPersistency>(rocksdb_config.path,
                                                             rocksdb_config.options);
       }
@@ -105,10 +124,14 @@ public:
     return persistency_type;
   }
 
+  std::string getAckTrackerType() {
+    return ack_tracker_type;
+  }
 private:
   FlusherQueueHandlerT q_handler_t;
   PersistencyLayerT persistency_type;
   RocksDBConfig rocksdb_config;
+  std::string ack_tracker_type;
 };
 
 struct BackgroundFlusherBuilder {

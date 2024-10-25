@@ -64,3 +64,12 @@ TEST(PersistencyLayerBuilder, rocksdb_options)
   ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::Serial);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::ROCKSDB);
 }
+
+
+TEST(PersistencyLayerBuilder, acktracker)
+{
+  qclient::PersistencyLayerBuilder builder("MEMORY_MULTI:LOW");
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::LockFree);
+  ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::MEMORY);
+  ASSERT_EQ(builder.getAckTrackerType(), "LOW");
+}

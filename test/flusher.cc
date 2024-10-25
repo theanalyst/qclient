@@ -186,8 +186,8 @@ TEST_F(QDBFlusherInstance, RocksDBMultiPushBuilder)
 {
   std::string rocksdb_options = "enable_pipeline_write=false";
   auto flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
-                                                                dummyNotifier, "ROCKSDB_MULTI",
+                                                                dummyNotifier, "ROCKSDB_MULTI:LOW",
                                                                 RocksDBConfig(tmp_dir, rocksdb_options));
 
-  testMultiPush(flusher, "rocksdb_lockfree_builder");
+  testMultiPush(flusher, "rocksdb_lockfree_builder:low");
 }
