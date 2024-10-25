@@ -283,6 +283,7 @@ public:
   void popIndex(ItemIndex index) override {
     rocksdb::WriteBatch batch;
     batch.SingleDelete(getKey(index));
+    batch.Merge("START-INDEX", intToBinaryString(1));
     commitBatch(batch);
     ackTracker->ackIndex(index);
   }
