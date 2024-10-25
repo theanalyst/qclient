@@ -169,6 +169,7 @@ private:
 
   std::unique_ptr<BackgroundFlusherPersistency> persistency;
   // Ensure that qhandler outlives the callbacks it uses!
+  FlusherQueueHandlerT qhandler_t;
   std::unique_ptr<QueueHandler> qhandler;
 
   std::atomic<int64_t> enqueued {0};

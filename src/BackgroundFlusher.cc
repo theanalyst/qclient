@@ -66,18 +66,20 @@ BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
   callback(this),
   qclient(BackgroundFlusher::makeQClient(members, std::move(opts))),
   notifier(notif),
+  qhandler_t(FlusherQueueHandlerT::Serial),
   qhandler(makeQueueHandler(FlusherQueueHandlerT::Serial)) {
   restorefromPersistency();
 }
 
 BackgroundFlusher::BackgroundFlusher(Members members, Options&& options,
     Notifier& notif, std::unique_ptr<BackgroundFlusherPersistency>&& persistency_,
-    FlusherQueueHandlerT q_handler_t)
+    FlusherQueueHandlerT q_handler_t_)
     : persistency(std::move(persistency_)),
       callback(this),
       qclient(BackgroundFlusher::makeQClient(members, std::move(options))),
       notifier(notif),
-      qhandler(makeQueueHandler(q_handler_t)) {
+      qhandler_t(q_handler_t_),
+      qhandler(makeQueueHandler(q_handler_t_)) {
   restorefromPersistency();
 }
 
@@ -103,8 +105,13 @@ BackgroundFlusher::restorefromPersistency()
   for(ItemIndex i = persistency->getStartingIndex(); i != persistency->getEndingIndex(); i++) {
     std::vector<std::string> contents;
     if(!persistency->retrieve(i, contents)) {
-      std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index " << i << std::endl;
-      std::terminate();
+      if (qhandler_t == FlusherQueueHandlerT::Serial) {
+        std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index " << i << std::endl;
+        std::terminate();
+      }
+      // For parallel queue handler, out of order notifications are expected
+      // and do not indicate a critical condition
+      continue;
     }
 
     qclient->execute(&callback, contents);
