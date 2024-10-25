@@ -46,7 +46,7 @@ template <typename QueueItem, bool isUnordered=false>
 class StubInMemoryPersistency final: public PersistencyLayer<QueueItem>
 {
 public:
-  StubInMemoryPersistency() : ack_tracker(std::make_unique<SetAckTracker>()) {};
+  StubInMemoryPersistency() : ack_tracker(std::make_unique<LowestAckTracker>()) {};
   StubInMemoryPersistency(std::unique_ptr<AckTracker> ack_tracker) :
       ack_tracker(std::move(ack_tracker)) {};
   ~StubInMemoryPersistency() override = default;

@@ -73,11 +73,10 @@ private:
   std::atomic<ItemIndex> nextIndex{0};
 };
 
-class SetAckTracker : public AckTracker {
-
+class LowestAckTracker : public AckTracker {
 public:
-  SetAckTracker() = default;
-  ~SetAckTracker() override = default;
+  LowestAckTracker() = default;
+  ~LowestAckTracker() override = default;
 
   void
   ackIndex(ItemIndex index) override
@@ -126,6 +125,15 @@ private:
   std::mutex mtx;
   ItemIndex startingIndex{0};
 };
+
+inline std::unique_ptr<AckTracker> makeAckTracker(std::string_view tracker_type) {
+  if (tracker_type == "HIGH") {
+    return std::make_unique<HighestAckTracker>();
+  } else if (tracker_type == "LOW") {
+    return std::make_unique<LowestAckTracker>();
+  }
+  return nullptr;
+}
 
 } // namespace qclient
 

@@ -177,9 +177,9 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPushLockfree)
   std::string rocks_options;
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
-                                     std::make_unique<qclient::ParallelRocksDBPersistency>(tmp_dir, rocks_options, std::make_unique<qclient::SetAckTracker>()),
+                                     std::make_unique<qclient::ParallelRocksDBPersistency>(tmp_dir, rocks_options),
                                      qclient::FlusherQueueHandlerT::LockFree);
-  testMultiPush(flusher, "rocksdb_lockfree:set");
+  testMultiPush(flusher, "rocksdb_lockfree");
 }
 
 TEST_F(QDBFlusherInstance, RocksDBMultiPushBuilder)
