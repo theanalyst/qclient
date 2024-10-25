@@ -100,7 +100,7 @@ inline std::string getKey(ItemIndex index) {
 class RocksDBPersistency : public BackgroundFlusherPersistency {
 public:
   RocksDBPersistency(const std::string &path) : dbpath(path) {
-    this->InitializeDB();
+    InitializeDB();
   }
 
 
@@ -163,7 +163,7 @@ public:
 protected:
   RocksDBPersistency() = default;
 
-  virtual void InitializeDB() {
+  void InitializeDB() {
     rocksdb::Options options;
     rocksdb::BlockBasedTableOptions table_options;
     table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
@@ -279,7 +279,7 @@ public:
   }
 
 private:
-  void InitializeDB() override
+  void InitializeDB()
   {
     rocksdb::Options opts = setupOptions();
     rocksdb::DB *ptr = nullptr;
