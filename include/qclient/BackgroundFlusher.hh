@@ -75,17 +75,18 @@ class ResponseVerifier {
 };
 
 using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
-enum class FlusherQueueHandler {
+enum class FlusherQueueHandlerT {
   Serial,
   LockFree
 };
 
-constexpr FlusherQueueHandler FlusherQueueHandlerfromString(std::string_view str)
+constexpr FlusherQueueHandlerT
+FlusherQueueHandlerfromString(std::string_view str)
 {
   if (str == "LockFree") {
-    return FlusherQueueHandler::LockFree;
+    return FlusherQueueHandlerT::LockFree;
   }
-  return FlusherQueueHandler::Serial;
+  return FlusherQueueHandlerT::Serial;
 }
 
 
@@ -96,7 +97,7 @@ public:
 
   BackgroundFlusher(Members members, qclient::Options&& options, Notifier &notifier,
                     std::unique_ptr<BackgroundFlusherPersistency>&& persistency,
-                    FlusherQueueHandler q_handler_t);
+                    FlusherQueueHandlerT q_handler_t);
 
   ~BackgroundFlusher();
 
@@ -156,7 +157,7 @@ public:
     BackgroundFlusher * parent;
   };
 
-  std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandler type);
+  std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandlerT type);
 
   static std::unique_ptr<QClient> makeQClient(Members members, Options&& options);
 

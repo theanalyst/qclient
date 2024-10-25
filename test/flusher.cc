@@ -137,7 +137,7 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfree)
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
                                      std::make_unique<qclient::StubInMemoryPersistency<q_item_t, true>>(),
-                                     qclient::FlusherQueueHandler::LockFree);
+                                     qclient::FlusherQueueHandlerT::LockFree);
   testMultiPush(flusher, "memory_lockfree");
 }
 
@@ -149,7 +149,7 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfreeHighestAck)
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
                                      std::make_unique<qclient::StubInMemoryPersistency<q_item_t, true>>(std::move(ack_tracker)),
-                                     qclient::FlusherQueueHandler::LockFree);
+                                     qclient::FlusherQueueHandlerT::LockFree);
   testMultiPush(flusher, "memory_lockfree_highack");
 }
 
@@ -177,7 +177,7 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyMultiPushLockfree)
   qclient::BackgroundFlusher flusher(members, std::move(opts),
                                      dummyNotifier,
                                      std::make_unique<qclient::ParallelRocksDBPersistency>(tmp_dir),
-                                     qclient::FlusherQueueHandler::LockFree);
+                                     qclient::FlusherQueueHandlerT::LockFree);
   testMultiPush(flusher, "rocksdb_lockfree");
 }
 

@@ -23,7 +23,8 @@
 using namespace qclient;
 TEST(PersistencyLayerBuilder, makeFlusherPersistency)
 {
-  qclient::PersistencyLayerBuilder builder(PersistencyLayerT::MEMORY, FlusherQueueHandler::Serial);
+  qclient::PersistencyLayerBuilder builder(PersistencyLayerT::MEMORY,
+                                           FlusherQueueHandlerT::Serial);
   auto persistency = builder.makeFlusherPersistency();
   ASSERT_TRUE(persistency != nullptr);
 }
@@ -31,28 +32,28 @@ TEST(PersistencyLayerBuilder, makeFlusherPersistency)
 TEST(PersistencyLayerBuilder, config_memory_multi)
 {
   qclient::PersistencyLayerBuilder builder("MEMORY_MULTI");
-  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandler::LockFree);
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::LockFree);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::MEMORY);
 }
 
 TEST(PersistencyLayerBuilder, config_memory)
 {
   qclient::PersistencyLayerBuilder builder("MEMORY");
-  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandler::Serial);
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::Serial);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::MEMORY);
 }
 
 TEST(PersistencyLayerBuilder, config_rocksdb)
 {
   qclient::PersistencyLayerBuilder builder("ROCKSDB");
-  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandler::Serial);
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::Serial);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::ROCKSDB);
 }
 
 TEST(PersistencyLayerBuilder, config_rocksdb_multi)
 {
   qclient::PersistencyLayerBuilder builder("ROCKSDB_MULTI");
-  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandler::LockFree);
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::LockFree);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::ROCKSDB);
 }
 
@@ -60,6 +61,6 @@ TEST(PersistencyLayerBuilder, rocksdb_options)
 {
   qclient::PersistencyLayerBuilder builder("ROCKSDB",
                                            RocksDBConfig("/tmp", "options"));
-  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandler::Serial);
+  ASSERT_EQ(builder.getQueueHandler(), FlusherQueueHandlerT::Serial);
   ASSERT_EQ(builder.getPersistencyType(), PersistencyLayerT::ROCKSDB);
 }

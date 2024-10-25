@@ -66,13 +66,13 @@ BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
   callback(this),
   qclient(BackgroundFlusher::makeQClient(members, std::move(opts))),
   notifier(notif),
-  qhandler(makeQueueHandler(FlusherQueueHandler::Serial)) {
+  qhandler(makeQueueHandler(FlusherQueueHandlerT::Serial)) {
   restorefromPersistency();
 }
 
 BackgroundFlusher::BackgroundFlusher(Members members, Options&& options,
     Notifier& notif, std::unique_ptr<BackgroundFlusherPersistency>&& persistency_,
-    FlusherQueueHandler q_handler_t)
+    FlusherQueueHandlerT q_handler_t)
     : persistency(std::move(persistency_)),
       callback(this),
       qclient(BackgroundFlusher::makeQClient(members, std::move(options))),
@@ -202,13 +202,13 @@ BackgroundFlusher::StatefulCallback::handleResponse(qclient::redisReplyPtr&& rep
   delete this;
 }
 
-std::unique_ptr<BackgroundFlusher::QueueHandler> BackgroundFlusher::makeQueueHandler(FlusherQueueHandler type)
+std::unique_ptr<BackgroundFlusher::QueueHandler> BackgroundFlusher::makeQueueHandler(FlusherQueueHandlerT type)
 {
   switch(type)
   {
-    case FlusherQueueHandler::Serial:
+    case FlusherQueueHandlerT::Serial:
       return std::make_unique<SerialQueueHandler>(this);
-    case FlusherQueueHandler::LockFree:
+    case FlusherQueueHandlerT::LockFree:
       return std::make_unique<LockFreeQueueHandler>(this);
   }
   return nullptr;

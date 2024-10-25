@@ -35,17 +35,17 @@ enum class PersistencyLayerT {
   ROCKSDB,
 };
 
-constexpr std::tuple<PersistencyLayerT, FlusherQueueHandler>
+constexpr std::tuple<PersistencyLayerT, FlusherQueueHandlerT>
     PersistencyConfigfromString(std::string_view str)
 {
   if (str == "MEMORY_MULTI") {
-    return {PersistencyLayerT::MEMORY, FlusherQueueHandler::LockFree};
+    return {PersistencyLayerT::MEMORY, FlusherQueueHandlerT::LockFree};
   } else if (str == "MEMORY") {
-    return {PersistencyLayerT::MEMORY, FlusherQueueHandler::Serial};
+    return {PersistencyLayerT::MEMORY, FlusherQueueHandlerT::Serial};
   } else if (str == "ROCKSDB_MULTI") {
-    return {PersistencyLayerT::ROCKSDB, FlusherQueueHandler::LockFree};
+    return {PersistencyLayerT::ROCKSDB, FlusherQueueHandlerT::LockFree};
   }
-  return {PersistencyLayerT::ROCKSDB, FlusherQueueHandler::Serial};
+  return {PersistencyLayerT::ROCKSDB, FlusherQueueHandlerT::Serial};
 }
 
 using q_item_t = std::vector<std::string>;
@@ -66,19 +66,19 @@ public:
     std::tie(persistency_type, q_handler_t) = PersistencyConfigfromString(configuration);
   }
 
-  PersistencyLayerBuilder(PersistencyLayerT ptype, FlusherQueueHandler qtype,
+  PersistencyLayerBuilder(PersistencyLayerT ptype, FlusherQueueHandlerT qtype,
                           RocksDBConfig _rocksdb_config = {}) :
         persistency_type(ptype), q_handler_t(qtype),
         rocksdb_config(_rocksdb_config)  {}
 
   std::unique_ptr<BackgroundFlusherPersistency> makeFlusherPersistency() {
-    if (q_handler_t == FlusherQueueHandler::Serial) {
+    if (q_handler_t == FlusherQueueHandlerT::Serial) {
       if (persistency_type == PersistencyLayerT::MEMORY) {
         return std::make_unique<StubInMemoryPersistency<q_item_t>>();
       } else if (persistency_type == PersistencyLayerT::ROCKSDB) {
         return std::make_unique<RocksDBPersistency>(rocksdb_config.path);
       }
-    } else if (q_handler_t == FlusherQueueHandler::LockFree) {
+    } else if (q_handler_t == FlusherQueueHandlerT::LockFree) {
       if (persistency_type == PersistencyLayerT::MEMORY) {
         return std::make_unique<StubInMemoryPersistency<q_item_t, true>>();
       } else if (persistency_type == PersistencyLayerT::ROCKSDB) {
@@ -90,13 +90,14 @@ public:
 
   qclient::Options getOptions(Options&& opts_) {
     auto opts = std::move(opts_);
-    if (q_handler_t == FlusherQueueHandler::LockFree) {
+    if (q_handler_t == FlusherQueueHandlerT::LockFree) {
       opts.backpressureStrategy = BackpressureStrategy::RateLimitPendingRequests(1ULL<<22);
     }
     return opts;
   }
 
-  FlusherQueueHandler getQueueHandler() {
+  FlusherQueueHandlerT
+  getQueueHandler() {
     return q_handler_t;
   }
 
@@ -105,7 +106,7 @@ public:
   }
 
 private:
-  FlusherQueueHandler q_handler_t;
+  FlusherQueueHandlerT q_handler_t;
   PersistencyLayerT persistency_type;
   RocksDBConfig rocksdb_config;
 };
