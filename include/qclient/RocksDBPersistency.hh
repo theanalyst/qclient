@@ -33,6 +33,7 @@
 #include <rocksdb/convenience.h>
 
 #include "qclient/BackgroundFlusher.hh"
+#include "utils/AckTracker.hh"
 
 namespace qclient {
 
@@ -251,10 +252,20 @@ public:
 
 class ParallelRocksDBPersistency : public RocksDBPersistency {
 public:
-  ParallelRocksDBPersistency(const std::string& path, std::string options="") :
-      options_str(options), RocksDBPersistency() {
+  ParallelRocksDBPersistency(const std::string& path, const std::string& options,
+                             std::unique_ptr<AckTracker> ackTracker) :
+      options_str(options), ackTracker(std::move(ackTracker)), RocksDBPersistency() {
     dbpath = path;
     InitializeDB();
+  }
+
+  ParallelRocksDBPersistency(const std::string& path, std::string options="") :
+      ParallelRocksDBPersistency(path, options, std::make_unique<HighestAckTracker>()) {}
+
+  ~ParallelRocksDBPersistency() override {
+    rocksdb::WriteBatch batch;
+    batch.Put("START-INDEX", intToBinaryString(startIndex));
+    commitBatch(batch);
   }
 
   ItemIndex record(const std::vector<std::string> &cmd) override {
@@ -270,14 +281,15 @@ public:
   }
 
   void popIndex(ItemIndex index) override {
-    ItemIndex curr_starting_index = startIndex.load(std::memory_order_acquire);
     rocksdb::WriteBatch batch;
     batch.SingleDelete(getKey(index));
-    batch.Merge("START-INDEX", intToBinaryString(1));
     commitBatch(batch);
-    startIndex.store(std::max(index + 1, curr_starting_index), std::memory_order_release);
+    ackTracker->ackIndex(index);
   }
 
+  ItemIndex getStartingIndex() override {
+    return ackTracker->getStartingIndex();
+  }
 private:
   void InitializeDB()
   {
@@ -329,6 +341,7 @@ private:
   }
 
   std::string options_str;
+  std::unique_ptr<AckTracker> ackTracker;
 };
 
 }
