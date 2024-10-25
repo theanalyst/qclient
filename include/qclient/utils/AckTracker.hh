@@ -34,6 +34,7 @@ using ItemIndex = int64_t;
 struct AckTracker {
   virtual void ackIndex(ItemIndex index) = 0;
   virtual bool isAcked(ItemIndex index) = 0;
+  virtual void setStartingIndex(ItemIndex index) = 0;
   virtual ItemIndex getStartingIndex() = 0;
   virtual ItemIndex getHighestAckedIndex() = 0;
   virtual ~AckTracker() = default;
@@ -69,6 +70,11 @@ public:
     return nextIndex.load(std::memory_order_acquire);
   }
 
+  void setStartingIndex(ItemIndex index) override
+  {
+    std::cerr<<"Storing next Index as" << index << std::endl;
+    nextIndex.store(index, std::memory_order_release);
+  }
 private:
   std::atomic<ItemIndex> nextIndex{0};
 };
@@ -112,6 +118,11 @@ public:
     return *acked.rbegin();
   }
 
+  void setStartingIndex(ItemIndex index) override
+  {
+    std::scoped_lock wr_lock(mtx);
+    startingIndex = index;
+  }
 private:
   void
   updateStartingIndex()
