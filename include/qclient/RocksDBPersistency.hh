@@ -263,9 +263,23 @@ public:
       ParallelRocksDBPersistency(path, options, std::make_unique<HighestAckTracker>()) {}
 
   ~ParallelRocksDBPersistency() override {
+    // Commit the current start & end indices to the databases
+    // This is explicitly done to ensure that the serial version of the queue
+    // can still read the contents allowing for changes, otherwise
+    // MergeOperator changes in journal may not be parsed correctly by the
+    // classic serial version of the Queue without explicitly initializing the
+    // MergeOperator
+
+    std::cerr << "Destroying ParallelRocksDBPersistency: setting indices: ";
+    auto end_index = retrieveCounter("END-INDEX");
+    std::cerr << "START-INDEX=" << retrieveCounter("START-INDEX") <<
+        " END-INDEX=" << end_index << std::endl;
     rocksdb::WriteBatch batch;
-    batch.Put("START-INDEX", intToBinaryString(startIndex));
+    batch.Put("START-INDEX", intToBinaryString(ackTracker->getStartingIndex()));
+    batch.Put("END-INDEX", intToBinaryString(end_index));
     commitBatch(batch);
+    auto status  = db->Flush(rocksdb::FlushOptions());
+    std::cerr << "Flush Status: " << status.ToString() << std::endl;
   }
 
   ItemIndex record(const std::vector<std::string> &cmd) override {
