@@ -137,12 +137,14 @@ public:
     virtual ~QueueHandler() = default;
     virtual void pushRequest(const std::vector<std::string>& operation) = 0;
     virtual void handleAck(ItemIndex index = -1) = 0;
+    virtual void restorefromPersistency() = 0;
   };
 
   struct SerialQueueHandler : public QueueHandler {
     SerialQueueHandler(BackgroundFlusher * persistency);
     void pushRequest(const std::vector<std::string>& operation) override;
     void handleAck(ItemIndex) override;
+    void restorefromPersistency() override;
   private:
     BackgroundFlusher * parent;
     QCallback * callback;
@@ -153,6 +155,7 @@ public:
     LockFreeQueueHandler(BackgroundFlusher * persistency);
     void pushRequest(const std::vector<std::string>& operation) override;
     void handleAck(ItemIndex) override;
+    void restorefromPersistency() override;
   private:
     BackgroundFlusher * parent;
   };
@@ -169,7 +172,6 @@ private:
 
   std::unique_ptr<BackgroundFlusherPersistency> persistency;
   // Ensure that qhandler outlives the callbacks it uses!
-  FlusherQueueHandlerT qhandler_t;
   std::unique_ptr<QueueHandler> qhandler;
 
   std::atomic<int64_t> enqueued {0};

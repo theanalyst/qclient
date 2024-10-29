@@ -66,7 +66,6 @@ BackgroundFlusher::BackgroundFlusher(Members members, qclient::Options &&opts,
   callback(this),
   qclient(BackgroundFlusher::makeQClient(members, std::move(opts))),
   notifier(notif),
-  qhandler_t(FlusherQueueHandlerT::Serial),
   qhandler(makeQueueHandler(FlusherQueueHandlerT::Serial)) {
   restorefromPersistency();
 }
@@ -78,7 +77,6 @@ BackgroundFlusher::BackgroundFlusher(Members members, Options&& options,
       callback(this),
       qclient(BackgroundFlusher::makeQClient(members, std::move(options))),
       notifier(notif),
-      qhandler_t(q_handler_t_),
       qhandler(makeQueueHandler(q_handler_t_)) {
   restorefromPersistency();
 }
@@ -101,21 +99,7 @@ BackgroundFlusher::makeQClient(Members members, Options &&options) {
 void
 BackgroundFlusher::restorefromPersistency()
 {
-
-  for(ItemIndex i = persistency->getStartingIndex(); i != persistency->getEndingIndex(); i++) {
-    std::vector<std::string> contents;
-    if(!persistency->retrieve(i, contents)) {
-      if (qhandler_t == FlusherQueueHandlerT::Serial) {
-        std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index " << i << std::endl;
-        std::terminate();
-      }
-      // For parallel queue handler, out of order notifications are expected
-      // and do not indicate a critical condition
-      continue;
-    }
-
-    qclient->execute(&callback, contents);
-  }
+  qhandler->restorefromPersistency();
 }
 
 size_t BackgroundFlusher::size() const {
@@ -174,6 +158,19 @@ void BackgroundFlusher::SerialQueueHandler::handleAck(ItemIndex)
   parent->notifyWaiters();
 }
 
+void BackgroundFlusher::SerialQueueHandler::restorefromPersistency()
+{
+  for (ItemIndex i = parent->persistency->getStartingIndex(); i != parent->persistency->getEndingIndex(); i++) {
+    std::vector<std::string> contents;
+    if (!parent->persistency->retrieve(i, contents)) {
+      std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index "
+                << i << std::endl;
+      std::terminate();
+    }
+    parent->qclient->execute(callback, contents);
+  }
+}
+
 BackgroundFlusher::LockFreeQueueHandler::LockFreeQueueHandler(BackgroundFlusher * _parent): parent(_parent) {}
 
 void BackgroundFlusher::LockFreeQueueHandler::pushRequest(const std::vector<std::string>& operation)
@@ -186,6 +183,19 @@ void BackgroundFlusher::LockFreeQueueHandler::handleAck(ItemIndex index)
 {
   parent->persistency->popIndex(index);
   parent->notifyWaiters();
+}
+
+void BackgroundFlusher::LockFreeQueueHandler::restorefromPersistency()
+{
+  for (ItemIndex i = parent->persistency->getStartingIndex();
+       i != parent->persistency->getEndingIndex(); i++) {
+    std::vector<std::string> contents;
+    if (!parent->persistency->retrieve(i, contents)) {
+      std::cerr << "Skipping item at index=" << i << std::endl;
+      continue;
+    }
+    parent->qclient->execute(new StatefulCallback(parent, i), contents);
+  }
 }
 
 BackgroundFlusher::StatefulCallback::StatefulCallback(BackgroundFlusher * _parent,
