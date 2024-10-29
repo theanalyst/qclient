@@ -244,6 +244,11 @@ TEST_F(QDBFlusherInstance, RocksDBRestartsMulti)
 
 }
 
+static void printIndices(qclient::BackgroundFlusher& flusher)
+{
+  std::cerr << "Starting index = " << flusher.getStartingIndex()
+            << " endingIndex=" << flusher.getEndingIndex() << std::endl;
+}
 
 TEST_F(QDBFlusherInstance, RocksDBPersistencyJournalReplay)
 {
@@ -251,16 +256,13 @@ TEST_F(QDBFlusherInstance, RocksDBPersistencyJournalReplay)
     qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
                                        new qclient::RocksDBPersistency(tmp_dir));
     testJournalReplay(flusher, "rocksdb");
-    std::cerr << flusher.getStartingIndex() << ", "
-              << flusher.getEndingIndex() << std::endl;
+    printIndices(flusher);
   }
 
   {
     qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
                                        new qclient::RocksDBPersistency(tmp_dir));
-    std::cerr << flusher.getStartingIndex() << ", "
-              << flusher.getEndingIndex() << std::endl;
-
+    printIndices(flusher);
     while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
       std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
                 << " acknowledged = " << flusher.getAcknowledgedAndClear()
@@ -277,20 +279,17 @@ TEST_F(QDBFlusherInstance, RocksDBMultiPersistencyJournalReplay)
 {
   {
     qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
-                                                                                        dummyNotifier, "ROCKSDB_MULTI:LOW",
+                                                                                        dummyNotifier, "ROCKSDB_MULTI",
                                                                                         RocksDBConfig(tmp_dir));
     testJournalReplay(flusher, "rocksdb");
-    std::cerr << flusher.getStartingIndex() << ", "
-              << flusher.getEndingIndex() << std::endl;
+    printIndices(flusher);
   }
 
   {
     qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
                                                                                         dummyNotifier, "ROCKSDB_MULTI",
                                                                                         RocksDBConfig(tmp_dir));
-    std::cerr << flusher.getStartingIndex() << ", "
-              << flusher.getEndingIndex() << std::endl;
-
+    printIndices(flusher);
     while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
       std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
                 << " acknowledged = " << flusher.getAcknowledgedAndClear()
@@ -303,3 +302,53 @@ TEST_F(QDBFlusherInstance, RocksDBMultiPersistencyJournalReplay)
 
 }
 
+TEST_F(QDBFlusherInstance, RocksDBMixedJournalReplay)
+{
+  {
+    qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
+                                       new qclient::RocksDBPersistency(tmp_dir));
+    testJournalReplay(flusher, "rocksdb");
+    printIndices(flusher);
+  }
+
+  {
+    qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                                        dummyNotifier, "ROCKSDB_MULTI",
+                                                                                        RocksDBConfig(tmp_dir));
+    printIndices(flusher);
+    while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
+      std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
+                << " acknowledged = " << flusher.getAcknowledgedAndClear()
+                << " starting index =" << flusher.getStartingIndex()
+                << " ending index =" << flusher.getEndingIndex() << std::endl;
+    }
+
+    ASSERT_EQ(flusher.getStartingIndex(), flusher.getEndingIndex());
+  }
+}
+
+TEST_F(QDBFlusherInstance, RocksDBMixedJournalReplay2)
+{
+  {
+    qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                                        dummyNotifier, "ROCKSDB_MULTI",
+                                                                                        RocksDBConfig(tmp_dir));
+    testJournalReplay(flusher, "rocksdb");
+    printIndices(flusher);
+  }
+
+  {
+    qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
+                                       new qclient::RocksDBPersistency(tmp_dir));
+
+    printIndices(flusher);
+    while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
+      std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
+                << " acknowledged = " << flusher.getAcknowledgedAndClear()
+                << " starting index =" << flusher.getStartingIndex()
+                << " ending index =" << flusher.getEndingIndex() << std::endl;
+    }
+
+    ASSERT_EQ(flusher.getStartingIndex(), flusher.getEndingIndex());
+  }
+}
