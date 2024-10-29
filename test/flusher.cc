@@ -105,18 +105,39 @@ void testMultiPush(qclient::BackgroundFlusher& flusher,
   auto end_time = std::chrono::high_resolution_clock::now();
   auto ms_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
   EXPECT_EQ(max_reqs * max_threads + startIndex, flusher.getEndingIndex());
+
   while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(100))) {
-   std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
-             << " acknowledged = " << flusher.getAcknowledgedAndClear()
-             << " starting index =" << flusher.getStartingIndex()
-             << " ending index =" << flusher.getEndingIndex() << std::endl;
+    std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
+              << " acknowledged = " << flusher.getAcknowledgedAndClear()
+              << " starting index =" << flusher.getStartingIndex()
+              << " ending index =" << flusher.getEndingIndex() << std::endl;
   }
+
+  auto end_time2 = std::chrono::high_resolution_clock::now();
+  auto ms_elapsed2 = std::chrono::duration_cast<std::chrono::milliseconds>(end_time2 - end_time).count();
   EXPECT_EQ(max_reqs * max_threads + startIndex, flusher.getStartingIndex());
   std::cerr << "Total test time with " << tag << " persistency for " <<
              max_reqs << " reqs/thread with " << max_threads
-            << " threads " << ms_elapsed
+            << " threads " << ms_elapsed << ",  " << ms_elapsed2
             << " ms frequency " << (max_reqs * max_threads)/ms_elapsed << " kHz"
             << std::endl;
+}
+
+void testJournalReplay(qclient::BackgroundFlusher& flusher,
+                       std::string tag="rocksdb")
+{
+  auto start_time = std::chrono::high_resolution_clock::now();
+  int max_reqs = 10000;
+  std::string hash_str = "dict_" + tag + "_single";
+  ItemIndex startIndex = flusher.getStartingIndex();
+
+  for (int i = 0; i < max_reqs; i++) {
+    std::string key = "key" + std::to_string(i);
+    std::string val = "val" + std::to_string(i);
+    flusher.pushRequest({"HSET", hash_str, key, val});
+  }
+
+  EXPECT_EQ(max_reqs + startIndex, flusher.getEndingIndex());
 }
 
 TEST_F(QDBFlusherInstance, MemoryPersistencypush)
@@ -222,3 +243,63 @@ TEST_F(QDBFlusherInstance, RocksDBRestartsMulti)
   }
 
 }
+
+
+TEST_F(QDBFlusherInstance, RocksDBPersistencyJournalReplay)
+{
+  {
+    qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
+                                       new qclient::RocksDBPersistency(tmp_dir));
+    testJournalReplay(flusher, "rocksdb");
+    std::cerr << flusher.getStartingIndex() << ", "
+              << flusher.getEndingIndex() << std::endl;
+  }
+
+  {
+    qclient::BackgroundFlusher flusher (members, getQCOpts(), dummyNotifier,
+                                       new qclient::RocksDBPersistency(tmp_dir));
+    std::cerr << flusher.getStartingIndex() << ", "
+              << flusher.getEndingIndex() << std::endl;
+
+    while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
+      std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
+                << " acknowledged = " << flusher.getAcknowledgedAndClear()
+                << " starting index =" << flusher.getStartingIndex()
+                << " ending index =" << flusher.getEndingIndex() << std::endl;
+    }
+
+    ASSERT_EQ(flusher.getStartingIndex(), flusher.getEndingIndex());
+  }
+
+}
+
+TEST_F(QDBFlusherInstance, RocksDBMultiPersistencyJournalReplay)
+{
+  {
+    qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                                        dummyNotifier, "ROCKSDB_MULTI:LOW",
+                                                                                        RocksDBConfig(tmp_dir));
+    testJournalReplay(flusher, "rocksdb");
+    std::cerr << flusher.getStartingIndex() << ", "
+              << flusher.getEndingIndex() << std::endl;
+  }
+
+  {
+    qclient::BackgroundFlusher flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members, getQCOpts(),
+                                                                                        dummyNotifier, "ROCKSDB_MULTI",
+                                                                                        RocksDBConfig(tmp_dir));
+    std::cerr << flusher.getStartingIndex() << ", "
+              << flusher.getEndingIndex() << std::endl;
+
+    while (!flusher.waitForIndex(flusher.getEndingIndex() - 1, std::chrono::milliseconds(10))) {
+      std::cerr << "total pending=" << flusher.size() << " enqueued = " << flusher.getEnqueuedAndClear()
+                << " acknowledged = " << flusher.getAcknowledgedAndClear()
+                << " starting index =" << flusher.getStartingIndex()
+                << " ending index =" << flusher.getEndingIndex() << std::endl;
+    }
+
+    ASSERT_EQ(flusher.getStartingIndex(), flusher.getEndingIndex());
+  }
+
+}
+
