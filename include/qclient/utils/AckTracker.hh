@@ -72,7 +72,6 @@ public:
 
   void setStartingIndex(ItemIndex index) override
   {
-    std::cerr<<"Storing next Index as" << index << std::endl;
     nextIndex.store(index, std::memory_order_release);
   }
 private:
