@@ -302,6 +302,11 @@ public:
     commitBatch(batch);
   }
 
+  void pop() override {
+    RocksDBPersistency::pop();
+    ackTracker->ackIndex(startIndex);
+  }
+
   ItemIndex getStartingIndex() override {
     return ackTracker->getStartingIndex();
   }
