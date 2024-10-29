@@ -35,6 +35,7 @@ namespace qclient {
 enum class PersistencyLayerT {
   MEMORY,
   ROCKSDB,
+  NULLT
 };
 
 constexpr std::tuple<PersistencyLayerT, FlusherQueueHandlerT>
@@ -46,6 +47,8 @@ constexpr std::tuple<PersistencyLayerT, FlusherQueueHandlerT>
     return {PersistencyLayerT::MEMORY, FlusherQueueHandlerT::Serial};
   } else if (str == "ROCKSDB_MULTI") {
     return {PersistencyLayerT::ROCKSDB, FlusherQueueHandlerT::LockFree};
+  } else if (str == "TESTING_NULL_UNSAFE_IN_PROD") { // This is intentional! Do not use in production!
+    return {PersistencyLayerT::NULLT, FlusherQueueHandlerT::LockFree};
   }
   return {PersistencyLayerT::ROCKSDB, FlusherQueueHandlerT::Serial};
 }
@@ -104,6 +107,11 @@ public:
         }
         return std::make_unique<ParallelRocksDBPersistency>(rocksdb_config.path,
                                                             rocksdb_config.options);
+      } else if (persistency_type == PersistencyLayerT::NULLT) {
+        if (ack_tracker != nullptr) {
+          return std::make_unique<NullPersistency>(std::move(ack_tracker));
+        }
+        return std::make_unique<NullPersistency>();
       }
     }
   }

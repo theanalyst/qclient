@@ -179,6 +179,14 @@ TEST_F(QDBFlusherInstance, MemoryPersistencyMultiPushLockfreeHighestAck)
   testMultiPush(flusher, "memory_lockfree_highack");
 }
 
+TEST_F(QDBFlusherInstance, NullPeristency)
+{
+  auto flusher = qclient::BackgroundFlusherBuilder::makeFlusher(members,
+                                                                getQCOpts(),
+                                                                dummyNotifier,
+                                                                "TESTING_NULL_UNSAFE_IN_PROD", RocksDBConfig(tmp_dir));
+  testMultiPush(flusher, "null");
+}
 
 TEST_F(QDBFlusherInstance, RocksDBPeristencypush)
 {

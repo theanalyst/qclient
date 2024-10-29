@@ -127,6 +127,38 @@ private:
 };
 
 
+class NullPersistency final: public BackgroundFlusherPersistency {
+public:
+  NullPersistency() : ack_tracker(std::make_unique<LowestAckTracker>()) {
+                        log_start();
+                      }
+
+  NullPersistency(std::unique_ptr<AckTracker>&& ack_tracker) :
+      ack_tracker(std::move(ack_tracker)) {
+        log_start();
+  }
+
+  ItemIndex record(const std::vector<std::string>&) override {
+    ItemIndex index = endingIndex++;
+    return index;
+  }
+
+  void popIndex(ItemIndex index) override {
+    ack_tracker->ackIndex(index);
+  }
+
+  ItemIndex getStartingIndex() override { return ack_tracker->getStartingIndex(); }
+  ItemIndex getEndingIndex() override { return endingIndex; }
+  bool retrieve(ItemIndex, std::vector<std::string>&) override { return false; }
+private:
+  void log_start() {
+    std::cerr << "CRIT: NullPersistency layer used! This should be only used in testing!" << std::endl;
+  }
+  std::atomic<ItemIndex> endingIndex{0};
+  std::unique_ptr<AckTracker> ack_tracker {nullptr};
+};
+
+                              ;
 } // qclient
 
 #endif // QCLIENT_MEMORYPERSISTENCY_HH
