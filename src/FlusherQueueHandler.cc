@@ -21,17 +21,23 @@
 #include "qclient/BackgroundFlusher.hh"
 
 using namespace qclient;
+QueueHandler::QueueHandler(BackgroundFlusher* flusher, QClient* qclient,
+                           BackgroundFlusherPersistency* persistency)
+    : flusher(flusher), qclient(qclient), persistency(persistency)
+{
+}
 
-SerialQueueHandler::SerialQueueHandler(BackgroundFlusher* parent)
-    : QueueHandler(parent), callback(&parent->callback)
+SerialQueueHandler::SerialQueueHandler(BackgroundFlusher* parent, QClient* qclient,
+                                       BackgroundFlusherPersistency* persistency)
+    : QueueHandler(parent, qclient, persistency)
 {
 }
 void
 SerialQueueHandler::pushRequest(const std::vector<std::string>& operation)
 {
   std::lock_guard lock(newEntriesMtx);
-  parent->persistency->record(parent->persistency->getEndingIndex(), operation);
-  parent->qclient->execute(callback, operation);
+  persistency->record(persistency->getEndingIndex(), operation);
+  qclient->execute(callback, operation);
 }
 
 void
@@ -39,56 +45,56 @@ SerialQueueHandler::handleAck(ItemIndex)
 {
   {
     std::lock_guard lock(newEntriesMtx);
-    parent->persistency->pop();
+    persistency->pop();
   }
-  parent->notifyWaiters();
+  flusher->notifyWaiters();
 }
 
 void
 SerialQueueHandler::restorefromPersistency()
 {
-  for (ItemIndex i = parent->persistency->getStartingIndex();
-       i != parent->persistency->getEndingIndex(); i++) {
+  for (ItemIndex i = persistency->getStartingIndex();
+       i != persistency->getEndingIndex(); i++) {
     std::vector<std::string> contents;
-    if (!parent->persistency->retrieve(i, contents)) {
+    if (!persistency->retrieve(i, contents)) {
       std::cerr << "BackgroundFlusher corruption, could not retrieve entry with index "
                 << i << std::endl;
       std::terminate();
     }
-    parent->qclient->execute(callback, contents);
+    qclient->execute(callback, contents);
   }
 }
 
-LockFreeQueueHandler::LockFreeQueueHandler(BackgroundFlusher* _parent)
-    : QueueHandler(_parent)
+LockFreeQueueHandler::LockFreeQueueHandler(BackgroundFlusher* _parent, QClient* _qclient, BackgroundFlusherPersistency* _persistency)
+    : QueueHandler(_parent, _qclient, _persistency)
 {
 }
 
 void
 LockFreeQueueHandler::pushRequest(const std::vector<std::string>& operation)
 {
-  auto index = parent->persistency->record(operation);
-  parent->qclient->execute(new StatefulCallback(parent, index), operation);
+  auto index = persistency->record(operation);
+  qclient->execute(new BackgroundFlusher::StatefulCallback(flusher, index), operation);
 }
 
 void
 LockFreeQueueHandler::handleAck(ItemIndex index)
 {
-  parent->persistency->popIndex(index);
-  parent->notifyWaiters();
+  persistency->popIndex(index);
+  flusher->notifyWaiters();
 }
 
 void
 LockFreeQueueHandler::restorefromPersistency()
 {
-  for (ItemIndex i = parent->persistency->getStartingIndex();
-       i != parent->persistency->getEndingIndex(); i++) {
+  for (ItemIndex i = persistency->getStartingIndex();
+       i != persistency->getEndingIndex(); i++) {
     std::vector<std::string> contents;
-    if (!parent->persistency->retrieve(i, contents)) {
+    if (!persistency->retrieve(i, contents)) {
       std::cerr << "Skipping item at index=" << i << std::endl;
       continue;
     }
-    parent->qclient->execute(new StatefulCallback(parent, i), contents);
+    qclient->execute(new BackgroundFlusher::StatefulCallback(flusher, i), contents);
   }
 }
 

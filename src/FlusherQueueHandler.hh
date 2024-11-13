@@ -26,22 +26,30 @@
 namespace qclient {
 
 class BackgroundFlusher;
+class QClient;
+class QCallback;
 
 enum class FlusherQueueHandlerT : uint8_t;
 
 class QueueHandler {
 public:
-  QueueHandler(BackgroundFlusher * _parent) : parent(_parent) {}
+  QueueHandler(BackgroundFlusher * flusher,
+               QClient * qclient,
+               BackgroundFlusherPersistency * persistency);
   virtual ~QueueHandler() = default;
   virtual void pushRequest(const std::vector<std::string>& operation) = 0;
   virtual void handleAck(ItemIndex index = -1) = 0;
   virtual void restorefromPersistency() = 0;
 protected:
-  BackgroundFlusher * parent;
+  BackgroundFlusher * flusher;
+  QClient * qclient;
+  BackgroundFlusherPersistency * persistency;
 };
 
 struct SerialQueueHandler : public QueueHandler {
-  SerialQueueHandler(BackgroundFlusher * persistency);
+  SerialQueueHandler(BackgroundFlusher * flusher,
+                     QClient * qclient,
+                     BackgroundFlusherPersistency * persistency);
   void pushRequest(const std::vector<std::string>& operation) override;
   void handleAck(ItemIndex) override;
   void restorefromPersistency() override;
@@ -51,7 +59,9 @@ private:
 };
 
 struct LockFreeQueueHandler : public QueueHandler {
-  LockFreeQueueHandler(BackgroundFlusher * persistency);
+  LockFreeQueueHandler(BackgroundFlusher * flusher,
+                       QClient * qclient,
+                       BackgroundFlusherPersistency * persistency);
   void pushRequest(const std::vector<std::string>& operation) override;
   void handleAck(ItemIndex) override;
   void restorefromPersistency() override;

@@ -169,9 +169,9 @@ std::unique_ptr<QueueHandler> BackgroundFlusher::makeQueueHandler(FlusherQueueHa
   switch(type)
   {
   case FlusherQueueHandlerT::Serial:
-    return std::make_unique<SerialQueueHandler>(this);
+    return std::make_unique<SerialQueueHandler>(this, qclient.get(), persistency.get());
   case FlusherQueueHandlerT::LockFree:
-    return std::make_unique<LockFreeQueueHandler>(this);
+    return std::make_unique<LockFreeQueueHandler>(this, qclient.get(), persistency.get());
   }
   return nullptr;
 }
