@@ -24,9 +24,9 @@
 #ifndef __QCLIENT_BACKGROUND_FLUSHER_H__
 #define __QCLIENT_BACKGROUND_FLUSHER_H__
 
+#include "qclient/AssistedThread.hh"
 #include "qclient/PersistencyLayer.hh"
 #include "qclient/QClient.hh"
-#include "qclient/AssistedThread.hh"
 
 namespace qclient {
 
@@ -44,20 +44,12 @@ class ResponseVerifier {
   virtual void callback(const std::vector<std::string> &request, const redisReplyPtr &response);
 };
 
+class QueueHandler;
 
-enum class FlusherQueueHandlerT {
+enum class FlusherQueueHandlerT : uint8_t {
   Serial,
   LockFree
 };
-
-constexpr FlusherQueueHandlerT
-FlusherQueueHandlerfromString(std::string_view str)
-{
-  if (str == "LockFree") {
-    return FlusherQueueHandlerT::LockFree;
-  }
-  return FlusherQueueHandlerT::Serial;
-}
 
 
 class BackgroundFlusher {
@@ -103,43 +95,13 @@ public:
     return persistency->getStartingIndex();
   }
 
-  struct QueueHandler{
-    virtual ~QueueHandler() = default;
-    virtual void pushRequest(const std::vector<std::string>& operation) = 0;
-    virtual void handleAck(ItemIndex index = -1) = 0;
-    virtual void restorefromPersistency() = 0;
-  };
-
-  struct SerialQueueHandler : public QueueHandler {
-    SerialQueueHandler(BackgroundFlusher * persistency);
-    void pushRequest(const std::vector<std::string>& operation) override;
-    void handleAck(ItemIndex) override;
-    void restorefromPersistency() override;
-  private:
-    BackgroundFlusher * parent;
-    QCallback * callback;
-    std::mutex newEntriesMtx;
-  };
-
-  struct LockFreeQueueHandler : public QueueHandler {
-    LockFreeQueueHandler(BackgroundFlusher * persistency);
-    void pushRequest(const std::vector<std::string>& operation) override;
-    void handleAck(ItemIndex) override;
-    void restorefromPersistency() override;
-  private:
-    BackgroundFlusher * parent;
-  };
-
-  std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandlerT type);
-
   static std::unique_ptr<QClient> makeQClient(Members members, Options&& options);
 
 private:
   void restorefromPersistency();
   void itemWasAcknowledged();
   void notifyWaiters();
-
-
+  std::unique_ptr<QueueHandler> makeQueueHandler(FlusherQueueHandlerT type);
   std::unique_ptr<BackgroundFlusherPersistency> persistency;
   // Ensure that qhandler outlives the callbacks it uses!
   std::unique_ptr<QueueHandler> qhandler;

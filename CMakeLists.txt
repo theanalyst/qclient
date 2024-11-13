@@ -97,6 +97,7 @@ set(QCLIENT_SRCS
   src/EndpointDecider.cc
   src/FaultInjector.cc
   src/Formatting.cc
+  src/FlusherQueueHandler.cc
   src/FutureHandler.cc
   src/GlobalInterceptor.cc
   src/Handshake.cc
