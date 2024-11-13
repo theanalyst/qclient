@@ -24,41 +24,11 @@
 #ifndef __QCLIENT_BACKGROUND_FLUSHER_H__
 #define __QCLIENT_BACKGROUND_FLUSHER_H__
 
+#include "qclient/PersistencyLayer.hh"
 #include "qclient/QClient.hh"
 #include "qclient/AssistedThread.hh"
 
 namespace qclient {
-
-//------------------------------------------------------------------------------
-// PersistencyLayer interface - inherit from here to implement extra
-// functionality. Default implementation does nothing at all.
-//------------------------------------------------------------------------------
-using ItemIndex = int64_t;
-
-template<typename QueueItem>
-class PersistencyLayer {
-public:
-  PersistencyLayer() {}
-  virtual ~PersistencyLayer() {} // very important to be virtual!
-
-  virtual void record(ItemIndex index, const QueueItem &item) {}
-  virtual ItemIndex record(const QueueItem &item) { return std::numeric_limits<ItemIndex>::min(); }
-  virtual void pop() {}
-  virtual void popIndex(ItemIndex index) {}
-
-  // The following three functions are only used during reconstruction.
-  virtual ItemIndex getStartingIndex() {
-    return 0;
-  }
-
-  virtual ItemIndex getEndingIndex() {
-    return 0;
-  }
-
-  virtual bool retrieve(ItemIndex index, QueueItem &ret) {
-    return false;
-  }
-};
 
 // Interface to notify whenever the background flusher encounters some error.
 // If you inherit from this object, make sure your implementation doesn't block
@@ -74,7 +44,7 @@ class ResponseVerifier {
   virtual void callback(const std::vector<std::string> &request, const redisReplyPtr &response);
 };
 
-using BackgroundFlusherPersistency = PersistencyLayer<std::vector<std::string>>;
+
 enum class FlusherQueueHandlerT {
   Serial,
   LockFree

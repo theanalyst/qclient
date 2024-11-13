@@ -26,6 +26,7 @@
 
 #include "gtest/gtest.h"
 #include "qclient/Members.hh"
+#include "qclient/BackgroundFlusher.hh"
 #include "qclient/MemoryPersistency.hh"
 #include <filesystem>
 #include <fstream>

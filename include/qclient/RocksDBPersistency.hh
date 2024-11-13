@@ -32,7 +32,7 @@
 #include <rocksdb/merge_operator.h>
 #include <rocksdb/convenience.h>
 
-#include "qclient/BackgroundFlusher.hh"
+#include "qclient/PersistencyLayer.hh"
 #include "utils/AckTracker.hh"
 
 namespace qclient {
